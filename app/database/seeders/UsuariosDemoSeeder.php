@@ -25,10 +25,31 @@ class UsuariosDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        if (app()->isProduction()) {
-            $this->command?->warn('UsuariosDemoSeeder no se ejecuta en producción: crearía cuentas con contraseñas conocidas.');
+        // Estas cuentas llevan contraseñas conocidas y publicadas, de modo que
+        // crearlas en un entorno de producción real sería una vulnerabilidad
+        // grave. La guarda se mantiene activa por omisión.
+        //
+        // El entorno publicado de este proyecto es una demostración académica:
+        // se marca como producción para heredar sus optimizaciones y para que
+        // los mensajes de error no expongan trazas, pero necesita las cuentas
+        // con las que se enseña el sistema. La excepción exige entonces un acto
+        // deliberado —declarar PERMITIR_CUENTAS_DEMO— en lugar de desactivar
+        // la comprobación, de manera que quede constancia de que alguien la
+        // tomó a conciencia y de que el valor por omisión sigue siendo seguro.
+        //
+        // Al desplegar esta plataforma en un entorno real, esa variable no debe
+        // existir y estas cuentas deben eliminarse. Así consta en la política
+        // de seguridad y en el manual de operación.
+        if (app()->isProduction() && ! env('PERMITIR_CUENTAS_DEMO', false)) {
+            $this->command?->warn('UsuariosDemoSeeder omitido: crearía cuentas con contraseñas conocidas.');
+            $this->command?->warn('Para un entorno de demostración, definí PERMITIR_CUENTAS_DEMO=true.');
 
             return;
+        }
+
+        if (app()->isProduction()) {
+            $this->command?->warn('ATENCIÓN: se crean cuentas de demostración con contraseñas conocidas.');
+            $this->command?->warn('Este entorno no debe tratar datos reales de personas.');
         }
 
         $usuarios = [

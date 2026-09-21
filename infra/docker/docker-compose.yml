@@ -264,6 +264,14 @@ services:
       # Cabecera que permite a la consola de demostración atravesar el
       # cortafuegos en modo de solo detección, sin perder el registro.
       CONSOLA_DEMO_TOKEN: "${CONSOLA_DEMO_TOKEN:-}"
+
+      # Habilita las cuentas de demostracion, que llevan contrasenas conocidas.
+      # El semillero se niega a crearlas en produccion salvo que se declare
+      # esto de forma explicita, de modo que el valor seguro es el de omision
+      # y la excepcion queda registrada como una decision consciente.
+      #
+      # En un despliegue real esta variable NO debe existir.
+      PERMITIR_CUENTAS_DEMO: "${PERMITIR_CUENTAS_DEMO:-true}"
     depends_on:
       db:
         condition: service_healthy
