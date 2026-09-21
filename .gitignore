@@ -1,0 +1,63 @@
+# ─── Secretos: NUNCA se versionan ─────────────────────────────
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+secrets/
+infra/secrets/
+duckdns-token.txt
+cloudflare-*.ini
+*.ovpn
+
+# ─── Laravel ──────────────────────────────────────────────────
+app/vendor/
+app/node_modules/
+app/public/build/
+app/public/hot
+app/public/storage
+app/storage/*.key
+app/storage/framework/cache/*
+app/storage/framework/sessions/*
+app/storage/framework/views/*
+app/storage/logs/*
+app/bootstrap/cache/*
+app/.phpunit.result.cache
+app/database/*.sqlite
+app/database/*.sqlite-journal
+!.gitkeep
+
+# ─── Docker / runtime ─────────────────────────────────────────
+infra/docker/data/
+infra/docker/volumes/
+infra/docker/logs/
+*.log
+!evidencias/**/*.log
+
+# ─── Node / build ─────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+
+# ─── Sistema operativo y editores ─────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+
+# ─── Respaldos locales ────────────────────────────────────────
+*.sql.gz
+*.dump
+backups/
+
+# Pendiente: requiere scope workflow en el token de gh
+.github/workflows/.gitkeep
