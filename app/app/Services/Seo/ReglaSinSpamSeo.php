@@ -9,6 +9,7 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Translation\PotentiallyTranslatedString;
 
 /**
  * Regla de validación para cualquier campo que acabe publicado y, por tanto, indexado.
@@ -31,7 +32,7 @@ class ReglaSinSpamSeo implements ValidationRule
     ) {}
 
     /**
-     * @param  Closure(string): void  $fallar
+     * @param  Closure(string, string|null=): PotentiallyTranslatedString  $fallar
      */
     public function validate(string $atributo, mixed $valor, Closure $fallar): void
     {

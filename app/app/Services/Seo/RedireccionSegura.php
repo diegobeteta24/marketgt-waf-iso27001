@@ -61,7 +61,7 @@ class RedireccionSegura
     /**
      * Traduce la clave de ?ir= a una dirección real.
      *
-     * @param  array{ip?: string|null, agente_usuario?: string|null, ruta?: string|null, usuario_id?: int|null}  $contexto
+     * @param  array{ip?: string|null, agente_usuario?: string|null, ruta?: string|null, usuario_id?: int|string|null}  $contexto
      */
     public function resolver(?string $clave, string $porDefecto = '/', array $contexto = []): string
     {

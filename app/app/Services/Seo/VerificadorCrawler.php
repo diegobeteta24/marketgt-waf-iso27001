@@ -189,7 +189,7 @@ class VerificadorCrawler
         } catch (Throwable) {
             return null;
         } finally {
-            ini_set('default_socket_timeout', $anterior === false ? '60' : $anterior);
+            ini_set('default_socket_timeout', $anterior ?: '60');
         }
 
         if ($ptr === false || $ptr === '' || $ptr === $ip) {

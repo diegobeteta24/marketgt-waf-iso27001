@@ -65,7 +65,10 @@ class TablaIncidentes extends Component
         }
 
         $this->seleccionado = $incidenteId;
-        $this->notas = (string) (IncidenteSeo::query()->find($incidenteId)?->notas ?? '');
+
+        // value() y no find(): solo hace falta una columna, y así no se hidrata el modelo
+        // entero con su evidencia JSON nada más desplegar la fila.
+        $this->notas = (string) (IncidenteSeo::query()->whereKey($incidenteId)->value('notas') ?? '');
     }
 
     public function cambiarEstado(int $incidenteId, string $nuevoEstado): void
@@ -83,7 +86,7 @@ class TablaIncidentes extends Component
         }
 
         $incidente->estado = $nuevoEstado;
-        $incidente->revisado_por = Auth::id();
+        $incidente->revisado_por = (int) Auth::id();
         $incidente->revisado_en = Carbon::now();
         $incidente->notas = trim($this->notas) === '' ? $incidente->notas : trim($this->notas);
         $incidente->save();
@@ -102,7 +105,7 @@ class TablaIncidentes extends Component
 
         $incidente = IncidenteSeo::query()->findOrFail($incidenteId);
         $incidente->notas = trim($this->notas) === '' ? null : trim($this->notas);
-        $incidente->revisado_por = Auth::id();
+        $incidente->revisado_por = (int) Auth::id();
         $incidente->save();
 
         unset($this->incidentes);

@@ -63,7 +63,7 @@ class RegistroIncidentesSeo
     private const LIMITE_EVIDENCIA = 2000;
 
     /**
-     * @param  array{severidad?: string, regla?: string, detalle?: array<string, mixed>, ip?: string|null, agente_usuario?: string|null, ruta?: string|null, metodo?: string|null, usuario_id?: int|null, agrupar_por?: string|null}  $opciones
+     * @param  array{severidad?: string, regla?: string, detalle?: array<string, mixed>, ip?: string|null, agente_usuario?: string|null, ruta?: string|null, metodo?: string|null, usuario_id?: int|string|null, agrupar_por?: string|null}  $opciones
      */
     public function registrar(string $tipo, string $resumen, array $opciones = []): ?IncidenteSeo
     {

@@ -12,3 +12,12 @@ require __DIR__.'/settings.php';
 
 // Tienda de comercio electronico (Capa 5)
 require __DIR__.'/tienda.php';
+
+// Panel de monitoreo (vértice de detección del triángulo)
+require __DIR__.'/siem.php';
+
+// Integridad de posicionamiento y defensa contra manipulación del SEO
+require __DIR__.'/seo.php';
+
+// Controles de seguridad de la cuenta: sesiones activas y registro de auditoría
+require __DIR__.'/seguridad.php';

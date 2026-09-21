@@ -10,23 +10,72 @@
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
+            {{--
+                El menú se arma según el rol de quien entró. No es solo comodidad
+                de interfaz: no mostrar lo que no se puede usar evita que la
+                autorización se descubra a base de tropezar con pantallas de
+                acceso denegado. La comprobación real la sigue haciendo el
+                middleware en cada ruta; esto no la sustituye.
+            --}}
+            @php($usuario = auth()->user())
+            @php($esAdmin = $usuario?->esAdministrador() ?? false)
+            @php($esAuditor = $usuario?->esAuditor() ?? false)
+
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
+                <flux:sidebar.group :heading="__('General')" class="grid">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                        {{ __('Dashboard') }}
+                        {{ __('Inicio') }}
+                    </flux:sidebar.item>
+
+                    <flux:sidebar.item icon="shopping-bag" :href="route('tienda.catalogo')" :current="request()->routeIs('tienda.*')" wire:navigate>
+                        {{ __('Tienda') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
+
+                @if ($esAdmin || $esAuditor)
+                    <flux:sidebar.group :heading="__('Detección')" class="grid">
+                        <flux:sidebar.item icon="chart-bar" :href="route('siem.tablero')" :current="request()->routeIs('siem.tablero')" wire:navigate>
+                            {{ __('Tablero') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="bell-alert" :href="route('siem.alertas')" :current="request()->routeIs('siem.alertas')" wire:navigate>
+                            {{ __('Alertas') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="list-bullet" :href="route('siem.eventos')" :current="request()->routeIs('siem.eventos')" wire:navigate>
+                            {{ __('Eventos') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="presentation-chart-line" :href="route('siem.metricas')" :current="request()->routeIs('siem.metricas')" wire:navigate>
+                            {{ __('Métricas') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+
+                    <flux:sidebar.group :heading="__('Posicionamiento')" class="grid">
+                        <flux:sidebar.item icon="shield-exclamation" :href="route('seo.incidentes')" :current="request()->routeIs('seo.incidentes')" wire:navigate>
+                            {{ __('Incidentes') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="finger-print" :href="route('seo.integridad')" :current="request()->routeIs('seo.integridad')" wire:navigate>
+                            {{ __('Integridad') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endif
+
+                @if ($esAdmin)
+                    <flux:sidebar.group :heading="__('Demostración')" class="grid">
+                        <flux:sidebar.item icon="beaker" :href="route('seo.laboratorio')" :current="request()->routeIs('seo.laboratorio')" wire:navigate>
+                            {{ __('Laboratorio SEO') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+                @endif
             </flux:sidebar.nav>
 
             <flux:spacer />
 
             <flux:sidebar.nav>
-                <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                    {{ __('Repository') }}
-                </flux:sidebar.item>
-
-                <flux:sidebar.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                    {{ __('Documentation') }}
+                <flux:sidebar.item icon="lock-closed" :href="route('security.edit')" :current="request()->routeIs('security.*')" wire:navigate>
+                    {{ __('Seguridad de la cuenta') }}
                 </flux:sidebar.item>
             </flux:sidebar.nav>
 

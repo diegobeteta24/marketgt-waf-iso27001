@@ -91,7 +91,7 @@ class SanitizadorUgc
      * una persona decide. Publicar spam y borrarlo después es perder la carrera, porque para
      * entonces el rastreador ya lo indexó.
      *
-     * @param  array{ip?: string|null, agente_usuario?: string|null, ruta?: string|null, usuario_id?: int|null, origen?: string}  $contexto
+     * @param  array{ip?: string|null, agente_usuario?: string|null, ruta?: string|null, usuario_id?: int|string|null, origen?: string}  $contexto
      * @return array{html: string, texto: string, publicable: bool, puntuacion: int, motivos: array<int, array{regla: string, descripcion: string, puntos: int, evidencia: string}>, enlaces: array<int, string>, incidente_id: int|null}
      */
     public function procesar(string $contenido, array $contexto = []): array

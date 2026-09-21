@@ -76,6 +76,10 @@ class ExtractorIndexable
         $encabezados = [];
 
         foreach ($xpath->query('//h1|//h2') ?: [] as $encabezado) {
+            if (! $encabezado instanceof DOMElement) {
+                continue;
+            }
+
             $texto = $this->normalizarTexto($encabezado->textContent);
 
             if ($texto !== '') {
@@ -170,7 +174,13 @@ class ExtractorIndexable
     {
         $nodos = $xpath->query($consulta);
 
-        return $nodos !== false && $nodos->length > 0 ? (string) $nodos->item(0)?->textContent : '';
+        if ($nodos === false || $nodos->length === 0) {
+            return '';
+        }
+
+        $nodo = $nodos->item(0);
+
+        return $nodo instanceof DOMElement ? $nodo->textContent : '';
     }
 
     private function primerAtributo(DOMXPath $xpath, string $consulta, string $atributo): string

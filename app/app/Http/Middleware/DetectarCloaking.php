@@ -80,7 +80,9 @@ class DetectarCloaking
         if ($veredicto['declara_ser_bot'] && ! $veredicto['verificado']) {
             $this->registrarRastreadorFalso($peticion, $veredicto);
 
-            if (self::BLOQUEAR_RASTREADOR_FALSO) {
+            // El valor de configuración manda sobre la constante: así el integrador puede
+            // desactivar el bloqueo sin editar código si el DNS del servidor falla.
+            if ((bool) config('seo.bloquear_rastreador_falso', self::BLOQUEAR_RASTREADOR_FALSO)) {
                 // 403 y no 404: el rastreador falso ya sabe que la ruta existe, y un 403
                 // deja en el registro de Nginx la misma huella que dejan las reglas del WAF.
                 abort(403, 'Rastreador no verificado.');
