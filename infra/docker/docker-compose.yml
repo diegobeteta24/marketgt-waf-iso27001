@@ -120,6 +120,15 @@ services:
       # REQUEST-949-BLOCKING-EVALUATION: si cargara despues del 949 su score
       # llegaria tarde y nunca bloquearia.
       - ../modsecurity/REQUEST-945-MARKETGT-SEO.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-945-MARKETGT-SEO.conf:ro
+      # Lista de IP de crawlers legitimos (617 CIDR de Google y Bing) que consume
+      # la regla 15020 con @ipMatchFromFile. SIN ESTE MONTAJE, NGINX NO ARRANCA.
+      # Regenerar con: ./infra/scripts/actualizar-ips-crawlers.sh
+      - ../modsecurity/marketgt-good-bots.data:/etc/modsecurity.d/owasp-crs/rules/marketgt-good-bots.data:ro
+      # Anti-scraping (negative SEO). VA APARTE A PROPOSITO: usa colecciones
+      # persistentes de ModSecurity (initcol/expirevar), que es la parte mas
+      # fragil de libmodsecurity v3. Si nginx no arranca, comenta ESTA linea
+      # y solo se pierde el contador: el resto del WAF queda intacto.
+      - ../modsecurity/REQUEST-946-MARKETGT-ANTISCRAPING.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-946-MARKETGT-ANTISCRAPING.conf:ro
       # Reporte de la puntuacion de anomalia AL AUDIT LOG. Imprescindible: la
       # regla 980170 de CRS lleva `noauditlog` y su desglose nunca llega al JSON.
       - ../modsecurity/RESPONSE-985-MARKETGT-REPORT.conf:/etc/modsecurity.d/owasp-crs/rules/RESPONSE-985-MARKETGT-REPORT.conf:ro
