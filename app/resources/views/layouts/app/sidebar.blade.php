@@ -64,8 +64,16 @@
 
                 @if ($esAdmin)
                     <flux:sidebar.group :heading="__('Demostración')" class="grid">
+                        <flux:sidebar.item icon="bolt" :href="route('demo.consola')" :current="request()->routeIs('demo.consola')" wire:navigate>
+                            {{ __('Consola de ataques') }}
+                        </flux:sidebar.item>
+
                         <flux:sidebar.item icon="beaker" :href="route('seo.laboratorio')" :current="request()->routeIs('seo.laboratorio')" wire:navigate>
                             {{ __('Laboratorio SEO') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="document-text" :href="route('seo.demostracion')" :current="request()->routeIs('seo.demostracion')" wire:navigate>
+                            {{ __('Guion de demostración') }}
                         </flux:sidebar.item>
                     </flux:sidebar.group>
                 @endif

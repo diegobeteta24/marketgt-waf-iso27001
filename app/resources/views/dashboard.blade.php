@@ -143,6 +143,15 @@
                         </flux:text>
                     </a>
 
+                    <a href="{{ route('demo.consola') }}" wire:navigate
+                       class="group rounded-xl border border-neutral-200 p-4 transition hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-500">
+                        <flux:icon.bolt class="size-5 text-neutral-500" />
+                        <flux:heading size="sm" class="mt-2">Consola de ataques</flux:heading>
+                        <flux:text size="sm" class="mt-1 text-neutral-500">
+                            Lanza ataques reales contra la propia plataforma y muestra el bloqueo del cortafuegos.
+                        </flux:text>
+                    </a>
+
                     <a href="{{ route('seo.incidentes') }}" wire:navigate
                        class="group rounded-xl border border-neutral-200 p-4 transition hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-500">
                         <flux:icon.shield-exclamation class="size-5 text-neutral-500" />

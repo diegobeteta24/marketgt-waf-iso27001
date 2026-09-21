@@ -21,3 +21,6 @@ require __DIR__.'/seo.php';
 
 // Controles de seguridad de la cuenta: sesiones activas y registro de auditoría
 require __DIR__.'/seguridad.php';
+
+// Consola de demostración de ataques (requiere rol de administrador)
+require __DIR__.'/demo.php';
