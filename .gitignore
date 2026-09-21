@@ -15,10 +15,14 @@ duckdns-token.txt
 cloudflare-*.ini
 *.ovpn
 
-# ─── Laravel ──────────────────────────────────────────────────
+# Los recursos compilados SI se versionan (app/public/build). El servidor de
+# produccion no lleva Node: se despliega exactamente lo que se probo, y se
+# evita que el compilador de estilos agote la memoria de la maquina.
+# Regenerar con:  cd app && npm run build
+
+# ─── Laravel ──────────────────────────────────────────────
 app/vendor/
 app/node_modules/
-app/public/build/
 app/public/hot
 app/public/storage
 app/storage/*.key
