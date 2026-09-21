@@ -35,7 +35,7 @@ class IngerirEventosWaf extends Command
      * Rutas por defecto de cada fuente dentro del servidor endurecido del proyecto.
      */
     private const RUTAS_POR_DEFECTO = [
-        'waf' => '/var/log/modsecurity/audit/modsec_audit.json',
+        'waf' => '/var/log/modsecurity/audit/audit.json',
         'aplicacion' => 'storage/logs/laravel.log',
         'sistema' => '/var/log/fail2ban.log',
     ];

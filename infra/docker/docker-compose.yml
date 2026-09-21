@@ -38,7 +38,14 @@ services:
     container_name: marketgt-waf
     restart: unless-stopped
     depends_on:
-      - app
+      # Con `condition: service_healthy` en vez de la forma corta. La plantilla
+      # de esta imagen resuelve el nombre del backend al arrancar, de modo que
+      # si la aplicación todavía está migrando, nginx muere y el cortafuegos no
+      # levanta. Esperar a que esté sana evita ese fallo en cadena.
+      app:
+        condition: service_healthy
+      respaldo:
+        condition: service_started
     networks:
       - edge
       - appnet
@@ -154,9 +161,23 @@ services:
     container_name: marketgt-app
     restart: unless-stopped
     networks:
+      # `appnet` para alcanzar la base de datos, y `edge` porque el verificador
+      # de rastreadores necesita resolver nombres: la comprobación por DNS
+      # inverso y directo es el argumento central del módulo de posicionamiento,
+      # y en una red `internal` devolvería «no verificado» para todos, en
+      # silencio. No se publica ningún puerto, así que la propiedad de que no
+      # existe forma de saltarse el WAF se conserva intacta, y se demuestra
+      # con `curl http://<ip-publica>:8080` devolviendo conexión rechazada.
       - appnet
+      - edge
     expose:
       - "8080"          # NO se publica al host: solo el WAF lo alcanza
+    volumes:
+      # El panel de monitoreo lee el registro de auditoría del cortafuegos.
+      # En SOLO LECTURA a propósito: la aplicación consume eventos y nunca
+      # los altera, que es lo que exige el control A.8.15 sobre integridad
+      # de los registros. Sin este montaje el panel aparece vacío sin error.
+      - modsec-audit:/var/log/modsecurity/audit:ro
     environment:
       SSL_MODE: "off"                    # TLS termina en el WAF
       PHP_OPCACHE_ENABLE: "1"
@@ -177,6 +198,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      # El cortafuegos espera a que esta comprobación pase antes de arrancar.
+      # Se consulta la aplicación por dentro, sin atravesar el WAF, de modo que
+      # comprueba que PHP responde y no solamente que el puerto está abierto.
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/up >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s   # margen para composer, migraciones y cachés
 
   # ---------------------------------------------------------------------------
   # CAPA 6 - Datos
@@ -201,35 +231,43 @@ services:
       retries: 10
 
   # ---------------------------------------------------------------------------
-  # TRANSVERSAL - lector del audit log para el panel tipo SIEM
-  # Sustituye este servicio por el tuyo; lo importante es el montaje :ro
+  # RESPALDO DEL ORIGEN — la mitigación de mayor valor de todo el archivo
+  #
+  # La plantilla de la imagen del Core Rule Set escribe `proxy_pass ${BACKEND};`
+  # de forma literal, no como variable de nginx. Eso obliga a nginx a resolver
+  # el nombre del backend EN EL ARRANQUE: si el contenedor de la aplicación no
+  # está listo, nginx muere con «host not found in upstream» y el cortafuegos
+  # NO LEVANTA.
+  #
+  # La consecuencia es desproporcionada: un fallo de la aplicación (una
+  # migración lenta, la base de datos tardando en responder) tumbaría también
+  # la demostración del cortafuegos, que es el centro del proyecto.
+  #
+  # Con este servicio el WAF siempre encuentra un origen que resuelve. Si la
+  # aplicación cae, basta cambiar BACKEND a http://respaldo:80 y las reglas de
+  # fase 1 y 2 siguen evaluando: los ataques siguen devolviendo 403 y el
+  # registro de auditoría se sigue escribiendo. Se salva la demostración del
+  # cortafuegos y la de las evidencias aunque Laravel esté caído.
   # ---------------------------------------------------------------------------
-  siem-collector:
-    image: alpine:3.24
-    container_name: marketgt-siem-collector
+  respaldo:
+    image: nginx:alpine
+    container_name: marketgt-respaldo
     restart: unless-stopped
-    # OJO: va en `edge`, NO en `appnet`. appnet es internal:true (sin Internet)
-    # y este contenedor necesita salida para instalar jq al arrancar.
-    # No publica ningun puerto, asi que sigue sin ser alcanzable desde fuera.
     networks:
-      - edge
-    volumes:
-      - modsec-audit:/logs:ro
-    entrypoint: ["/bin/sh", "-c"]
-    # Bloque literal YAML: nada que escapar, ni comillas ni $.
+      - appnet
+    expose:
+      - "80"
     command:
+      - /bin/sh
+      - -c
       - |
-        apk add --no-cache jq >/dev/null 2>&1
-        while [ ! -f /logs/audit.json ]; do sleep 2; done
-        tail -n0 -F /logs/audit.json | jq -c --unbuffered '{
-          ts:        .transaction.time_stamp,
-          id:        .transaction.unique_id,
-          ip:        .transaction.client_ip,
-          metodo:    .transaction.request.method,
-          uri:       .transaction.request.uri,
-          codigo:    .transaction.response.http_code,
-          bloqueado: .transaction.is_interrupted,
-          reglas:    [.transaction.messages[]?.details.ruleId],
-          mensajes:  [.transaction.messages[]?.message],
-          etiquetas: ([.transaction.messages[]?.details.tags[]?] | unique)
-        }'
+        cat > /usr/share/nginx/html/index.html <<'PAGINA'
+        <!doctype html><html lang="es"><meta charset="utf-8">
+        <title>MarketGT · mantenimiento</title>
+        <body style="font:16px system-ui;max-width:34rem;margin:4rem auto;padding:0 1rem">
+        <h1>Servicio en mantenimiento</h1>
+        <p>La tienda no está disponible en este momento. El cortafuegos de
+        aplicación sigue activo e inspeccionando todo el tráfico entrante.</p>
+        </body></html>
+        PAGINA
+        exec nginx -g 'daemon off;'

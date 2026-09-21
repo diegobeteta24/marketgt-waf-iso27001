@@ -197,7 +197,7 @@ class Normalizador
         }
 
         $cuerpo = trim($coincidencias['cuerpo']);
-        $contexto = $this->extraerContextoJson($cuerpo);
+        $contexto = $this->aplanarContexto($this->extraerContextoJson($cuerpo));
         $mensaje = trim(Str::before($cuerpo, '{'));
 
         if ($mensaje === '') {
@@ -464,7 +464,9 @@ class Normalizador
             $etiquetas[] = $indicaFallo ? 'autenticacion.fallida' : 'autenticacion.correcta';
         }
 
-        if (preg_match('/autoriza|permiso|403|forbidden/u', $texto) === 1) {
+        // "acceso_denegado_por_rol" es el evento que escribe el middleware de roles: se
+        // etiqueta aparte de la autenticacion porque ahi el usuario ya habia iniciado sesion.
+        if (preg_match('/autoriza|permiso|rol|403|forbidden|acceso.denegado/u', $texto) === 1) {
             $etiquetas[] = 'autorizacion.denegada';
         }
 
@@ -512,6 +514,30 @@ class Normalizador
         }
 
         return (int) ($respuesta['http_code'] ?? 0) === 403;
+    }
+
+    /**
+     * Sube al primer nivel los campos que la bitacora de seguridad anida bajo "detalle".
+     *
+     * El middleware de roles y el auditor escriben la ruta, el metodo y la direccion dentro
+     * de esa clave. Sin aplanarlo, el evento llegaria al panel sin IP y sin ruta, que son
+     * justo las dos columnas por las que un analista pivota.
+     *
+     * @param  array<string, mixed>  $contexto
+     * @return array<string, mixed>
+     */
+    private function aplanarContexto(array $contexto): array
+    {
+        foreach (['detalle', 'context', 'datos'] as $clave) {
+            $anidado = $contexto[$clave] ?? null;
+
+            if (is_array($anidado)) {
+                // El nivel exterior manda: si ambos traen "ruta", la del evento es la buena.
+                $contexto = array_merge($anidado, $contexto);
+            }
+        }
+
+        return $contexto;
     }
 
     /**
