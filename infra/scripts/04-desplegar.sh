@@ -193,7 +193,28 @@ for intento in $(seq 1 10); do
 done
 
 log "Cargando los datos iniciales"
-${EJECUTAR} db:seed --force 2>&1 | tail -5 || warn "Algunos semilleros fallaron; revisalos"
+# La salida NO se recorta. Recortarla a las últimas líneas ocultaba los fallos
+# de los semilleros que corren primero, y el despliegue seguía adelante
+# aparentando normalidad: la tienda quedaba sin catálogo y, peor, sin las
+# cuentas con las que hay que entrar a demostrarla.
+if ${EJECUTAR} db:seed --force 2>&1; then
+  ok "Datos iniciales cargados"
+else
+  warn "Falló la carga de datos iniciales. Revisá el detalle de arriba."
+  warn "Podés reintentar un semillero concreto con:"
+  warn "   docker compose -f ${DOCKER_DIR}/docker-compose.yml exec -T app \\"
+  warn "     php artisan db:seed --class=\"Database\\Seeders\\UsuariosDemoSeeder\" --force"
+fi
+
+# Comprobación explícita: sin cuentas no hay nada que demostrar, y descubrirlo
+# frente a la clase es el peor momento posible.
+CUENTAS="$(${EJECUTAR} tinker --execute="echo App\\Models\\User::count();" 2>/dev/null | tr -cd '0-9' || echo 0)"
+if [ "${CUENTAS:-0}" -gt 0 ]; then
+  ok "Cuentas de acceso disponibles: ${CUENTAS}"
+else
+  warn "NO HAY NINGUNA CUENTA EN LA BASE DE DATOS."
+  warn "Nadie podría iniciar sesión. Revisá los semilleros antes de continuar."
+fi
 
 log "Optimizando para producción"
 ${EJECUTAR} config:cache  >/dev/null 2>&1 || true
