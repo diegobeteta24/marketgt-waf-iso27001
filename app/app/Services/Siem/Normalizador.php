@@ -81,7 +81,7 @@ class Normalizador
      * Normaliza un objeto del registro de auditoria JSON de ModSecurity.
      *
      * @param  array<string, mixed>  $registro
-     * @return array<string, mixed>|null  Nulo si la linea no tiene la forma esperada.
+     * @return array<string, mixed>|null Nulo si la linea no tiene la forma esperada.
      */
     public function desdeAuditoriaWaf(array $registro): ?array
     {

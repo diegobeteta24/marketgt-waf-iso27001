@@ -8,6 +8,7 @@ use App\Models\ReglaCorrelacion;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -43,8 +44,8 @@ class MotorCorrelacion
      * Ejecuta todas las reglas activas.
      *
      * @param  CarbonInterface|null  $ahora  Instante que el motor considera "presente". Se puede fijar
-     *                              para reproducir el motor sobre datos historicos.
-     * @return array<string, int>  Alertas nuevas por clave de regla.
+     *                                       para reproducir el motor sobre datos historicos.
+     * @return array<string, int> Alertas nuevas por clave de regla.
      */
     public function ejecutar(?CarbonInterface $ahora = null, bool $marcarDemostracion = false): array
     {
@@ -475,9 +476,9 @@ class MotorCorrelacion
      * Agrupa por direccion aplicando el umbral de la regla.
      *
      * @param  Builder<EventoSeguridad>  $consulta
-     * @return \Illuminate\Support\Collection<int, object>
+     * @return Collection<int, object>
      */
-    private function agruparPorIp(Builder $consulta, CarbonInterface $desde, CarbonInterface $hasta, int $umbral): \Illuminate\Support\Collection
+    private function agruparPorIp(Builder $consulta, CarbonInterface $desde, CarbonInterface $hasta, int $umbral): Collection
     {
         return $consulta
             ->whereBetween('marca_tiempo', [$desde, $hasta])
@@ -509,9 +510,9 @@ class MotorCorrelacion
     /**
      * Crea la alerta si el patron no estaba ya reportado en esta ventana.
      *
-     * @param  \Illuminate\Support\Collection<int, EventoSeguridad>  $eventos
+     * @param  Collection<int, EventoSeguridad>  $eventos
      * @param  array<string, mixed>  $datosExtra
-     * @return int  1 si nacio una alerta nueva, 0 si solo se engordo una existente.
+     * @return int 1 si nacio una alerta nueva, 0 si solo se engordo una existente.
      */
     private function registrarAlerta(
         ReglaCorrelacion $regla,
@@ -522,7 +523,7 @@ class MotorCorrelacion
         ?int $usuarioObjetivoId,
         ?CarbonInterface $primerEventoEn,
         CarbonInterface $ahora,
-        \Illuminate\Support\Collection $eventos,
+        Collection $eventos,
         int $conteo,
         bool $demostracion,
         array $datosExtra = [],
@@ -609,7 +610,7 @@ class MotorCorrelacion
      * Siembra el catalogo de reglas. Se usa firstOrCreate para que reejecutarlo no pise los
      * umbrales que el analista haya afinado a mano desde la base.
      *
-     * @return int  Reglas creadas en esta llamada.
+     * @return int Reglas creadas en esta llamada.
      */
     public function sembrarReglas(): int
     {

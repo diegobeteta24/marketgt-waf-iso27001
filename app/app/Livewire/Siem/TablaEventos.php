@@ -4,7 +4,6 @@ namespace App\Livewire\Siem;
 
 use App\Models\EventoSeguridad;
 use Carbon\CarbonImmutable;
-use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;

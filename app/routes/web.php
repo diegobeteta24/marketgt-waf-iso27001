@@ -9,3 +9,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
+
+// Tienda de comercio electronico (Capa 5)
+require __DIR__.'/tienda.php';
