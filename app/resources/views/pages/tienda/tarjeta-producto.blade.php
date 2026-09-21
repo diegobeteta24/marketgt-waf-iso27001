@@ -11,7 +11,7 @@
     class="group flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800"
 >
     <a href="{{ route('tienda.producto', $producto->slug) }}" wire:navigate class="block">
-        <div class="relative aspect-square w-full overflow-hidden bg-gradient-to-br {{ $producto->tonoPortada() }}">
+        <div class="relative aspect-square w-full overflow-hidden bg-linear-to-br {{ $producto->tonoPortada() }}">
             @if (filled($producto->imagen_url))
                 <img
                     src="{{ $producto->imagen_url }}"

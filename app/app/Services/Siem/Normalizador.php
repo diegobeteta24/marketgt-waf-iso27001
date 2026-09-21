@@ -3,7 +3,8 @@
 namespace App\Services\Siem;
 
 use App\Models\EventoSeguridad;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -298,7 +299,7 @@ class Normalizador
 
             // El registro de syslog no lleva anio; se asume el del reloj del servidor, que es
             // lo correcto salvo en el cruce de ano, caso que se documenta y se acepta.
-            $marcaTiempo = $this->interpretarFecha($c['fecha'].' '.Carbon::now()->year);
+            $marcaTiempo = $this->interpretarFecha($c['fecha'].' '.CarbonImmutable::now()->year);
 
             return [
                 'fuente' => EventoSeguridad::FUENTE_SISTEMA,
@@ -554,10 +555,10 @@ class Normalizador
         return hash('sha256', implode('|', array_map(static fn (?string $parte): string => (string) $parte, $partes)));
     }
 
-    private function interpretarFechaWaf(?string $valor): Carbon
+    private function interpretarFechaWaf(?string $valor): CarbonInterface
     {
         if ($valor === null) {
-            return Carbon::now();
+            return CarbonImmutable::now();
         }
 
         // ModSecurity escribe la fecha al estilo de Apache: "Mon 21 Sep 2026 10:00:00.123456".
@@ -566,14 +567,14 @@ class Normalizador
         return $this->interpretarFecha($normalizada);
     }
 
-    private function interpretarFecha(string $valor): Carbon
+    private function interpretarFecha(string $valor): CarbonInterface
     {
         try {
-            return Carbon::parse($valor);
+            return CarbonImmutable::parse($valor);
         } catch (Throwable) {
             // Una fecha ilegible no puede tumbar la ingesta; se registra con la hora de proceso
             // y la linea cruda queda en el mensaje para poder reconstruirla a mano.
-            return Carbon::now();
+            return CarbonImmutable::now();
         }
     }
 

@@ -2,8 +2,6 @@
 
 use App\Models\Carrito;
 use App\Models\Pedido;
-use App\Models\Producto;
-use Closure;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +10,6 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
-use RuntimeException;
 
 new
 #[Layout('pages::tienda.layout')]
@@ -113,7 +110,7 @@ class extends Component
             'numero_tarjeta' => [
                 'required',
                 'string',
-                function (string $atributo, mixed $valor, Closure $fallar): void {
+                function (string $atributo, mixed $valor, \Closure $fallar): void {
                     if (! Pedido::superaLuhn((string) $valor)) {
                         $fallar('El número de tarjeta no supera la verificación de Luhn. Revisá los dígitos.');
                     }
@@ -122,7 +119,7 @@ class extends Component
             'vencimiento' => [
                 'required',
                 'regex:/^(0[1-9]|1[0-2])\/[0-9]{2}$/',
-                function (string $atributo, mixed $valor, Closure $fallar): void {
+                function (string $atributo, mixed $valor, \Closure $fallar): void {
                     [$mes, $anio] = array_pad(explode('/', (string) $valor), 2, '');
 
                     if (! ctype_digit($mes) || ! ctype_digit($anio)) {
@@ -202,7 +199,7 @@ class extends Component
                     $producto = Producto::query()->whereKey($linea->producto_id)->lockForUpdate()->first();
 
                     if ($producto === null || ! $producto->activo || $producto->existencias < $linea->cantidad) {
-                        throw new RuntimeException(
+                        throw new \RuntimeException(
                             'Ya no hay existencias suficientes de "'.($producto?->nombre ?? 'uno de los productos').'".'
                         );
                     }
@@ -253,7 +250,7 @@ class extends Component
 
                 return $pedido;
             });
-        } catch (RuntimeException $error) {
+        } catch (\RuntimeException $error) {
             Flux::toast(variant: 'danger', text: $error->getMessage());
             $this->redirectRoute('tienda.carrito', navigate: true);
 

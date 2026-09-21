@@ -101,6 +101,9 @@ class extends Component
                 // Se neutralizan los comodines de LIKE para que un visitante no pueda pedir
                 // "%" y forzar un recorrido completo de la tabla (extracción masiva, regla
                 // propia 15000-15099 del WAF).
+                // La comparación la resuelve la intercalación utf8mb4_unicode_ci de MariaDB,
+                // que ignora mayúsculas y tildes: "cafe" encuentra "Café" sin necesidad de
+                // normalizar el texto en PHP.
                 $patron = '%'.addcslashes($termino, '%_\\').'%';
 
                 $consulta->where(function (Builder $sub) use ($patron): void {
@@ -194,7 +197,7 @@ class extends Component
 }; ?>
 
 <div class="space-y-8">
-    <section class="overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-700 px-6 py-10 text-white sm:px-10 sm:py-14">
+    <section class="overflow-hidden rounded-3xl bg-linear-to-br from-emerald-600 to-teal-700 px-6 py-10 text-white sm:px-10 sm:py-14">
         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">Tienda en línea</p>
         <h1 class="mt-3 max-w-2xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
             Lo mejor de Guatemala, de la mano de quien lo hace
@@ -279,8 +282,6 @@ class extends Component
             @endforeach
         </section>
 
-        <div>
-            {{ $this->productos->onEachSide(1)->links() }}
-        </div>
+        <flux:pagination :paginator="$this->productos" />
     @endif
 </div>

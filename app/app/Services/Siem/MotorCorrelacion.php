@@ -5,8 +5,9 @@ namespace App\Services\Siem;
 use App\Models\AlertaSeguridad;
 use App\Models\EventoSeguridad;
 use App\Models\ReglaCorrelacion;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -41,13 +42,13 @@ class MotorCorrelacion
     /**
      * Ejecuta todas las reglas activas.
      *
-     * @param  Carbon|null  $ahora  Instante que el motor considera "presente". Se puede fijar
+     * @param  CarbonInterface|null  $ahora  Instante que el motor considera "presente". Se puede fijar
      *                              para reproducir el motor sobre datos historicos.
      * @return array<string, int>  Alertas nuevas por clave de regla.
      */
-    public function ejecutar(?Carbon $ahora = null, bool $marcarDemostracion = false): array
+    public function ejecutar(?CarbonInterface $ahora = null, bool $marcarDemostracion = false): array
     {
-        $ahora = $ahora?->copy() ?? Carbon::now();
+        $ahora = $ahora?->copy() ?? CarbonImmutable::now();
         $resumen = [];
 
         foreach (ReglaCorrelacion::query()->activas()->get() as $regla) {
@@ -57,7 +58,7 @@ class MotorCorrelacion
         return $resumen;
     }
 
-    private function ejecutarRegla(ReglaCorrelacion $regla, Carbon $ahora, bool $demostracion): int
+    private function ejecutarRegla(ReglaCorrelacion $regla, CarbonInterface $ahora, bool $demostracion): int
     {
         return match ($regla->clave) {
             ReglaCorrelacion::WAF_403_REPETIDO => $this->detectarWaf403Repetido($regla, $ahora, $demostracion),
@@ -76,7 +77,7 @@ class MotorCorrelacion
      * Un 403 suelto lo produce cualquier cosa; una docena en cinco minutos es alguien
      * probando cargas utiles contra el Core Rule Set a mano o con herramienta.
      */
-    private function detectarWaf403Repetido(ReglaCorrelacion $regla, Carbon $ahora, bool $demostracion): int
+    private function detectarWaf403Repetido(ReglaCorrelacion $regla, CarbonInterface $ahora, bool $demostracion): int
     {
         $desde = $ahora->copy()->subMinutes($regla->ventana_minutos);
 
@@ -110,7 +111,7 @@ class MotorCorrelacion
                     .'El patron corresponde a alguien probando cargas utiles contra el Core Rule Set, no a un usuario legitimo.',
                 direccionIp: $grupo->direccion_ip,
                 usuarioObjetivoId: null,
-                primerEventoEn: Carbon::parse($grupo->primero),
+                primerEventoEn: CarbonImmutable::parse($grupo->primero),
                 ahora: $ahora,
                 eventos: $eventos,
                 conteo: (int) $grupo->total,
@@ -128,7 +129,7 @@ class MotorCorrelacion
      * pasa el WAF y sube la carga. Se compara la ventana reciente contra una linea base
      * inmediatamente anterior de tres veces su tamano.
      */
-    private function detectarEscaladaAnomalia(ReglaCorrelacion $regla, Carbon $ahora, bool $demostracion): int
+    private function detectarEscaladaAnomalia(ReglaCorrelacion $regla, CarbonInterface $ahora, bool $demostracion): int
     {
         $ventana = $regla->ventana_minutos;
         $inicioReciente = $ahora->copy()->subMinutes($ventana);
@@ -195,7 +196,7 @@ class MotorCorrelacion
                     .'El atacante esta midiendo al WAF y subiendo la agresividad de la carga util.',
                 direccionIp: $reciente->direccion_ip,
                 usuarioObjetivoId: null,
-                primerEventoEn: Carbon::parse($reciente->primero),
+                primerEventoEn: CarbonImmutable::parse($reciente->primero),
                 ahora: $ahora,
                 eventos: $eventos,
                 conteo: (int) $reciente->total,
@@ -216,7 +217,7 @@ class MotorCorrelacion
      * La aplicacion ya limita intentos, pero el limitador solo frena; nadie se entera.
      * Esta regla convierte ese freno silencioso en una alerta con direccion de origen.
      */
-    private function detectarFuerzaBruta(ReglaCorrelacion $regla, Carbon $ahora, bool $demostracion): int
+    private function detectarFuerzaBruta(ReglaCorrelacion $regla, CarbonInterface $ahora, bool $demostracion): int
     {
         $desde = $ahora->copy()->subMinutes($regla->ventana_minutos);
 
@@ -244,7 +245,7 @@ class MotorCorrelacion
                     .'Un usuario que olvido su contrasena no llega a esa cifra.',
                 direccionIp: $grupo->direccion_ip,
                 usuarioObjetivoId: null,
-                primerEventoEn: Carbon::parse($grupo->primero),
+                primerEventoEn: CarbonImmutable::parse($grupo->primero),
                 ahora: $ahora,
                 eventos: $eventos,
                 conteo: (int) $grupo->total,
@@ -262,7 +263,7 @@ class MotorCorrelacion
      * pantalla del segundo factor hay que haber acertado ya la contrasena. La credencial
      * de esa cuenta esta comprometida, este o no el atacante logrando entrar.
      */
-    private function detectarSegundoFactorFallido(ReglaCorrelacion $regla, Carbon $ahora, bool $demostracion): int
+    private function detectarSegundoFactorFallido(ReglaCorrelacion $regla, CarbonInterface $ahora, bool $demostracion): int
     {
         $desde = $ahora->copy()->subMinutes($regla->ventana_minutos);
 
@@ -302,7 +303,7 @@ class MotorCorrelacion
                     .'hay que tratar la credencial como comprometida.',
                 direccionIp: $grupo->direccion_ip,
                 usuarioObjetivoId: (int) $grupo->usuario_id,
-                primerEventoEn: Carbon::parse($grupo->primero),
+                primerEventoEn: CarbonImmutable::parse($grupo->primero),
                 ahora: $ahora,
                 eventos: $eventos,
                 conteo: (int) $grupo->total,
@@ -319,7 +320,7 @@ class MotorCorrelacion
      * Alguien que se hace pasar por Googlebot busca contenido que no daria a un visitante
      * normal: es la antesala del encubrimiento y de la inyeccion de enlaces.
      */
-    private function detectarRastreadorFalsificado(ReglaCorrelacion $regla, Carbon $ahora, bool $demostracion): int
+    private function detectarRastreadorFalsificado(ReglaCorrelacion $regla, CarbonInterface $ahora, bool $demostracion): int
     {
         $desde = $ahora->copy()->subMinutes($regla->ventana_minutos);
         $identificadores = $this->rango(self::RASTREADOR_FALSIFICADO_DESDE, self::RASTREADOR_FALSIFICADO_HASTA);
@@ -348,7 +349,7 @@ class MotorCorrelacion
                     .'Es el preludio del encubrimiento y de la inyeccion de enlaces en el catalogo.',
                 direccionIp: $grupo->direccion_ip,
                 usuarioObjetivoId: null,
-                primerEventoEn: Carbon::parse($grupo->primero),
+                primerEventoEn: CarbonImmutable::parse($grupo->primero),
                 ahora: $ahora,
                 eventos: $eventos,
                 conteo: (int) $grupo->total,
@@ -366,7 +367,7 @@ class MotorCorrelacion
      * volumen importa: copiar el catalogo completo de MarketGT es robo de inventario y
      * ademas degrada el servicio para los clientes reales.
      */
-    private function detectarExtraccionMasiva(ReglaCorrelacion $regla, Carbon $ahora, bool $demostracion): int
+    private function detectarExtraccionMasiva(ReglaCorrelacion $regla, CarbonInterface $ahora, bool $demostracion): int
     {
         $desde = $ahora->copy()->subMinutes($regla->ventana_minutos);
         $identificadores = $this->rango(self::EXTRACCION_MASIVA_DESDE, self::EXTRACCION_MASIVA_HASTA);
@@ -410,7 +411,7 @@ class MotorCorrelacion
                     .'a ese ritmo: se esta copiando el inventario y los precios de MarketGT.',
                 direccionIp: $grupo->direccion_ip,
                 usuarioObjetivoId: null,
-                primerEventoEn: Carbon::parse($grupo->primero),
+                primerEventoEn: CarbonImmutable::parse($grupo->primero),
                 ahora: $ahora,
                 eventos: $eventos,
                 conteo: (int) $grupo->total,
@@ -430,7 +431,7 @@ class MotorCorrelacion
      * No hay umbral que esperar: si el WAF registro algo critico, ya paso. La ventana existe
      * solo para acotar lo que el motor revisa en cada pasada.
      */
-    private function detectarEventoCriticoUnico(ReglaCorrelacion $regla, Carbon $ahora, bool $demostracion): int
+    private function detectarEventoCriticoUnico(ReglaCorrelacion $regla, CarbonInterface $ahora, bool $demostracion): int
     {
         $desde = $ahora->copy()->subMinutes($regla->ventana_minutos);
 
@@ -476,7 +477,7 @@ class MotorCorrelacion
      * @param  Builder<EventoSeguridad>  $consulta
      * @return \Illuminate\Support\Collection<int, object>
      */
-    private function agruparPorIp(Builder $consulta, Carbon $desde, Carbon $hasta, int $umbral): \Illuminate\Support\Collection
+    private function agruparPorIp(Builder $consulta, CarbonInterface $desde, CarbonInterface $hasta, int $umbral): \Illuminate\Support\Collection
     {
         return $consulta
             ->whereBetween('marca_tiempo', [$desde, $hasta])
@@ -496,7 +497,7 @@ class MotorCorrelacion
      * @param  Builder<EventoSeguridad>  $consulta
      * @return \Illuminate\Database\Eloquent\Collection<int, EventoSeguridad>
      */
-    private function eventosDelGrupo(Builder $consulta, Carbon $desde, Carbon $hasta): \Illuminate\Database\Eloquent\Collection
+    private function eventosDelGrupo(Builder $consulta, CarbonInterface $desde, CarbonInterface $hasta): \Illuminate\Database\Eloquent\Collection
     {
         return $consulta
             ->whereBetween('marca_tiempo', [$desde, $hasta])
@@ -519,8 +520,8 @@ class MotorCorrelacion
         string $descripcion,
         ?string $direccionIp,
         ?int $usuarioObjetivoId,
-        ?Carbon $primerEventoEn,
-        Carbon $ahora,
+        ?CarbonInterface $primerEventoEn,
+        CarbonInterface $ahora,
         \Illuminate\Support\Collection $eventos,
         int $conteo,
         bool $demostracion,
@@ -587,9 +588,9 @@ class MotorCorrelacion
      * esto, cada pasada del motor generaria una alerta nueva del mismo ataque y el analista
      * quedaria sepultado, que es exactamente como muere un SIEM en produccion.
      */
-    private function huellaAgrupacion(ReglaCorrelacion $regla, string $objetivo, Carbon|string $ultimoEvento): string
+    private function huellaAgrupacion(ReglaCorrelacion $regla, string $objetivo, CarbonInterface|string $ultimoEvento): string
     {
-        $momento = $ultimoEvento instanceof Carbon ? $ultimoEvento->copy() : Carbon::parse($ultimoEvento);
+        $momento = $ultimoEvento instanceof CarbonInterface ? $ultimoEvento->copy() : CarbonImmutable::parse($ultimoEvento);
         $ventana = max($regla->ventana_minutos, 1);
         $cubo = (int) floor($momento->getTimestamp() / ($ventana * 60));
 

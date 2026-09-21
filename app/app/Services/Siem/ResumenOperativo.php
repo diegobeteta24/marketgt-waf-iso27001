@@ -4,7 +4,8 @@ namespace App\Services\Siem;
 
 use App\Models\AlertaSeguridad;
 use App\Models\EventoSeguridad;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -27,9 +28,9 @@ class ResumenOperativo
     /**
      * @return array<string, int>
      */
-    public function contadores(?Carbon $ahora = null): array
+    public function contadores(?CarbonInterface $ahora = null): array
     {
-        $ahora = $ahora?->copy() ?? Carbon::now();
+        $ahora = $ahora?->copy() ?? CarbonImmutable::now();
         $desde = $ahora->copy()->subDay();
 
         $eventos = EventoSeguridad::query()
@@ -59,9 +60,9 @@ class ResumenOperativo
      *
      * @return array<int, array{etiqueta: string, momento: string, bloqueados: int, permitidos: int, total: int}>
      */
-    public function serieHoraria(int $horas = 24, ?Carbon $ahora = null): array
+    public function serieHoraria(int $horas = 24, ?CarbonInterface $ahora = null): array
     {
-        $ahora = ($ahora?->copy() ?? Carbon::now())->startOfHour();
+        $ahora = ($ahora?->copy() ?? CarbonImmutable::now())->startOfHour();
         $desde = $ahora->copy()->subHours($horas - 1);
 
         $filas = EventoSeguridad::query()
@@ -102,9 +103,9 @@ class ResumenOperativo
      *
      * @return array{reglas: array<int, array{identificador: string, total: int, bloqueados: int, propia: bool}>, truncado: bool}
      */
-    public function reglasMasActivadas(int $limite = 10, int $horas = 24, ?Carbon $ahora = null): array
+    public function reglasMasActivadas(int $limite = 10, int $horas = 24, ?CarbonInterface $ahora = null): array
     {
-        $ahora = $ahora?->copy() ?? Carbon::now();
+        $ahora = $ahora?->copy() ?? CarbonImmutable::now();
         $desde = $ahora->copy()->subHours($horas);
 
         $filas = EventoSeguridad::query()
@@ -157,9 +158,9 @@ class ResumenOperativo
      *
      * @return Collection<int, object>
      */
-    public function direccionesMasAgresivas(int $limite = 10, int $horas = 24, ?Carbon $ahora = null): Collection
+    public function direccionesMasAgresivas(int $limite = 10, int $horas = 24, ?CarbonInterface $ahora = null): Collection
     {
-        $ahora = $ahora?->copy() ?? Carbon::now();
+        $ahora = $ahora?->copy() ?? CarbonImmutable::now();
         $desde = $ahora->copy()->subHours($horas);
 
         return EventoSeguridad::query()
@@ -185,9 +186,9 @@ class ResumenOperativo
      *
      * @return array<string, int>
      */
-    public function repartoSeveridad(int $horas = 24, ?Carbon $ahora = null): array
+    public function repartoSeveridad(int $horas = 24, ?CarbonInterface $ahora = null): array
     {
-        $ahora = $ahora?->copy() ?? Carbon::now();
+        $ahora = $ahora?->copy() ?? CarbonImmutable::now();
         $desde = $ahora->copy()->subHours($horas);
 
         $filas = EventoSeguridad::query()
@@ -209,10 +210,10 @@ class ResumenOperativo
      * Momento del evento mas reciente. El panel lo usa para avisar de que la ingesta se paro:
      * un tablero en cero puede significar calma o puede significar que nadie esta mirando.
      */
-    public function ultimoEventoEn(): ?Carbon
+    public function ultimoEventoEn(): ?CarbonInterface
     {
         $valor = EventoSeguridad::query()->max('marca_tiempo');
 
-        return $valor === null ? null : Carbon::parse($valor);
+        return $valor === null ? null : CarbonImmutable::parse($valor);
     }
 }

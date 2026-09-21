@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,7 +17,7 @@ use Illuminate\Support\Str;
  * @property int $id
  * @property int|null $usuario_id
  * @property string|null $testigo_sesion
- * @property-read \Illuminate\Database\Eloquent\Collection<int, LineaCarrito> $lineas
+ * @property-read Collection<int, LineaCarrito> $lineas
  */
 class Carrito extends Model
 {

@@ -3,9 +3,10 @@
 namespace App\Livewire\Siem;
 
 use App\Models\EventoSeguridad;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -103,7 +104,7 @@ class TablaEventos extends Component
     private function consulta(): Builder
     {
         $consulta = EventoSeguridad::query()
-            ->where('marca_tiempo', '>=', Carbon::now()->subHours($this->horas));
+            ->where('marca_tiempo', '>=', CarbonImmutable::now()->subHours($this->horas));
 
         if ($this->fuente !== '') {
             $consulta->where('fuente', $this->fuente);

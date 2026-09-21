@@ -61,3 +61,7 @@ backups/
 
 # Pendiente: requiere scope workflow en el token de gh
 .github/workflows/.gitkeep
+
+# Secretos de DNS dinamico (nunca versionados)
+infra/secrets/
+dns.env

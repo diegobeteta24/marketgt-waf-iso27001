@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Support\Carbon;
 
 /**
  * Evento de seguridad normalizado. Tres fuentes distintas (WAF, aplicacion y sistema
@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $fuente
  * @property string|null $subfuente
- * @property Carbon $marca_tiempo
+ * @property CarbonInterface $marca_tiempo
  * @property string $direccion_ip
  * @property string|null $pais
  * @property string|null $metodo
@@ -132,7 +132,7 @@ class EventoSeguridad extends Model
      * @param  Builder<$this>  $consulta
      * @return Builder<$this>
      */
-    public function scopeDesde(Builder $consulta, Carbon $momento): Builder
+    public function scopeDesde(Builder $consulta, CarbonInterface $momento): Builder
     {
         return $consulta->where('marca_tiempo', '>=', $momento);
     }

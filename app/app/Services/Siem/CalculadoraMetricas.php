@@ -3,7 +3,8 @@
 namespace App\Services\Siem;
 
 use App\Models\AlertaSeguridad;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -44,9 +45,9 @@ class CalculadoraMetricas
     /**
      * @return array<string, array<string, mixed>>
      */
-    public function calcular(?Carbon $ahora = null): array
+    public function calcular(?CarbonInterface $ahora = null): array
     {
-        $ahora = $ahora?->copy() ?? Carbon::now();
+        $ahora = $ahora?->copy() ?? CarbonImmutable::now();
         $desde = $ahora->copy()->subDays(self::DIAS_OBSERVACION);
 
         return [
@@ -97,7 +98,7 @@ class CalculadoraMetricas
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function metricasDeteccion(Carbon $desde, Carbon $ahora): array
+    private function metricasDeteccion(CarbonInterface $desde, CarbonInterface $ahora): array
     {
         // Tiempo medio de deteccion: del primer evento del ataque al momento en que el motor
         // lo convirtio en alerta. Solo cuentan las alertas que tienen el primer evento sellado.
@@ -189,7 +190,7 @@ class CalculadoraMetricas
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function metricasRespuesta(Carbon $desde, Carbon $ahora): array
+    private function metricasRespuesta(CarbonInterface $desde, CarbonInterface $ahora): array
     {
         // Tiempo medio de contencion: desde que un humano confirmo que la alerta era real
         // hasta que la marco contenida. Medir desde la deteccion mezclaria el retraso del
@@ -248,9 +249,9 @@ class CalculadoraMetricas
      *
      * @return array<string, int>
      */
-    public function conteosAlertas(?Carbon $ahora = null): array
+    public function conteosAlertas(?CarbonInterface $ahora = null): array
     {
-        $ahora = $ahora?->copy() ?? Carbon::now();
+        $ahora = $ahora?->copy() ?? CarbonImmutable::now();
         $desde = $ahora->copy()->subDays(self::DIAS_OBSERVACION);
 
         $filas = AlertaSeguridad::query()

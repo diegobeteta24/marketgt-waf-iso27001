@@ -4,8 +4,9 @@ namespace App\Console\Commands;
 
 use App\Models\EventoSeguridad;
 use App\Services\Siem\Normalizador;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -64,7 +65,7 @@ class IngerirEventosWaf extends Command
             DB::table('marcadores_ingesta')->where('clave', $clave)->update([
                 'desplazamiento' => 0,
                 'tamano_anterior' => 0,
-                'updated_at' => Carbon::now(),
+                'updated_at' => CarbonImmutable::now(),
             ]);
 
             $this->warn('Desplazamiento reiniciado: se releera el archivo completo.');
@@ -73,7 +74,7 @@ class IngerirEventosWaf extends Command
         $seguir = (bool) $this->option('seguir');
         $intervalo = max((int) $this->option('intervalo'), 1);
         $duracion = max((int) $this->option('duracion'), 0);
-        $limite = Carbon::now()->addSeconds($duracion);
+        $limite = CarbonImmutable::now()->addSeconds($duracion);
 
         $this->info("Ingesta de {$formato} desde {$archivo}");
 
@@ -83,7 +84,7 @@ class IngerirEventosWaf extends Command
             if ($resultado['procesadas'] > 0 || $resultado['descartadas'] > 0) {
                 $this->line(sprintf(
                     '  [%s] %d eventos ingeridos, %d lineas descartadas, desplazamiento %d',
-                    Carbon::now()->format('H:i:s'),
+                    CarbonImmutable::now()->format('H:i:s'),
                     $resultado['procesadas'],
                     $resultado['descartadas'],
                     $resultado['desplazamiento'],
@@ -94,7 +95,7 @@ class IngerirEventosWaf extends Command
                 break;
             }
 
-            if ($duracion > 0 && Carbon::now()->greaterThanOrEqualTo($limite)) {
+            if ($duracion > 0 && CarbonImmutable::now()->greaterThanOrEqualTo($limite)) {
                 $this->comment('Se alcanzo la duracion maxima indicada. Fin del seguimiento.');
                 break;
             }
@@ -186,7 +187,7 @@ class IngerirEventosWaf extends Command
             'inodo' => $inodo,
             'lineas_procesadas' => (int) $marcador->lineas_procesadas + $procesadas,
             'lineas_descartadas' => (int) $marcador->lineas_descartadas + $descartadas,
-            'ultima_ejecucion' => Carbon::now(),
+            'ultima_ejecucion' => CarbonImmutable::now(),
         ]);
 
         return [
@@ -232,11 +233,11 @@ class IngerirEventosWaf extends Command
      */
     private function prepararFila(array $datos): array
     {
-        $ahora = Carbon::now();
+        $ahora = CarbonImmutable::now();
 
         $datos['identificadores_regla'] = json_encode($datos['identificadores_regla'] ?? [], JSON_UNESCAPED_UNICODE);
         $datos['etiquetas'] = json_encode($datos['etiquetas'] ?? [], JSON_UNESCAPED_UNICODE);
-        $datos['marca_tiempo'] = $datos['marca_tiempo'] instanceof Carbon
+        $datos['marca_tiempo'] = $datos['marca_tiempo'] instanceof CarbonInterface
             ? $datos['marca_tiempo']->toDateTimeString()
             : (string) $datos['marca_tiempo'];
         $datos['fue_bloqueado'] = (bool) ($datos['fue_bloqueado'] ?? false);
@@ -298,8 +299,8 @@ class IngerirEventosWaf extends Command
             'tamano_anterior' => 0,
             'lineas_procesadas' => 0,
             'lineas_descartadas' => 0,
-            'created_at' => Carbon::now(),
-            'updated_at' => Carbon::now(),
+            'created_at' => CarbonImmutable::now(),
+            'updated_at' => CarbonImmutable::now(),
         ]);
 
         /** @var object $creado */
@@ -313,7 +314,7 @@ class IngerirEventosWaf extends Command
      */
     private function guardarMarcador(string $clave, array $valores): void
     {
-        $valores['updated_at'] = Carbon::now();
+        $valores['updated_at'] = CarbonImmutable::now();
 
         DB::table('marcadores_ingesta')->where('clave', $clave)->update($valores);
     }

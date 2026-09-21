@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Support\Carbon;
 
 /**
  * Alerta producida por el motor de correlacion. El ciclo de estados es lo que demuestra
@@ -22,11 +23,11 @@ use Illuminate\Support\Carbon;
  * @property string $estado
  * @property string|null $direccion_ip
  * @property int|null $usuario_objetivo_id
- * @property Carbon|null $primer_evento_en
- * @property Carbon $detectada_en
- * @property Carbon|null $confirmada_en
- * @property Carbon|null $contenida_en
- * @property Carbon|null $cerrada_en
+ * @property CarbonInterface|null $primer_evento_en
+ * @property CarbonInterface $detectada_en
+ * @property CarbonInterface|null $confirmada_en
+ * @property CarbonInterface|null $contenida_en
+ * @property CarbonInterface|null $cerrada_en
  * @property int|null $atendida_por
  * @property array<string, mixed> $evidencia
  * @property string $accion_recomendada
@@ -175,7 +176,7 @@ class AlertaSeguridad extends Model
      */
     public function cambiarEstado(string $nuevoEstado, ?int $analistaId = null, ?string $notas = null): void
     {
-        $momento = Carbon::now();
+        $momento = CarbonImmutable::now();
 
         $this->estado = $nuevoEstado;
 

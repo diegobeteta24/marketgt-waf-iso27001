@@ -19,7 +19,9 @@ class ProductoFactory extends Factory
      */
     public function definition(): array
     {
-        $nombre = Str::title($this->faker->unique()->words(3, true));
+        /** @var array<int, string> $palabras */
+        $palabras = $this->faker->unique()->words(3);
+        $nombre = Str::title(implode(' ', $palabras));
 
         return [
             // Se engancha a una categoria existente en lugar de exigir una fabrica de

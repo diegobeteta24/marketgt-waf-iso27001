@@ -2,7 +2,6 @@
 
 use App\Models\Carrito;
 use App\Models\LineaCarrito;
-use App\Models\Producto;
 use Flux\Flux;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -149,7 +148,7 @@ class extends Component
                         <a
                             href="{{ route('tienda.producto', $linea->producto->slug) }}"
                             wire:navigate
-                            class="size-20 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br sm:size-24 {{ $linea->producto->tonoPortada() }}"
+                            class="size-20 shrink-0 overflow-hidden rounded-xl bg-linear-to-br sm:size-24 {{ $linea->producto->tonoPortada() }}"
                         >
                             @if (filled($linea->producto->imagen_url))
                                 <img src="{{ $linea->producto->imagen_url }}" alt="{{ $linea->producto->nombre }}" class="size-full object-cover" />

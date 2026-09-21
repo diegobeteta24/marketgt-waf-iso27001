@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,7 +19,7 @@ use Illuminate\Support\Str;
  * @property int|null $usuario_id
  * @property string $estado
  * @property string $total
- * @property-read \Illuminate\Database\Eloquent\Collection<int, LineaPedido> $lineas
+ * @property-read Collection<int, LineaPedido> $lineas
  */
 class Pedido extends Model
 {

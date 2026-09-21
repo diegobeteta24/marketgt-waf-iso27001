@@ -3,7 +3,8 @@
 namespace App\Livewire\Siem;
 
 use App\Services\Siem\ResumenOperativo;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
@@ -92,7 +93,7 @@ class TableroPrincipal extends Component
     }
 
     #[Computed]
-    public function ultimoEvento(): ?Carbon
+    public function ultimoEvento(): ?CarbonInterface
     {
         return $this->resumen()->ultimoEventoEn();
     }
@@ -106,7 +107,7 @@ class TableroPrincipal extends Component
     {
         $ultimo = $this->ultimoEvento();
 
-        return $ultimo === null || $ultimo->lessThan(Carbon::now()->subMinutes(30));
+        return $ultimo === null || $ultimo->lessThan(CarbonImmutable::now()->subMinutes(30));
     }
 
     /**

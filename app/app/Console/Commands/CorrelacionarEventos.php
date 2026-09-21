@@ -4,8 +4,9 @@ namespace App\Console\Commands;
 
 use App\Models\ReglaCorrelacion;
 use App\Services\Siem\MotorCorrelacion;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
 
 /**
  * Pasa el motor de correlacion sobre los eventos ingeridos y levanta las alertas.
@@ -48,7 +49,7 @@ class CorrelacionarEventos extends Command
         $continuo = (bool) $this->option('continuo');
         $intervalo = max((int) $this->option('intervalo'), 1);
         $duracion = max((int) $this->option('duracion'), 0);
-        $limite = Carbon::now()->addSeconds($duracion);
+        $limite = CarbonImmutable::now()->addSeconds($duracion);
 
         do {
             $resumen = $motor->ejecutar($ahora);
@@ -67,7 +68,7 @@ class CorrelacionarEventos extends Command
 
             $this->line(sprintf(
                 '[%s] Pasada completa: %d alertas nuevas.',
-                Carbon::now()->format('H:i:s'),
+                CarbonImmutable::now()->format('H:i:s'),
                 $total,
             ));
 
@@ -75,7 +76,7 @@ class CorrelacionarEventos extends Command
                 break;
             }
 
-            if ($duracion > 0 && Carbon::now()->greaterThanOrEqualTo($limite)) {
+            if ($duracion > 0 && CarbonImmutable::now()->greaterThanOrEqualTo($limite)) {
                 $this->comment('Se alcanzo la duracion maxima indicada. Fin de la correlacion continua.');
                 break;
             }
@@ -86,7 +87,7 @@ class CorrelacionarEventos extends Command
         return self::SUCCESS;
     }
 
-    private function instante(): Carbon|false|null
+    private function instante(): CarbonInterface|false|null
     {
         $valor = $this->option('ahora');
 
@@ -95,7 +96,7 @@ class CorrelacionarEventos extends Command
         }
 
         try {
-            return Carbon::parse($valor);
+            return CarbonImmutable::parse($valor);
         } catch (\Throwable) {
             return false;
         }

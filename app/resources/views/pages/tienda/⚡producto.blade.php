@@ -75,9 +75,9 @@ class extends Component
      */
     public function agregar(?int $productoId = null, ?int $cantidad = null): void
     {
-        $producto = $productoId === null || $productoId === $this->producto->id
-            ? $this->producto->fresh()
-            : Producto::disponibles()->find($productoId);
+        // Siempre se relee del catálogo aplicando el alcance disponibles(): un producto
+        // dado de baja mientras la ficha estaba abierta no puede colarse al carrito.
+        $producto = Producto::disponibles()->find($productoId ?? $this->producto->id);
 
         if ($producto === null) {
             Flux::toast(variant: 'danger', text: 'Ese producto ya no está disponible.');
@@ -130,7 +130,7 @@ class extends Component
     </nav>
 
     <div class="grid gap-8 lg:grid-cols-2">
-        <div class="overflow-hidden rounded-3xl border border-zinc-200 bg-gradient-to-br {{ $producto->tonoPortada() }} dark:border-zinc-700">
+        <div class="overflow-hidden rounded-3xl border border-zinc-200 bg-linear-to-br {{ $producto->tonoPortada() }} dark:border-zinc-700">
             <div class="aspect-square w-full">
                 @if (filled($producto->imagen_url))
                     <img src="{{ $producto->imagen_url }}" alt="{{ $producto->nombre }}" class="size-full object-cover" />
