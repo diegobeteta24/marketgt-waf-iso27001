@@ -182,31 +182,80 @@ services:
       SSL_MODE: "off"                    # TLS termina en el WAF
       PHP_OPCACHE_ENABLE: "1"
       AUTORUN_ENABLED: "true"
-      AUTORUN_LARAVEL_MIGRATION_ISOLATION: "true"
       NGINX_WEBROOT: "/var/www/html/public"
+
+      # El aislamiento de migraciones queda DESACTIVADO a propósito. Esa opción
+      # toma un cerrojo en la caché para impedir que dos instancias migren a la
+      # vez, pero el cerrojo vive en una tabla que crean las propias
+      # migraciones: en una base vacía el arranque falla con «Table cache_locks
+      # doesn't exist», que no sugiere en absoluto cuál es la causa.
+      #
+      # Aquí corre una sola instancia de la aplicación, así que no hay carrera
+      # posible. Si el proyecto llegara a escalar a varias réplicas, habría que
+      # reactivarlo y sembrar antes la tabla del cerrojo.
+      AUTORUN_LARAVEL_MIGRATION_ISOLATION: "false"
+      APP_NAME: "MarketGT"
       APP_ENV: "production"
       APP_DEBUG: "false"
-      APP_URL: "${APP_URL:-https://marketgt.example}"
+
+      # Sin esta clave el framework no arranca. Y una advertencia que vale la
+      # pena tener escrita: NUNCA se regenera después del primer despliegue.
+      # Con ella se cifran el secreto del segundo factor y los códigos de
+      # recuperación de cada cuenta; cambiarla deja a todo el equipo sin poder
+      # entrar, sin vuelta atrás.
+      APP_KEY: "${APP_KEY:?definí APP_KEY en infra/docker/.env}"
+
+      # La dirección determina el identificador de la parte confiante de
+      # WebAuthn. Tiene que llevar el esquema https escrito y coincidir
+      # exactamente con el dominio por el que se entra, o el registro de
+      # passkeys falla sin mostrar ningún error.
+      APP_URL: "${APP_URL:?definí APP_URL en infra/docker/.env}"
+
       DB_CONNECTION: "mariadb"
       DB_HOST: "db"
       DB_PORT: "3306"
       DB_DATABASE: "${DB_DATABASE:-marketgt}"
       DB_USERNAME: "${DB_USERNAME:-marketgt}"
-      DB_PASSWORD: "${DB_PASSWORD:?define DB_PASSWORD en infra/docker/.env}"
+      DB_PASSWORD: "${DB_PASSWORD:?definí DB_PASSWORD en infra/docker/.env}"
+
+      # Sesión y caché en la base de datos: el contenedor es efímero y un
+      # reinicio no debe cerrar la sesión de quien está presentando.
+      SESSION_DRIVER: "database"
+      CACHE_STORE: "database"
+      QUEUE_CONNECTION: "database"
       SESSION_SECURE_COOKIE: "true"
       SESSION_SAME_SITE: "lax"
+
+      # Registro en formato de una línea por evento, que es lo que consume el
+      # panel de detección.
+      LOG_CHANNEL: "stack"
+      LOG_LEVEL: "info"
+
+      # Ruta del registro de auditoría del cortafuegos, montado en modo de
+      # solo lectura. Debe coincidir con MODSEC_AUDIT_LOG del servicio waf.
+      SIEM_RUTA_WAF: "/var/log/modsecurity/audit/audit.json"
+
+      # Cabecera que permite a la consola de demostración atravesar el
+      # cortafuegos en modo de solo detección, sin perder el registro.
+      CONSOLA_DEMO_TOKEN: "${CONSOLA_DEMO_TOKEN:-}"
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
       # El cortafuegos espera a que esta comprobación pase antes de arrancar.
-      # Se consulta la aplicación por dentro, sin atravesar el WAF, de modo que
-      # comprueba que PHP responde y no solamente que el puerto está abierto.
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/up >/dev/null || exit 1"]
+      #
+      # Se usa PHP y no curl: la imagen base no garantiza traer curl, y un
+      # chequeo que falla porque el binario no existe es indistinguible de uno
+      # que falla porque la aplicación está caída. PHP siempre está.
+      #
+      # Se consulta la ruta de salud por dentro, sin atravesar el cortafuegos,
+      # de modo que comprueba que el intérprete responde de verdad y no
+      # solamente que el puerto está abierto.
+      test: ["CMD-SHELL", "php -r 'exit(@file_get_contents(\"http://127.0.0.1:8080/up\") === false ? 1 : 0);'"]
       interval: 10s
-      timeout: 5s
+      timeout: 10s
       retries: 12
-      start_period: 90s   # margen para composer, migraciones y cachés
+      start_period: 120s   # margen para migraciones y generación de cachés
 
   # ---------------------------------------------------------------------------
   # CAPA 6 - Datos
