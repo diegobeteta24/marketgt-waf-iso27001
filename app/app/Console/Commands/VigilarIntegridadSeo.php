@@ -54,10 +54,6 @@ class VigilarIntegridadSeo extends Command
      * @var array<string, array{patron: string, explicacion: string}>
      */
     private const DIRECTIVAS_PROHIBIDAS = [
-        'bloqueo_total' => [
-            'patron' => '/^\s*Disallow:\s*\/\s*$/mi',
-            'explicacion' => 'Un "Disallow: /" desindexa la tienda completa en cuestión de días',
-        ],
         'noindex_en_robots' => [
             'patron' => '/^\s*Noindex:/mi',
             'explicacion' => 'Directiva Noindex en robots.txt: no es estándar y varios rastreadores la obedecen',
@@ -136,6 +132,19 @@ class VigilarIntegridadSeo extends Command
         $contenido = (string) file_get_contents($ruta);
         $huella = hash('sha256', $contenido);
 
+        $bloqueados = $this->buscadoresBloqueadosPorCompleto($contenido);
+
+        if ($bloqueados !== []) {
+            $this->alertar($registro, LineaBaseSeo::ARTEFACTO_ROBOTS, 'bloqueo_total', [
+                'explicacion' => 'Un "Disallow: /" para un buscador principal desindexa la tienda completa en días',
+                'agentes' => $bloqueados,
+            ]);
+        }
+
+        if (preg_match('/^\s*Sitemap:/mi', $contenido) !== 1) {
+            $this->fila(LineaBaseSeo::ARTEFACTO_ROBOTS, 'aviso', 'No declara ningún Sitemap');
+        }
+
         foreach (self::DIRECTIVAS_PROHIBIDAS as $nombre => $definicion) {
             if (preg_match($definicion['patron'], $contenido, $coincidencia) === 1) {
                 $this->alertar($registro, LineaBaseSeo::ARTEFACTO_ROBOTS, 'directiva_peligrosa', [
@@ -153,6 +162,63 @@ class VigilarIntegridadSeo extends Command
             ['bytes' => strlen($contenido), 'contenido' => $contenido],
             url('/robots.txt'),
         );
+    }
+
+    /**
+     * Devuelve los buscadores principales a los que el archivo les prohíbe el sitio entero.
+     *
+     * Se analiza por grupos y no con una sola expresión regular porque "Disallow: /" es
+     * legítimo y deseable para un raspador de herramientas de posicionamiento —bloquearlo
+     * es justo lo que hace el capítulo de anti-raspado— y catastrófico para Googlebot. Una
+     * regla que no distinga entre ambos casos obliga a elegir entre un falso positivo
+     * permanente o a no detectar la desindexación.
+     *
+     * @return array<int, string>
+     */
+    private function buscadoresBloqueadosPorCompleto(string $contenido): array
+    {
+        $criticos = ['*', 'googlebot', 'bingbot', 'applebot', 'duckduckbot'];
+
+        $agentesDelGrupo = [];
+        $esperandoAgentes = false;
+        $bloqueados = [];
+
+        foreach (preg_split('/\R/', $contenido) ?: [] as $linea) {
+            $linea = trim(preg_replace('/#.*$/', '', (string) $linea) ?? '');
+
+            if ($linea === '') {
+                continue;
+            }
+
+            [$directiva, $valor] = array_pad(explode(':', $linea, 2), 2, '');
+            $directiva = strtolower(trim($directiva));
+            $valor = trim($valor);
+
+            if ($directiva === 'user-agent') {
+                // Varios User-agent seguidos comparten el mismo bloque de reglas; en cuanto
+                // aparece una regla, el grupo queda cerrado y el siguiente User-agent abre otro.
+                if (! $esperandoAgentes) {
+                    $agentesDelGrupo = [];
+                    $esperandoAgentes = true;
+                }
+
+                $agentesDelGrupo[] = strtolower($valor);
+
+                continue;
+            }
+
+            $esperandoAgentes = false;
+
+            if ($directiva === 'disallow' && $valor === '/') {
+                foreach ($agentesDelGrupo as $agente) {
+                    if (in_array($agente, $criticos, true)) {
+                        $bloqueados[] = $agente;
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($bloqueados));
     }
 
     private function vigilarSitemap(GeneradorSitemap $sitemap, RegistroIncidentesSeo $registro): void

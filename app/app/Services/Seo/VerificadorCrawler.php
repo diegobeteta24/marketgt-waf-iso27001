@@ -96,11 +96,17 @@ class VerificadorCrawler
 
         $clave = 'seo:fcrdns:'.$familia.':'.$ip;
 
-        /** @var array{ip: string, declara_ser_bot: bool, familia: string|null, verificado: bool, motivo: string, ptr: string|null}|null $enCache */
-        $enCache = Cache::get($clave);
+        try {
+            /** @var array{ip: string, declara_ser_bot: bool, familia: string|null, verificado: bool, motivo: string, ptr: string|null}|null $enCache */
+            $enCache = Cache::get($clave);
 
-        if (is_array($enCache)) {
-            return $enCache;
+            if (is_array($enCache)) {
+                return $enCache;
+            }
+        } catch (Throwable) {
+            // El almacén de caché de este proyecto es la base de datos. Si está caída, la
+            // verificación tiene que seguir funcionando: sin caché es más lenta, sin
+            // verificación el sitio queda abierto a cualquiera que escriba "Googlebot".
         }
 
         $resultado = $this->resolverVeredicto($ip, $familia);
@@ -112,8 +118,7 @@ class VerificadorCrawler
                 $resultado['verificado'] ? self::TTL_VERIFICADO : self::TTL_RECHAZADO,
             );
         } catch (Throwable) {
-            // Sin caché el control sigue siendo correcto, solo más lento. Que el
-            // almacén de caché falle no puede impedir que se verifique al rastreador.
+            // Mismo criterio: la caché es una optimización, no un requisito del control.
         }
 
         return $resultado;

@@ -1,2 +1,113 @@
+# =============================================================================
+# MarketGT - robots.txt
+# Universidad Mariano Galvez de Guatemala - Seguridad y Auditoria de Sistemas
+#
+# Este archivo NO es un control de seguridad: es una peticion que solo cumplen los
+# rastreadores honestos. Lo que de verdad impide la indexacion es la cabecera
+# X-Robots-Tag que emite App\Http\Middleware\DetectarCloaking, porque esa manda
+# sobre cualquier <meta name="robots"> que un atacante logre inyectar en el HTML.
+# Aqui se declara la intencion; alli se hace cumplir.
+#
+# La integridad de este archivo la vigila "php artisan seo:vigilar" cada cinco
+# minutos contra la linea base sellada. Un "Disallow: /" colado bajo User-agent: *
+# desindexaria la tienda completa en dias, y sin vigilancia nadie se enteraria
+# hasta ver caer las ventas.
+# =============================================================================
+
 User-agent: *
-Disallow:
+Allow: /
+
+# --- Resultados de busqueda interna -----------------------------------------
+# Via clasica del envenenamiento por indexacion: el atacante busca su spam, la
+# pagina de resultados lo refleja, el rastreador la indexa y el dominio de
+# MarketGT acaba apareciendo en Google vendiendo lo que no vende.
+Disallow: /buscar
+Disallow: /busqueda
+Disallow: /*?buscar=
+Disallow: /*&buscar=
+Disallow: /*?busqueda=
+Disallow: /*?q=
+Disallow: /*&q=
+Disallow: /*?search=
+Disallow: /*?termino=
+
+# --- Paginas de sesion, compra y comprobantes -------------------------------
+# No aportan nada a un buscador y pueden llevar datos de una persona concreta.
+Disallow: /carrito
+Disallow: /tienda/carrito
+Disallow: /tienda/pago
+Disallow: /tienda/comprobante/
+Disallow: /pago
+Disallow: /comprobante/
+Disallow: /cuenta
+Disallow: /pedidos
+
+# --- Superficie de autenticacion y administracion ---------------------------
+# Indexarlas es regalarle al atacante el mapa de por donde entrar.
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /confirm-password
+Disallow: /verify-email
+Disallow: /two-factor-challenge
+Disallow: /settings
+Disallow: /seguridad
+Disallow: /siem
+Disallow: /seo
+Disallow: /ir
+Disallow: /storage/
+Disallow: /.well-known/passkey-endpoints
+
+# =============================================================================
+# Raspadores de herramientas de posicionamiento
+# -----------------------------------------------------------------------------
+# No son buscadores: recorren el catalogo entero para revender precios y perfiles
+# de enlaces. Consumen el ancho de banda que paga el proyecto y alimentan campanas
+# de posicionamiento negativo contra la tienda. Aqui se les pide que no entren; la
+# regla 946 del WAF es la que se lo impide de verdad a los que ignoran esta peticion.
+# =============================================================================
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: DataForSeoBot
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
+User-agent: SerpstatBot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+# =============================================================================
+# Rastreadores legitimos: ritmo moderado
+# -----------------------------------------------------------------------------
+# Googlebot ignora Crawl-delay (se configura en Search Console), pero Bing, Yandex
+# y otros lo respetan. Un segundo entre peticiones evita que el rastreo se parezca
+# a una extraccion masiva y dispare la regla 946 del WAF contra un bot bueno.
+# =============================================================================
+
+User-agent: bingbot
+Crawl-delay: 1
+Allow: /
+
+User-agent: Yandex
+Crawl-delay: 2
+Allow: /
+
+# El sitemap lo genera la aplicacion en memoria: no existe como archivo, asi que no
+# hay archivo que reescribir para inyectar direcciones ajenas bajo este dominio.
+Sitemap: https://marketgt.gt/sitemap.xml

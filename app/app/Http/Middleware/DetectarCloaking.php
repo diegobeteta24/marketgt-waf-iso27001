@@ -45,6 +45,18 @@ class DetectarCloaking
     /** Ventana durante la que se conserva la huella de cada variante de una página. */
     private const TTL_HUELLA = 21600; // 6 horas
 
+    /**
+     * Válvula de seguridad. En true (lo normal) al rastreador falsificado se le responde
+     * 403; en false solo se registra el incidente y la petición continúa.
+     *
+     * Existe por un riesgo operativo real: si el servidor se queda sin resolución de DNS,
+     * ninguna verificación puede completarse y TODO rastreador sería tratado como falso,
+     * incluido el Googlebot legítimo. Ese falso positivo desindexa la tienda y cuesta más
+     * caro que el ataque que se quería frenar. Con esta constante en false, la detección
+     * sigue alimentando el SIEM mientras se arregla la resolución.
+     */
+    public const BLOQUEAR_RASTREADOR_FALSO = true;
+
     public function __construct(
         private readonly VerificadorCrawler $verificador,
         private readonly PoliticaIndexacion $politica,
@@ -68,9 +80,11 @@ class DetectarCloaking
         if ($veredicto['declara_ser_bot'] && ! $veredicto['verificado']) {
             $this->registrarRastreadorFalso($peticion, $veredicto);
 
-            // 403 y no 404: el rastreador falso ya sabe que la ruta existe, y un 403 deja
-            // en el registro de Nginx la misma huella que dejan las reglas del WAF.
-            abort(403, 'Rastreador no verificado.');
+            if (self::BLOQUEAR_RASTREADOR_FALSO) {
+                // 403 y no 404: el rastreador falso ya sabe que la ruta existe, y un 403
+                // deja en el registro de Nginx la misma huella que dejan las reglas del WAF.
+                abort(403, 'Rastreador no verificado.');
+            }
         }
 
         /** @var Response $respuesta */
