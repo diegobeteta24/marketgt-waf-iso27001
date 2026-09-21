@@ -1,0 +1,226 @@
+# =============================================================================
+#  MarketGT - Capa 4 (Servidor web + WAF) y Capa 5/6 (Aplicacion y Datos)
+#  Verificado contra owasp/modsecurity-crs el 2026-09-21
+#    - ModSecurity 3.0.16  |  conector modsecurity-nginx 1.0.4
+#    - nginx 1.30.5 (base nginxinc/nginx-unprivileged, corre como usuario "nginx")
+#    - OWASP CRS 4.29.0
+#
+#  Levantar:   docker compose -f infra/docker/docker-compose.yml up -d
+#  Ver logs:   docker compose logs -f waf
+# =============================================================================
+
+name: marketgt
+
+networks:
+  edge:
+    driver: bridge
+  # El backend NO es alcanzable desde el host ni desde Internet: el unico camino
+  # hacia Laravel pasa por el WAF. Esto es evidencia auditable de "no bypass".
+  # OJO: internal=true tambien quita salida a Internet al contenedor de la app,
+  #      por eso `composer install` se hace en build (ver infra/docker/Dockerfile.app).
+  #      Si necesitas salida temporal, comenta la linea `internal: true`.
+  appnet:
+    driver: bridge
+    internal: true
+
+volumes:
+  modsec-audit:        # audit log JSON de ModSecurity (lo consume el SIEM)
+  mariadb-data:
+
+services:
+  # ---------------------------------------------------------------------------
+  # CAPA 4 - WAF de borde de la aplicacion (Nginx + ModSecurity 3 + OWASP CRS 4)
+  # ---------------------------------------------------------------------------
+  waf:
+    # Tag FIJADO por fecha: no cambia bajo tus pies antes de la presentacion.
+    # NUNCA uses el tag rodante `owasp/modsecurity-crs:nginx` para la demo.
+    image: owasp/modsecurity-crs:4.29.0-nginx-202609180209
+    container_name: marketgt-waf
+    restart: unless-stopped
+    depends_on:
+      - app
+    networks:
+      - edge
+      - appnet
+    ports:
+      - "80:8080"
+      - "443:8443"
+    environment:
+      # ---------------- Proxy inverso hacia Laravel ----------------
+      BACKEND: "http://app:8080"          # serversideup/php:*-fpm-nginx escucha en 8080
+      SERVER_NAME: "_"                    # acepta cualquier Host; Cloudflare pone el real
+      PORT: "8080"
+      SSL_PORT: "8443"
+      PROXY_TIMEOUT: "120s"
+      NGINX_ALWAYS_TLS_REDIRECT: "off"    # Cloudflare ya fuerza HTTPS en el borde
+      HTTP2: "on"
+      SERVER_TOKENS: "off"
+      SERVER_HEADER: "MarketGT"           # oculta "nginx" en la cabecera Server
+
+      # ---------------- IP real del cliente (Cloudflare -> WAF -> Laravel) -----
+      # Con Cloudflare delante, la IP real viene en CF-Connecting-IP.
+      # SET_REAL_IP_FROM acepta lista separada por comas (el entrypoint la expande).
+      REAL_IP_HEADER: "CF-Connecting-IP"
+      REAL_IP_RECURSIVE: "on"
+      SET_REAL_IP_FROM: "173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22,127.0.0.1,172.16.0.0/12"
+
+      # ---------------- Motor ModSecurity ----------------
+      MODSEC_RULE_ENGINE: "On"            # On | DetectionOnly | Off
+      MODSEC_REQ_BODY_ACCESS: "On"        # imprescindible: sin esto no se ve el POST
+      MODSEC_RESP_BODY_ACCESS: "On"       # necesario para las reglas de fuga de datos 95x
+      MODSEC_REQ_BODY_LIMIT: "26214400"   # 25 MB (subida de imagenes de producto)
+      MODSEC_REQ_BODY_NOFILES_LIMIT: "1048576"   # 1 MB de formulario sin ficheros
+      MODSEC_REQ_BODY_LIMIT_ACTION: "Reject"
+      MODSEC_RESP_BODY_LIMIT: "2097152"
+      MODSEC_RESP_BODY_LIMIT_ACTION: "ProcessPartial"
+      MODSEC_TMP_DIR: "/tmp/modsecurity/tmp"
+      MODSEC_DATA_DIR: "/tmp/modsecurity/data"
+      MODSEC_UPLOAD_DIR: "/tmp/modsecurity/upload"
+      MODSEC_UPLOAD_KEEP_FILES: "Off"
+      MODSEC_TAG: "marketgt-waf"          # aparece como tag en cada evento del SIEM
+
+      # ---------------- Audit log JSON (fuente del SIEM) ----------------
+      MODSEC_AUDIT_ENGINE: "RelevantOnly"       # loguea si hubo match de regla o status 4xx/5xx (menos 404)
+      MODSEC_AUDIT_LOG_RELEVANT_STATUS: "^(?:5|4(?!04))"
+      MODSEC_AUDIT_LOG_FORMAT: "JSON"
+      MODSEC_AUDIT_LOG_TYPE: "Serial"           # un JSON por linea = facil de tail/parsear
+      # IMPORTANTE: el fichero va DENTRO de /var/log/modsecurity/audit, que es el
+      # unico directorio que la imagen deja escribible para el usuario "nginx".
+      MODSEC_AUDIT_LOG: "/var/log/modsecurity/audit/audit.json"
+      MODSEC_AUDIT_STORAGE_DIR: "/var/log/modsecurity/audit/"
+      # ABCFHZ: A=cabecera, B=cabeceras peticion, C=CUERPO de la peticion (sin C
+      # el JSON de v3 NO trae el payload), F=cabeceras respuesta, H=messages
+      # (ruleId, msg, data, tags), Z=terminador. El default ABIJDEFHZ NO trae el body.
+      MODSEC_AUDIT_LOG_PARTS: "ABCFHZ"
+      MODSEC_DEBUG_LOG: "/dev/null"
+      MODSEC_DEBUG_LOGLEVEL: "0"
+
+      # ---------------- OWASP Core Rule Set 4.29 ----------------
+      BLOCKING_PARANOIA: "1"      # PL1 bloquea (bajo ratio de falsos positivos)
+      DETECTION_PARANOIA: "2"     # PL2 solo DETECTA y suma al score de deteccion:
+                                  # mas eventos para el SIEM sin romper la tienda
+      ANOMALY_INBOUND: "5"        # umbral de bloqueo entrante (949110)
+      ANOMALY_OUTBOUND: "4"       # umbral de bloqueo saliente (959100)
+      REPORTING_LEVEL: "4"        # verbosidad del resumen 980170
+      # Laravel usa PUT/PATCH/DELETE en sus rutas resource -> sin esto la regla
+      # 911100 devuelve 403 a cualquier formulario @method('PUT').
+      ALLOWED_METHODS: "GET HEAD POST PUT PATCH DELETE OPTIONS"
+      ALLOWED_REQUEST_CONTENT_TYPE: "|application/x-www-form-urlencoded| |multipart/form-data| |application/json| |text/xml| |application/xml|"
+      ALLOWED_HTTP_VERSIONS: "HTTP/1.1 HTTP/2 HTTP/2.0"
+      MAX_FILE_SIZE: "8388608"          # 8 MB por fichero subido
+      COMBINED_FILE_SIZES: "25165824"   # 24 MB en total
+    volumes:
+      # Reglas de exclusion (tuning). Se montan DENTRO de owasp-crs/rules/ para que
+      # el `Include /etc/modsecurity.d/owasp-crs/rules/*.conf` las cargue en orden:
+      # 900 = ANTES de CRS (acciones ctl), 999 = DESPUES de CRS (directivas SecRule*).
+      - ../modsecurity/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
+      - ../modsecurity/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf:/etc/modsecurity.d/owasp-crs/rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf:ro
+      # Reglas propias del proyecto (SEO poisoning, spam injection, cloaking).
+      # Se llama 945 para cargarse DESPUES de REQUEST-944 y ANTES de
+      # REQUEST-949-BLOCKING-EVALUATION: si cargara despues del 949 su score
+      # llegaria tarde y nunca bloquearia.
+      - ../modsecurity/REQUEST-945-MARKETGT-SEO.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-945-MARKETGT-SEO.conf:ro
+      # Reporte de la puntuacion de anomalia AL AUDIT LOG. Imprescindible: la
+      # regla 980170 de CRS lleva `noauditlog` y su desglose nunca llega al JSON.
+      - ../modsecurity/RESPONSE-985-MARKETGT-REPORT.conf:/etc/modsecurity.d/owasp-crs/rules/RESPONSE-985-MARKETGT-REPORT.conf:ro
+      # Certificado TLS. Si no montas nada, la imagen genera uno autofirmado al arrancar.
+      # - ../certs/server.crt:/etc/nginx/conf/server.crt:ro
+      # - ../certs/server.key:/etc/nginx/conf/server.key:ro
+      - modsec-audit:/var/log/modsecurity/audit
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # CAPA 5 - Aplicacion Laravel (nginx interno + php-fpm en un solo contenedor)
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: ../../
+      dockerfile: infra/docker/Dockerfile.app
+    image: marketgt/app:local
+    container_name: marketgt-app
+    restart: unless-stopped
+    networks:
+      - appnet
+    expose:
+      - "8080"          # NO se publica al host: solo el WAF lo alcanza
+    environment:
+      SSL_MODE: "off"                    # TLS termina en el WAF
+      PHP_OPCACHE_ENABLE: "1"
+      AUTORUN_ENABLED: "true"
+      AUTORUN_LARAVEL_MIGRATION_ISOLATION: "true"
+      NGINX_WEBROOT: "/var/www/html/public"
+      APP_ENV: "production"
+      APP_DEBUG: "false"
+      APP_URL: "${APP_URL:-https://marketgt.example}"
+      DB_CONNECTION: "mariadb"
+      DB_HOST: "db"
+      DB_PORT: "3306"
+      DB_DATABASE: "${DB_DATABASE:-marketgt}"
+      DB_USERNAME: "${DB_USERNAME:-marketgt}"
+      DB_PASSWORD: "${DB_PASSWORD:?define DB_PASSWORD en infra/docker/.env}"
+      SESSION_SECURE_COOKIE: "true"
+      SESSION_SAME_SITE: "lax"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # CAPA 6 - Datos
+  # ---------------------------------------------------------------------------
+  db:
+    image: mariadb:lts
+    container_name: marketgt-db
+    restart: unless-stopped
+    networks:
+      - appnet
+    environment:
+      MARIADB_DATABASE: "${DB_DATABASE:-marketgt}"
+      MARIADB_USER: "${DB_USERNAME:-marketgt}"
+      MARIADB_PASSWORD: "${DB_PASSWORD:?define DB_PASSWORD en infra/docker/.env}"
+      MARIADB_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:?define DB_ROOT_PASSWORD en infra/docker/.env}"
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # TRANSVERSAL - lector del audit log para el panel tipo SIEM
+  # Sustituye este servicio por el tuyo; lo importante es el montaje :ro
+  # ---------------------------------------------------------------------------
+  siem-collector:
+    image: alpine:3.24
+    container_name: marketgt-siem-collector
+    restart: unless-stopped
+    # OJO: va en `edge`, NO en `appnet`. appnet es internal:true (sin Internet)
+    # y este contenedor necesita salida para instalar jq al arrancar.
+    # No publica ningun puerto, asi que sigue sin ser alcanzable desde fuera.
+    networks:
+      - edge
+    volumes:
+      - modsec-audit:/logs:ro
+    entrypoint: ["/bin/sh", "-c"]
+    # Bloque literal YAML: nada que escapar, ni comillas ni $.
+    command:
+      - |
+        apk add --no-cache jq >/dev/null 2>&1
+        while [ ! -f /logs/audit.json ]; do sleep 2; done
+        tail -n0 -F /logs/audit.json | jq -c --unbuffered '{
+          ts:        .transaction.time_stamp,
+          id:        .transaction.unique_id,
+          ip:        .transaction.client_ip,
+          metodo:    .transaction.request.method,
+          uri:       .transaction.request.uri,
+          codigo:    .transaction.response.http_code,
+          bloqueado: .transaction.is_interrupted,
+          reglas:    [.transaction.messages[]?.details.ruleId],
+          mensajes:  [.transaction.messages[]?.message],
+          etiquetas: ([.transaction.messages[]?.details.tags[]?] | unique)
+        }'
