@@ -139,9 +139,16 @@ services:
       # Reporte de la puntuacion de anomalia AL AUDIT LOG. Imprescindible: la
       # regla 980170 de CRS lleva `noauditlog` y su desglose nunca llega al JSON.
       - ../modsecurity/RESPONSE-985-MARKETGT-REPORT.conf:/etc/modsecurity.d/owasp-crs/rules/RESPONSE-985-MARKETGT-REPORT.conf:ro
-      # Certificado TLS. Si no montas nada, la imagen genera uno autofirmado al arrancar.
-      # - ../certs/server.crt:/etc/nginx/conf/server.crt:ro
-      # - ../certs/server.key:/etc/nginx/conf/server.key:ro
+      # Certificado de transporte. Si no se monta nada, la imagen genera uno
+      # autofirmado al arrancar: el sitio funciona desde dentro del servidor
+      # pero cualquier navegador lo rechaza, y el fallo se manifiesta como una
+      # conexión que simplemente no completa, sin mensaje que lo explique.
+      #
+      # El script de despliegue coloca aquí el certificado emitido por la
+      # autoridad, y si su emisión fallara deja uno autofirmado, de modo que
+      # estas rutas siempre existen y el contenedor siempre arranca.
+      - ../certs/server.crt:/etc/nginx/conf/server.crt:ro
+      - ../certs/server.key:/etc/nginx/conf/server.key:ro
       - modsec-audit:/var/log/modsecurity/audit
     healthcheck:
       test: ["CMD", "/usr/local/bin/healthcheck"]

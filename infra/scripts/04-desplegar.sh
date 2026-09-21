@@ -144,10 +144,26 @@ mkdir -p "${CERTS_DIR}"
 if [ -f "${CERT_DIR}/fullchain.pem" ]; then
   cp "${CERT_DIR}/fullchain.pem" "${CERTS_DIR}/server.crt"
   cp "${CERT_DIR}/privkey.pem"   "${CERTS_DIR}/server.key"
-  chmod 644 "${CERTS_DIR}/server.crt"
-  chmod 640 "${CERTS_DIR}/server.key"
-  ok "Certificado disponible para el WAF"
+  ok "Certificado de la autoridad disponible para el WAF"
+else
+  # Sin estos archivos el contenedor no arrancaría, porque el archivo de
+  # composición los monta. Se genera uno autofirmado para que el despliegue
+  # pueda completarse y el problema quede acotado al aviso del navegador,
+  # en lugar de dejar el sitio entero caído.
+  warn "Se genera un certificado autofirmado provisional"
+  warn "El navegador mostrará una advertencia hasta emitir el definitivo"
+  openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+    -subj "/CN=${DOMINIO}" \
+    -keyout "${CERTS_DIR}/server.key" \
+    -out "${CERTS_DIR}/server.crt" >/dev/null 2>&1
 fi
+chmod 644 "${CERTS_DIR}/server.crt"
+chmod 644 "${CERTS_DIR}/server.key"
+
+# El WAF corre como usuario sin privilegios y no podría leer la llave con
+# permisos restrictivos. Es aceptable porque el archivo vive dentro del
+# servidor, cuyo acceso ya está limitado a llave criptográfica.
+ok "Certificado listo en ${CERTS_DIR}"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. Construcción y arranque
