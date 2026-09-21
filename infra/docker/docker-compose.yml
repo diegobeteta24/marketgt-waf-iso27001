@@ -59,7 +59,26 @@ services:
       PORT: "8080"
       SSL_PORT: "8443"
       PROXY_TIMEOUT: "120s"
-      NGINX_ALWAYS_TLS_REDIRECT: "off"    # Cloudflare ya fuerza HTTPS en el borde
+
+      # Se fuerza la redirección a HTTPS aquí. La Capa 1 quedó fuera de alcance
+      # (ver docs/02-arquitectura/decision-capa1-perimetro.md), de modo que no
+      # hay ningún borde delante que la aplique: si no se hace en este punto,
+      # no se hace en ninguno.
+      NGINX_ALWAYS_TLS_REDIRECT: "on"
+
+      # PUERTO PÚBLICO REENVIADO. Por omisión la imagen envía el puerto en el
+      # que escucha dentro del contenedor, que es 8443. La aplicación confía en
+      # esa cabecera y construye TODAS sus direcciones con ese puerto, de modo
+      # que las hojas de estilo y los scripts se piden a un puerto que desde
+      # fuera no existe: el sitio carga sin ningún estilo y sin JavaScript.
+      #
+      # El fallo es especialmente difícil de ver porque el HTML se sirve bien y
+      # el código de respuesta es 200; solo fallan los recursos.
+      #
+      # Se fija al puerto público real. Afecta además a las redirecciones del
+      # segundo factor, que de otro modo apuntarían también al puerto interno
+      # e impedirían completar el acceso.
+      NGINX_X_FORWARDED_PORT: "443"
       HTTP2: "on"
       SERVER_TOKENS: "off"
       SERVER_HEADER: "MarketGT"           # oculta "nginx" en la cabecera Server

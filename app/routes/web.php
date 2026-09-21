@@ -2,7 +2,11 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+// La raíz lleva al catálogo y no a la página de bienvenida del framework.
+// Quien abra el enlace del proyecto —el profesor incluido— debe encontrar la
+// tienda, que es el activo que todo el esquema de seguridad protege, y no una
+// pantalla que anuncia la tecnología empleada.
+Route::redirect('/', '/tienda')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
