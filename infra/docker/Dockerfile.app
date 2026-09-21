@@ -32,7 +32,18 @@ RUN composer install \
 # El código completo hace falta para que el mapa de clases recorra también los
 # modelos, servicios y comandos del proyecto, no solo las dependencias.
 COPY app/ ./
-RUN composer dump-autoload --optimize --no-dev --no-interaction
+
+# --no-scripts es imprescindible aquí. Sin esa opción, esta orden dispara el
+# script post-autoload-dump que Laravel declara, el cual ejecuta a su vez
+# `artisan package:discover`. Arrancar el framework exige extensiones de PHP y
+# variables de entorno que esta imagen mínima no tiene, de modo que la
+# construcción fallaba con un código de salida que no explicaba nada.
+#
+# No se pierde nada: el descubrimiento de paquetes genera un archivo de caché
+# en bootstrap/cache que el framework regenera solo en la primera petición si
+# no lo encuentra. Lo que sí queremos de esta orden —el mapa de clases
+# optimizado— se genera igual.
+RUN composer dump-autoload --optimize --no-dev --no-interaction --no-scripts
 
 # ─── Etapa 2 · Imagen final ──────────────────────────────────────────────────
 # serversideup/php trae nginx, php-fpm y su supervisor, corre como usuario sin
