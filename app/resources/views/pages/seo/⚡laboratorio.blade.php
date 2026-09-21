@@ -7,11 +7,9 @@ new #[Title('Laboratorio de contenido')] class extends Component {
     //
 }; ?>
 
-<x-layouts::app :title="__('Laboratorio de contenido')">
-    <x-pages::seo.navegacion
-        titulo="Laboratorio de contenido"
-        descripcion="Banco de pruebas en vivo de los tres controles preventivos: sanitización, verificación inversa de rastreadores y lista blanca de redirección."
-    >
-        <livewire:seo.laboratorio-contenido />
-    </x-pages::seo.navegacion>
-</x-layouts::app>
+<x-pages::seo.navegacion
+    titulo="Laboratorio de contenido"
+    descripcion="Banco de pruebas en vivo de los tres controles preventivos: sanitización, verificación inversa de rastreadores y lista blanca de redirección."
+>
+    <livewire:seo.laboratorio-contenido />
+</x-pages::seo.navegacion>

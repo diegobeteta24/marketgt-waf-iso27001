@@ -13,8 +13,9 @@ return new class extends Migration
     {
         Schema::create('pedidos', function (Blueprint $table) {
             $table->id();
-            // Identificador publico del pedido (MG-2026-000042). Se muestra al cliente en lugar
-            // del id autoincremental para no revelar cuantos pedidos lleva la tienda.
+            // Identificador publico del pedido (MG-2026-K7Q3ZA). El sufijo es ALEATORIO, no
+            // correlativo: un numero secuencial revelaria el volumen de ventas y permitiria
+            // adivinar el pedido de otro cliente restando uno. Ver Pedido::generarNumero().
             $table->string('numero', 24)->unique();
             $table->foreignId('usuario_id')->nullable()->constrained('users')->cascadeOnUpdate()->nullOnDelete();
 

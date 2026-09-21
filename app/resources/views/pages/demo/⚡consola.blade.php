@@ -7,7 +7,7 @@ new #[Title('Consola de ataques en vivo')] class extends Component {
     //
 }; ?>
 
-<x-layouts::app :title="__('Consola de ataques en vivo')">
+<div class="consola-demo">
     <x-pages::demo.estilos />
 
     <div class="mb-6">
@@ -19,4 +19,4 @@ new #[Title('Consola de ataques en vivo')] class extends Component {
     </div>
 
     <livewire:demo.consola />
-</x-layouts::app>
+</div>

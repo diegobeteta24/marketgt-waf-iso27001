@@ -111,6 +111,9 @@ class extends Component
             'numero_tarjeta' => [
                 'required',
                 'string',
+                // Diecinueve digitos mas separadores es el maximo que admite la norma ISO/IEC
+                // 7812-1; acotar el campo evita que alguien empuje megabytes al validador.
+                'max:32',
                 function (string $atributo, mixed $valor, \Closure $fallar): void {
                     if (! Pedido::superaLuhn((string) $valor)) {
                         $fallar('El número de tarjeta no supera la verificación de Luhn. Revisá los dígitos.');
