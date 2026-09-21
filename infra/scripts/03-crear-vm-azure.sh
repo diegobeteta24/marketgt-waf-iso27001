@@ -26,9 +26,20 @@ GRUPO="${GRUPO:-marketgt-rg}"
 NOMBRE="${NOMBRE:-marketgt}"
 USUARIO="${USUARIO:-azureuser}"
 
-# South Central US es de las regiones más cercanas a Guatemala con buena
-# disponibilidad de tamaños. East US sirve igual si esta diera problemas.
-REGION="${REGION:-southcentralus}"
+# Las suscripciones de estudiante traen una política de Azure que restringe en
+# qué regiones pueden desplegarse recursos. Intentar cualquier otra devuelve
+# «RequestDisallowedByAzure» sobre TODOS los recursos de la plantilla, con un
+# mensaje que no dice cuáles sí están permitidas.
+#
+# Para consultar la lista de la propia suscripción:
+#   az policy assignment list --query "[].parameters" -o json
+#
+# En la suscripción de este proyecto la política permite únicamente:
+#   mexicocentral · francecentral · norwayeast · canadacentral · westus
+#
+# Se elige México Central por ser la más cercana a Guatemala. La latencia no
+# afecta a la evaluación, pero sí a la fluidez de la demostración en vivo.
+REGION="${REGION:-mexicocentral}"
 
 # Dos núcleos y 4 GB. La cuota de una suscripción de estudiante ronda los
 # cuatro núcleos y NO admite ampliación: no existe un proceso oficial para
@@ -50,6 +61,24 @@ log "Región: ${REGION}   ·   Tamaño: ${TAMANO}"
 # ─── Comprobación de la cuota antes de intentar nada ─────────────────────────
 # Descubrir que no hay cuota DESPUÉS de crear media infraestructura cuesta
 # tiempo que no sobra. Se comprueba primero.
+# Antes que nada: comprobar que la region elegida esta permitida por la
+# politica de la suscripcion. Descubrirlo despues de crear medio despliegue
+# cuesta tiempo, y el mensaje de error de Azure no dice cuales si lo estan.
+log "Comprobando las regiones permitidas por la politica"
+PERMITIDAS="$(az policy assignment list --query "[].parameters.listOfAllowedLocations.value[]" -o tsv 2>/dev/null | tr "
+" " " || echo "")"
+if [ -n "${PERMITIDAS}" ]; then
+  ok "Permitidas: ${PERMITIDAS}"
+  if ! echo " ${PERMITIDAS} " | grep -q " ${REGION} "; then
+    warn "La region ${REGION} NO esta permitida en esta suscripcion."
+    warn "Volve a ejecutar indicando una de las permitidas, por ejemplo:"
+    warn "   REGION=$(echo ${PERMITIDAS} | awk "{print \$1}") bash $0"
+    exit 1
+  fi
+else
+  warn "No se pudo leer la politica de regiones; continuamos"
+fi
+
 log "Comprobando la cuota de núcleos disponible"
 CUOTA="$(az vm list-usage --location "${REGION}" \
   --query "[?contains(localName,'Total Regional')].{limite:limit,uso:currentValue}" -o tsv 2>/dev/null | head -1 || echo '')"
