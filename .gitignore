@@ -20,17 +20,18 @@ cloudflare-*.ini
 # evita que el compilador de estilos agote la memoria de la maquina.
 # Regenerar con:  cd app && npm run build
 
+# Los directorios de trabajo de Laravel (storage, bootstrap/cache) NO se
+# excluyen desde aqui: cada uno lleva su propio .gitignore con la convencion
+# de Laravel, que ignora el contenido pero conserva el directorio. Excluirlos
+# desde la raiz hacia que no viajaran al servidor, y el framework aborta con
+# «Please provide a valid cache path» sin decir cual falta.
+
 # ─── Laravel ──────────────────────────────────────────────
 app/vendor/
 app/node_modules/
 app/public/hot
 app/public/storage
 app/storage/*.key
-app/storage/framework/cache/*
-app/storage/framework/sessions/*
-app/storage/framework/views/*
-app/storage/logs/*
-app/bootstrap/cache/*
 app/.phpunit.result.cache
 app/database/*.sqlite
 app/database/*.sqlite-journal
