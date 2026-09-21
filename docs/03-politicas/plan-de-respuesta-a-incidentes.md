@@ -376,8 +376,8 @@ determinación documentada de si los datos estaban cifrados.
 
 **Severidad inicial:** S3; S2 si el contenido alterado llegó a ser servido a un rastreador legítimo.
 
-Este procedimiento atiende una familia de ataques que el proyecto detecta con reglas propias, las
-comprendidas entre los identificadores 15000 y 15099, y que persiguen un objetivo distinto del habitual:
+Este procedimiento atiende una familia de ataques que el proyecto detecta con reglas propias —las que
+ocupan el espacio de identificadores 15000-15121— y que persiguen un objetivo distinto del habitual:
 no buscan robar datos ni tumbar el servicio, sino apropiarse de la reputación del dominio en los
 motores de búsqueda. Su efecto es diferido y su detección exige comparar contra una línea base, porque
 el sitio sigue funcionando con normalidad mientras el ataque surte efecto.

@@ -2,6 +2,7 @@
 
 use App\Models\Carrito;
 use App\Models\Pedido;
+use App\Models\Producto;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

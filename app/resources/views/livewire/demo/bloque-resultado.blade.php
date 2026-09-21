@@ -147,7 +147,7 @@ cabeceras:
                 </p>
                 <ul class="space-y-2">
                     @foreach ($evento['reglas'] as $regla)
-                        @php $propia = (int) ($regla['id'] ?? 0) >= 15000 && (int) ($regla['id'] ?? 0) <= 15099; @endphp
+                        @php $idRegla = (int) ($regla['id'] ?? 0); $propia = $idRegla >= 15000 && $idRegla < 16000; @endphp
                         <li class="text-sm">
                             <span class="demo-regla {{ $propia ? 'demo-regla-propia' : '' }}">
                                 {{ $regla['id'] ?: '—' }}@if ($propia) · propia @endif

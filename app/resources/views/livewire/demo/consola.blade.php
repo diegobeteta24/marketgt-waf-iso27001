@@ -153,7 +153,7 @@
                                 <p class="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">{{ $ataque['amenaza'] }}</p>
                                 <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
                                     <flux:badge size="sm" color="zinc">{{ $ataque['owasp'] }}</flux:badge>
-                                    @php $reglaPropia = str_contains($ataque['regla'], '150'); @endphp
+                                    @php $primerId = (int) $ataque['regla']; $reglaPropia = $primerId >= 15000 && $primerId < 16000; @endphp
                                     <span class="demo-regla {{ $reglaPropia ? 'demo-regla-propia' : '' }}">
                                         Regla {{ $ataque['regla'] }}
                                     </span>

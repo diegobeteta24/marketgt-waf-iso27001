@@ -28,7 +28,9 @@ Route::middleware(['auth', 'verified', 'rol:admin'])
     ->prefix('demo-waf')
     ->name('demo.')
     ->group(function () {
-        Route::redirect('/', 'demo-waf/consola');
+        // Con nombre explícito: el prefijo de nombre del grupo bautizaría la redirección
+        // anónima como una ruta llamada "demo.", una colisión esperando a ocurrir.
+        Route::redirect('/', 'demo-waf/consola')->name('inicio');
 
         Route::livewire('consola', 'pages::demo.consola')->name('consola');
     });

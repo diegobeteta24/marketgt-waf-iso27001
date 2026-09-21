@@ -31,13 +31,16 @@ class extends Component
     }
 
     /**
-     * Título dinámico de la pestaña. Livewire expone la macro title() sobre la vista; se
-     * comprueba antes de usarla para no acoplar la tienda a un detalle interno del paquete.
+     * Título dinámico de la pestaña.
+     *
+     * El parámetro DEBE llamarse $view: Livewire entrega los argumentos del gancho por
+     * nombre y, si no coincide, intenta construir un Illuminate\View\View desde el
+     * contenedor —que no sabe hacerlo— y la ficha entera responde 500.
      */
-    public function rendering(\Illuminate\View\View $vista): void
+    public function rendering(\Illuminate\View\View $view): void
     {
         if (\Illuminate\View\View::hasMacro('title')) {
-            $vista->title($this->producto->nombre);
+            $view->title($this->producto->nombre);
         }
     }
 

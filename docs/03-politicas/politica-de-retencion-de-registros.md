@@ -90,7 +90,7 @@ Es la fuente primaria del vértice de detección. Se escribe en formato JSON, un
 | Cabeceras de la petición | Contexto, incluido el agente de usuario | Detectar rastreadores falsificados |
 | Código de respuesta | Qué devolvió el servidor | Distinguir el ataque bloqueado del que pasó |
 | Indicador de interrupción | Si el cortafuegos cortó la petición | **Es el campo que separa una severidad media de una crítica** |
-| Reglas activadas | Identificador, mensaje, severidad, datos coincidentes y etiquetas | Determinar qué control actuó, incluidas las reglas propias 15000 a 15099 |
+| Reglas activadas | Identificador, mensaje, severidad, datos coincidentes y etiquetas | Determinar qué control actuó, incluidas las reglas propias del proyecto |
 
 El motor de auditoría opera en modo de registro selectivo: se registra cuando hubo coincidencia de
 alguna regla o cuando la respuesta fue de la familia 4xx o 5xx, con exclusión de los 404. La decisión

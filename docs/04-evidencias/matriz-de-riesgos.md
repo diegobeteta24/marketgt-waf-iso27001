@@ -242,7 +242,7 @@ probabilidad e impacto.
 | **Probabilidad inherente** | 4 (alta). Es un ataque de bajo costo y alto retorno para el atacante |
 | **Impacto** | 3 (moderado). No compromete datos, pero su recuperación se mide en semanas porque depende de la reindexación del motor de búsqueda |
 | **Riesgo inherente** | **12 · Alto** |
-| **Controles aplicados** | Veinte reglas propias entre los identificadores 15000 y 15099; verificación de rastreadores contra los rangos publicados; detector de contenido no solicitado; redirección restringida a destinos permitidos; línea base de contenido indexable con vigilancia de integridad |
+| **Controles aplicados** | Veinticinco reglas propias en el espacio 15000-15121; verificación de rastreadores contra los rangos publicados; detector de contenido no solicitado; redirección restringida a destinos permitidos; línea base de contenido indexable con vigilancia de integridad |
 | **Evidencia** | `infra/modsecurity/REQUEST-945-MARKETGT-SEO.conf`; `infra/modsecurity/REQUEST-946-MARKETGT-ANTISCRAPING.conf`; `app/app/Console/Commands/VigilarIntegridadSeo.php`; `infra/scripts/demo-seo.sh` |
 | **P residual / I residual** | 2 / 2 |
 | **Riesgo residual** | **4 · Bajo** |

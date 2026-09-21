@@ -188,7 +188,7 @@ El registro es JSON con un objeto por línea. Los campos que importan durante un
 | `transaction.is_interrupted` | `true` significa que el cortafuegos cortó; `false` significa que pasó |
 | `transaction.client_ip` | Origen, para bloquear o para descartar un falso positivo |
 | `transaction.request.uri` y `.body` | El vector empleado |
-| `transaction.messages[].details.ruleId` | Qué regla actuó, incluidas las propias 15000 a 15099 |
+| `transaction.messages[].details.ruleId` | Qué regla actuó. Las reglas propias del proyecto ocupan el espacio 15000-15121; el resto pertenece al Core Rule Set |
 | `transaction.response.http_code` | Qué devolvió el servidor |
 
 La puntuación de anomalía **no es un campo propio**: aparece dentro del texto de los mensajes de las

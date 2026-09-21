@@ -197,7 +197,7 @@ el panel propio, sin Wazuh**.
 
 **Lo que se gana.** El panel conoce el dominio del proyecto: sus severidades son las de la aplicación,
 sus reglas de correlación están escritas contra los identificadores de regla del Core Rule Set y contra
-las reglas propias 15000 a 15099, y sus métricas son exactamente las siete metas declaradas en el anexo,
+las reglas propias del proyecto, y sus métricas son exactamente las siete metas declaradas en el anexo,
 que el tablero contrasta una a una. Un tablero genérico habría exigido construir esa correspondencia de
 todos modos. Además, la totalidad del código que decide qué es una alerta puede leerse y auditarse
 durante la defensa, que es una ventaja de evaluación nada despreciable.
