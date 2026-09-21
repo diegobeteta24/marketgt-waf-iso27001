@@ -58,27 +58,32 @@ SUS="$(az account show --query name -o tsv 2>/dev/null || echo '')"
 log "Suscripción: ${SUS:-desconocida}"
 log "Región: ${REGION}   ·   Tamaño: ${TAMANO}"
 
-# ─── Comprobación de la cuota antes de intentar nada ─────────────────────────
-# Descubrir que no hay cuota DESPUÉS de crear media infraestructura cuesta
-# tiempo que no sobra. Se comprueba primero.
-# Antes que nada: comprobar que la region elegida esta permitida por la
-# politica de la suscripcion. Descubrirlo despues de crear medio despliegue
-# cuesta tiempo, y el mensaje de error de Azure no dice cuales si lo estan.
-log "Comprobando las regiones permitidas por la politica"
-PERMITIDAS="$(az policy assignment list --query "[].parameters.listOfAllowedLocations.value[]" -o tsv 2>/dev/null | tr "
-" " " || echo "")"
+# ─── Política de regiones ────────────────────────────────────────────────────
+# Se comprueba ANTES de crear nada. Cuando la región no está permitida, Azure
+# rechaza todos los recursos de la plantilla con un mensaje que describe la
+# política pero no revela cuáles son las regiones válidas, de modo que el
+# diagnóstico degenera en prueba y error.
+log "Comprobando las regiones permitidas por la política"
+PERMITIDAS="$(az policy assignment list \
+  --query "[].parameters.listOfAllowedLocations.value[]" -o tsv 2>/dev/null \
+  | tr '\n' ' ' || true)"
+
 if [ -n "${PERMITIDAS}" ]; then
   ok "Permitidas: ${PERMITIDAS}"
-  if ! echo " ${PERMITIDAS} " | grep -q " ${REGION} "; then
-    warn "La region ${REGION} NO esta permitida en esta suscripcion."
-    warn "Volve a ejecutar indicando una de las permitidas, por ejemplo:"
-    warn "   REGION=$(echo ${PERMITIDAS} | awk "{print \$1}") bash $0"
+  if ! printf ' %s ' "${PERMITIDAS}" | grep -q " ${REGION} "; then
+    PRIMERA="$(printf '%s' "${PERMITIDAS}" | awk '{print $1}')"
+    warn "La región ${REGION} no está permitida en esta suscripción."
+    warn "Volvé a ejecutar indicando una de las permitidas, por ejemplo:"
+    warn "   REGION=${PRIMERA} bash $0"
     exit 1
   fi
 else
-  warn "No se pudo leer la politica de regiones; continuamos"
+  warn "No se pudo leer la política de regiones; continuamos"
 fi
 
+# ─── Cuota ───────────────────────────────────────────────────────────────────
+# Descubrir que no hay cuota DESPUÉS de crear media infraestructura cuesta
+# tiempo que no sobra. Se comprueba también por adelantado.
 log "Comprobando la cuota de núcleos disponible"
 CUOTA="$(az vm list-usage --location "${REGION}" \
   --query "[?contains(localName,'Total Regional')].{limite:limit,uso:currentValue}" -o tsv 2>/dev/null | head -1 || echo '')"
