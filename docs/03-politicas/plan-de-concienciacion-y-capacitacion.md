@@ -260,4 +260,3 @@ and authenticator management* (NIST SP 800-63B-4).
 
 Organización Internacional de Normalización. (2022). *ISO/IEC 27002:2022. Controles de seguridad de la
 información.*
-</content>

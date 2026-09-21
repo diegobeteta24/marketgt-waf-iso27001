@@ -159,6 +159,11 @@ class EventoSeguridad extends Model
      * Busca eventos cuyo arreglo de identificadores de regla contenga alguno de los dados.
      * MariaDB resuelve JSON_CONTAINS sobre la columna JSON sin necesidad de tabla aparte.
      *
+     * Se pregunta por el identificador como texto y como numero porque JSON_CONTAINS
+     * distingue los dos tipos: ["15021"] no contiene 15021 ni al reves. La ingesta guarda
+     * siempre texto, pero un evento insertado a mano con numeros dejaria la regla del
+     * rastreador falsificado callada sin que nada avisara del hueco.
+     *
      * @param  Builder<$this>  $consulta
      * @param  array<int, int|string>  $identificadores
      * @return Builder<$this>
@@ -168,6 +173,10 @@ class EventoSeguridad extends Model
         return $consulta->where(function (Builder $interna) use ($identificadores): void {
             foreach ($identificadores as $identificador) {
                 $interna->orWhereJsonContains('identificadores_regla', (string) $identificador);
+
+                if (is_numeric($identificador)) {
+                    $interna->orWhereJsonContains('identificadores_regla', (int) $identificador);
+                }
             }
         });
     }

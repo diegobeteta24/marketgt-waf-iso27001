@@ -96,6 +96,11 @@ class DetectorSpamSeo
         $motivos = [];
         $puntuacion = 0;
 
+        // También el texto SIN normalizar se sanea: las dos reglas que lo examinan tal cual
+        // (caracteres invisibles y marcado de enlace) usan el modificador /u y quedarían
+        // ciegas ante el mismo byte inválido que desactivaba el resto del detector.
+        $texto = $this->sanearUtf8($texto);
+
         // El atacante codifica para esquivar comparaciones literales: "v i a g r a" con
         // entidades HTML, o %76iagra. Se analiza el texto ya decodificado.
         $normalizado = $this->normalizar($texto);
@@ -262,6 +267,25 @@ class DetectorSpamSeo
         $texto = html_entity_decode($texto, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $texto = rawurldecode($texto);
 
+        // El saneado de UTF-8 va DESPUÉS de decodificar y antes de cualquier patrón, y es
+        // lo que sostiene todo el detector: PCRE con el modificador /u se niega a recorrer
+        // un sujeto que no sea UTF-8 válido y devuelve false, no cero coincidencias. Sin
+        // esta línea, un solo byte %FF dentro de la reseña hacía que TODAS las reglas de
+        // vocabulario, las de CJK y las de caracteres invisibles devolvieran false: la
+        // misma carga que puntuaba 22 pasaba a puntuar 0 y se publicaba. Un byte de
+        // evasión no puede apagar el control entero.
+        $texto = $this->sanearUtf8($texto);
+
         return (string) preg_replace('/\s+/u', ' ', $texto);
+    }
+
+    /**
+     * Sustituye los bytes que rompen la codificación en vez de rechazar el texto: una
+     * reseña honesta pegada desde Word con un byte latin-1 suelto tiene que analizarse
+     * igual, no desaparecer.
+     */
+    public function sanearUtf8(string $texto): string
+    {
+        return mb_check_encoding($texto, 'UTF-8') ? $texto : mb_scrub($texto, 'UTF-8');
     }
 }

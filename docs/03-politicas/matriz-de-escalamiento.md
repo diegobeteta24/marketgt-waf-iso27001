@@ -223,4 +223,3 @@ Esta tabla es la que debe imprimirse y tenerse a la vista durante la guardia.
 | Versión | Fecha | Autor | Cambio |
 |---|---|---|---|
 | 1.0 | 2026-09-21 | Nivel táctico — Gerencia de Operaciones | Emisión inicial. Cierra las brechas de turno de guardia y de escalamiento señaladas en el anexo del triángulo de la ciberresiliencia |
-</content>

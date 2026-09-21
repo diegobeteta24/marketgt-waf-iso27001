@@ -405,4 +405,3 @@ Tres reglas del plan que conviene recordar aquí, porque son las que se olvidan 
 | Versión | Fecha | Autor | Cambio |
 |---|---|---|---|
 | 1.0 | 2026-09-21 | Nivel operativo — Departamento de TI | Emisión inicial. Desarrolla el control A.5.37 |
-</content>

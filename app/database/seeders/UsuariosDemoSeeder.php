@@ -66,9 +66,13 @@ class UsuariosDemoSeeder extends Seeder
                 ['email' => $datos['email']],
                 [
                     'name' => $datos['name'],
-                    // Hash::make explícito: el molde 'hashed' del modelo ya lo haría,
-                    // pero updateOrCreate con un valor ya cifrado volvería a cifrarlo
-                    // en una segunda ejecución y la contraseña dejaría de servir.
+                    // Hash::make explícito y no la contraseña en claro: el molde
+                    // 'hashed' del modelo la resumiría igual —y es idempotente, así
+                    // que reejecutar el semillero no la rompería—, pero dejarla en
+                    // claro aquí significa que el valor viaja sin resumir por los
+                    // eventos del modelo y por cualquier observador que se enganche.
+                    // Resumida en el sitio, la contraseña en claro no sale de esta
+                    // línea.
                     'password' => Hash::make($datos['password']),
                     'direccion' => $datos['direccion'],
                     'telefono' => $datos['telefono'],

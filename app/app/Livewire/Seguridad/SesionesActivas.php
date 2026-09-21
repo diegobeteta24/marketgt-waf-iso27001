@@ -53,13 +53,21 @@ class SesionesActivas extends Component
     /**
      * Cierra todas las sesiones menos la actual.
      *
-     * logoutOtherDevices vuelve a calcular el resumen de la contraseña y lo guarda
-     * en la sesión actual; las demás sesiones conservan el resumen viejo y Laravel
-     * las expulsa en su siguiente petición. Después se borran las filas de la
-     * tabla, que es lo que hace desaparecer la sesión de inmediato en vez de en su
-     * próximo movimiento. Hacen falta las dos cosas: solo borrar las filas dejaría
-     * vivas las cookies de "recuérdame" del atacante, que volvería a entrar sin
-     * contraseña mientras la víctima cree haberlo expulsado.
+     * Las dos operaciones hacen falta y cada una cubre un vector distinto:
+     *
+     *   - logoutOtherDevices vuelve a calcular el resumen de la contraseña (misma
+     *     contraseña, sal nueva). Eso invalida las cookies de "recuérdame" ajenas,
+     *     porque el testigo de recuerdo lleva dentro el resumen y SessionGuard lo
+     *     compara con el guardado. Sin esto, borrar las filas no bastaría: la
+     *     cookie del atacante volvería a autenticarlo sin contraseña mientras la
+     *     víctima cree haberlo expulsado.
+     *   - El borrado de las filas de la tabla sessions es lo que expulsa de verdad
+     *     a las sesiones abiertas. Conviene no atribuírselo al rehash: la
+     *     expulsión por cambio de resumen la aplica el middleware AuthenticateSession
+     *     ('auth.session'), que este proyecto NO tiene colgado del grupo web. Con
+     *     el controlador de sesión "database" el borrado logra el mismo efecto y de
+     *     forma inmediata, pero si algún día se pasa a otro controlador habrá que
+     *     añadir ese middleware o esta pantalla dejará de expulsar a nadie.
      */
     public function cerrarOtras(GestorSesiones $gestor, BitacoraSeguridad $bitacora, Auditor $auditor): void
     {

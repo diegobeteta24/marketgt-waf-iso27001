@@ -78,9 +78,13 @@
                             <span class="block text-xs text-zinc-500 dark:text-zinc-400">{{ $evento->subfuente }}</span>
                         </td>
                         <td class="whitespace-nowrap px-4 py-3">
+                            {{-- La direccion viaja por Js::from y no entre comillas a mano: lo que
+                                 hay en esa columna lo escribio un atacante, y wire:click se evalua
+                                 como expresion. Concatenarla seria abrir un hueco de inyeccion en
+                                 la unica pantalla del proyecto que muestra cargas utiles hostiles. --}}
                             <button
                                 type="button"
-                                wire:click="filtrarPorIp('{{ $evento->direccion_ip }}')"
+                                wire:click="filtrarPorIp({{ \Illuminate\Support\Js::from($evento->direccion_ip) }})"
                                 class="siem-numero font-medium text-zinc-900 underline-offset-2 hover:underline dark:text-white"
                                 title="Filtrar por esta direccion"
                             >{{ $evento->direccion_ip }}</button>

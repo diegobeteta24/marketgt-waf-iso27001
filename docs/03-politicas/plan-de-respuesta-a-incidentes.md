@@ -489,15 +489,32 @@ por hora aproximada.
 
 ### 10.1 Marco aplicable
 
-La República de Guatemala no cuenta con una ley general de protección de datos personales en vigor que
-imponga un plazo de notificación ante una brecha. Esta circunstancia se hace constar de forma expresa
-porque determina la naturaleza de la obligación: en ausencia de mandato legal, **el proyecto adopta la
-notificación de forma voluntaria**, por criterio de diligencia y no por imperativo normativo.
+A la fecha de emisión de este plan, la República de Guatemala **no cuenta con una ley general de
+protección de datos personales** que regule el tratamiento por parte de entidades privadas, cree una
+autoridad de control ni imponga un plazo de notificación ante una brecha. Las disposiciones vigentes
+que rozan la materia son de alcance acotado y conviene enumerarlas, porque de ellas se deduce el
+alcance real de la obligación y no de su ausencia:
 
-El criterio adoptado toma como referencia el plazo de 72 horas consolidado en la práctica
-internacional y las obligaciones de comunicación del estándar PCI DSS cuando exista afectación de
-datos de pago. La adopción voluntaria de un estándar más exigente que el mínimo legal es una decisión
-del nivel estratégico y consta como tal.
+| Instrumento | Qué regula | Por qué no fija el plazo |
+|---|---|---|
+| Constitución Política, artículos 24 y 31 | Inviolabilidad de documentos y correspondencia; derecho de toda persona a conocer y rectificar lo que de ella conste en archivos y registros estatales | Rige frente a registros del Estado, no frente a una tienda en línea privada |
+| Ley de Acceso a la Información Pública, Decreto 57-2008, artículos 9, 30 a 33 | Define dato personal y dato sensible, exige consentimiento expreso para su difusión y establece el *habeas data* | Obliga a los sujetos obligados que administran fondos o información pública. MarketGT no lo es, y la ley no contempla notificación de brechas ni plazo alguno |
+| Código Penal, Decreto 17-73, artículos 274 «A» a «G» | Tipifica destrucción de registros informáticos, alteración de programas, manipulación de información y uso indebido de información | Es materia penal y opera después del hecho, sobre el atacante. No impone deberes de comunicación al titular de los datos |
+
+De este marco se sigue la conclusión que determina la naturaleza de la obligación: **en ausencia de
+mandato legal que fije un plazo, el proyecto adopta la notificación de forma voluntaria**, por criterio
+de diligencia del nivel estratégico y no por imperativo normativo. La diferencia no es retórica: una
+obligación asumida es exigible ante el propio sistema de gestión y no se extingue si la ley cambia.
+
+El plazo adoptado toma como referencia las 72 horas consolidadas en la práctica internacional y las
+obligaciones de comunicación del estándar PCI DSS cuando exista afectación de datos de pago. Adoptar
+de forma voluntaria un estándar más exigente que el mínimo legal es una decisión del nivel estratégico
+y consta como tal.
+
+Varias iniciativas de ley de protección de datos personales han sido presentadas ante el Congreso de
+la República sin llegar a aprobarse. **Si alguna entrara en vigor, esta sección queda sujeta a
+revisión inmediata**, con independencia del calendario de revisión semestral: el plazo legal, cuando
+exista, desplaza al plazo voluntario y prevalece sobre él.
 
 ### 10.2 Criterio de activación
 
@@ -616,4 +633,3 @@ información.*
 
 PCI Security Standards Council. (2024). *Payment Card Industry Data Security Standard: Requirements and
 testing procedures (v4.0.1).*
-</content>

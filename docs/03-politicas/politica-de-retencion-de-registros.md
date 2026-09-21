@@ -47,10 +47,17 @@ ninguna afirmación sobre lo ocurrido.
 | **Almacenamiento frío** | **12 meses** adicionales | Archivo comprimido y cifrado, incorporado al respaldo externo | Recuperable en horas, no en segundos |
 | **Eliminación** | Al cumplir 15 meses desde su generación | — | — |
 
-Los plazos están configurados en la aplicación y no escritos únicamente en este documento: el archivo
-de configuración del panel declara 90 días de retención en línea y 12 meses en frío, con la ruta del
-archivo frío. Una política cuyo valor vive solo en un documento se desincroniza del sistema en el
-primer cambio; una que vive en la configuración se aplica sola.
+Los plazos están declarados en la configuración de la aplicación y no solo en este documento: el
+archivo `app/config/siem.php` fija 90 días de retención en línea, 12 meses en frío y la ruta del
+archivo frío. Situar el valor en la configuración evita que el documento y el sistema se
+desincronicen en el primer cambio.
+
+Debe declararse con precisión, sin embargo, el alcance actual de esa configuración. **Hoy ningún
+componente de la aplicación lee esos tres valores**: se declaran para que la rutina de purga los
+consuma cuando exista, pero esa rutina todavía no está escrita, de modo que el plazo se aplicaría
+hoy por intervención manual y no de forma automática. La sección 9 detalla el estado del control.
+Declarar aquí que el plazo «se aplica solo» porque figura en un archivo de configuración sería
+exactamente el tipo de afirmación no verificable que esta política pretende evitar.
 
 ### 3.1 Regla de purga
 
@@ -247,16 +254,22 @@ semestral y su resultado se archiva.
 ## 9. Estado al 21 de septiembre de 2026
 
 Los plazos están declarados en la configuración de la aplicación y la separación de privilegios sobre
-el registro del cortafuegos está implementada y es verificable. La **rutina automática de purga y
-archivado en frío no se ha ejecutado todavía**, por la razón evidente de que el sistema no acumula aún
-90 días de operación.
+el registro del cortafuegos está implementada y es verificable: el montaje de solo lectura consta en
+`infra/docker/docker-compose.yml` y puede comprobarse en el acto.
 
-El control A.8.15 se declara, en consecuencia, **implementado en su componente de registro y
-definido pero no ejercido en su componente de archivado**. Así consta en la matriz de controles.
+La **rutina automática de purga y archivado en frío no existe todavía**. Conviene precisar el motivo,
+porque el sistema tampoco acumula aún 90 días de operación y sería cómodo atribuir la ausencia a esa
+circunstancia: no hay ningún comando de consola que ejecute la purga, ninguna tarea programada que lo
+invoque y ningún componente que lea los valores de retención declarados en `app/config/siem.php`. La
+antigüedad insuficiente del sistema explica que la rutina no habría actuado todavía; no explica que no
+esté escrita.
+
+El control A.8.15 se declara, en consecuencia, **implementado en su componente de registro y definido
+pero no implementado en su componente de archivado y purga**. Así consta en la matriz de controles, y
+su cierre exige escribir el comando de purga, programarlo y verificar que archiva antes de eliminar.
 
 ## 10. Control de versiones
 
 | Versión | Fecha | Autor | Cambio |
 |---|---|---|---|
 | 1.0 | 2026-09-21 | Nivel táctico — Arquitecto de Seguridad | Emisión inicial. Cierra la brecha de política de retención señalada en el anexo del triángulo de la ciberresiliencia |
-</content>

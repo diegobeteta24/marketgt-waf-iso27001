@@ -328,5 +328,3 @@ publicación de una revisión de la norma rectora.
 | — | Matriz de riesgos | `docs/04-evidencias/matriz-de-riesgos.md` |
 | — | Registro de decisiones de arquitectura | `docs/02-arquitectura/decisiones-de-arquitectura.md` |
 | — | Manual de operación | `docs/02-arquitectura/manual-de-operacion.md` |
-</content>
-</invoke>

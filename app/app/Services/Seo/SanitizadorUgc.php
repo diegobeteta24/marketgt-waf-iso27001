@@ -198,6 +198,11 @@ class SanitizadorUgc
         $valor = strip_tags($valor);
         $valor = html_entity_decode($valor, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
+        // Sin sanear la codificación primero, el preg_replace de abajo devolvía null ante un
+        // solo byte inválido y la reseña entera se convertía en cadena vacía: el usuario
+        // honesto perdía su texto y el atacante conseguía vaciar cualquier campo a voluntad.
+        $valor = $this->sanearUtf8($valor);
+
         // Controles, anchos cero y marcas de dirección: invisibles en pantalla y usados para
         // partir palabras prohibidas o para invertir el texto que ve el rastreador.
         $valor = (string) preg_replace(
@@ -207,6 +212,15 @@ class SanitizadorUgc
         );
 
         return mb_substr(trim($valor), 0, $maximo);
+    }
+
+    /**
+     * Un sujeto que no es UTF-8 válido hace que PCRE con /u devuelva false en vez de "no
+     * coincide". Todo patrón /u de esta clase se apoya en esto.
+     */
+    private function sanearUtf8(string $valor): string
+    {
+        return mb_check_encoding($valor, 'UTF-8') ? $valor : mb_scrub($valor, 'UTF-8');
     }
 
     private function reconstruir(DOMNode $nodo, int $profundidad): string
@@ -284,7 +298,9 @@ class SanitizadorUgc
             return null;
         }
 
-        $decodificado = strtolower(rawurldecode(html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+        $decodificado = $this->sanearUtf8(
+            strtolower(rawurldecode(html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8'))),
+        );
 
         // Espacios y controles intercalados: "java\tscript:alert(1)" lo ejecutan varios
         // navegadores, así que se quitan antes de mirar el esquema.

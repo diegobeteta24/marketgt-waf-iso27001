@@ -60,6 +60,14 @@ class TablaEventos extends Component
      */
     public function updated(string $propiedad, mixed $valor = null): void
     {
+        // mount() solo valida la ventana al entrar por la barra de direcciones. Una propiedad
+        // publica de Livewire tambien se puede cambiar desde el navegador en cada peticion, y
+        // "ventana=100000" convertiria una consulta de veinticuatro horas en un barrido de la
+        // tabla entera. Se vuelve a validar aqui, que es donde llega ese cambio.
+        if ($propiedad === 'horas' && ! in_array($this->horas, self::VENTANAS, true)) {
+            $this->horas = 24;
+        }
+
         if ($propiedad !== 'page') {
             $this->resetPage();
         }

@@ -253,9 +253,49 @@ class IngerirEventosWaf extends Command
      */
     private function insertarLote(array $filas): void
     {
+        $filas = $this->soltarCuentasInexistentes($filas);
+
         // insertOrIgnore apoyado en el indice unico de la huella: reprocesar el mismo tramo
         // del archivo no duplica eventos, que es justo lo que pasa tras una rotacion mal leida.
         EventoSeguridad::query()->insertOrIgnore($filas);
+    }
+
+    /**
+     * Anula usuario_id cuando la cuenta ya no existe en users.
+     *
+     * eventos_seguridad tiene clave foranea hacia users e insertOrIgnore convierte el fallo
+     * de esa clave en un aviso: la fila entera se descarta sin decir nada. El registro de una
+     * cuenta dada de baja desapareceria del SIEM justo cuando mas interesa investigarla.
+     * Perder el enlace con la cuenta es aceptable; perder el evento no lo es.
+     *
+     * @param  array<int, array<string, mixed>>  $filas
+     * @return array<int, array<string, mixed>>
+     */
+    private function soltarCuentasInexistentes(array $filas): array
+    {
+        $identificadores = array_values(array_unique(array_filter(
+            array_column($filas, 'usuario_id'),
+            static fn (mixed $identificador): bool => is_numeric($identificador),
+        )));
+
+        if ($identificadores === []) {
+            return $filas;
+        }
+
+        $existentes = array_flip(array_map(
+            static fn (mixed $identificador): int => (int) $identificador,
+            DB::table('users')->whereIn('id', $identificadores)->pluck('id')->all(),
+        ));
+
+        foreach ($filas as $indice => $fila) {
+            $identificador = $fila['usuario_id'] ?? null;
+
+            if ($identificador !== null && ! isset($existentes[(int) $identificador])) {
+                $filas[$indice]['usuario_id'] = null;
+            }
+        }
+
+        return $filas;
     }
 
     private function resolverRuta(string $formato): string

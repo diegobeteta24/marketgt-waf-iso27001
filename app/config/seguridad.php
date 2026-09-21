@@ -243,11 +243,17 @@ return [
         'metodos' => ['POST', 'PUT', 'PATCH', 'DELETE'],
 
         // Rutas que no aportan nada a una auditoría y sí mucho volumen.
+        //
+        // El comodín de Livewire no es un descuido: Livewire 4 ya no publica sus
+        // puntos finales bajo /livewire, sino bajo /livewire-<8 hexadecimales>,
+        // donde el sufijo se deriva de la APP_KEY (Livewire\Mechanisms\
+        // HandleRequests\EndpointResolver::prefix). El prefijo cambia con la clave
+        // de la aplicación, así que escribirlo literalmente equivale a no filtrar
+        // nada: cada pulsación de un componente acabaría en la tabla de auditoría.
         'rutas_ignoradas' => [
             'up',
-            'livewire/update',
-            'livewire/livewire.js',
-            'livewire/livewire.min.js*',
+            'livewire-*',
+            'livewire/*',
             'flux/*',
             'build/*',
             '_debugbar/*',

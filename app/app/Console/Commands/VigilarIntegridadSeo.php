@@ -58,11 +58,19 @@ class VigilarIntegridadSeo extends Command
             'patron' => '/^\s*Noindex:/mi',
             'explicacion' => 'Directiva Noindex en robots.txt: no es estándar y varios rastreadores la obedecen',
         ],
-        'sitemap_ajeno' => [
-            'patron' => '/^\s*Sitemap:\s*https?:\/\/(?!(?:[a-z0-9-]+\.)*marketgt\.gt)/mi',
-            'explicacion' => 'Se declara un sitemap alojado en un dominio que no es MarketGT',
-        ],
     ];
+
+    /**
+     * Anfitriones que pueden aparecer en una directiva Sitemap.
+     *
+     * El dominio de producción va escrito porque el robots.txt del repositorio lo declara
+     * tal cual, pero el de app.url se añade en tiempo de ejecución: con la comprobación
+     * atada solo a marketgt.gt, cualquier entorno servido desde otro anfitrión —localhost
+     * el sábado— alertaba o dejaba de alertar por la razón equivocada.
+     *
+     * @var array<int, string>
+     */
+    private const SITEMAPS_PERMITIDOS = ['marketgt.gt', 'www.marketgt.gt'];
 
     /** Páginas cuya superficie indexable se vigila. */
     private const PAGINAS_VIGILADAS = ['/', '/tienda'];
@@ -155,6 +163,14 @@ class VigilarIntegridadSeo extends Command
             }
         }
 
+        foreach ($this->sitemapsAjenos($contenido) as $ajeno) {
+            $this->alertar($registro, LineaBaseSeo::ARTEFACTO_ROBOTS, 'directiva_peligrosa', [
+                'regla' => 'sitemap_ajeno',
+                'explicacion' => 'Se declara un sitemap alojado en un dominio que no es MarketGT',
+                'linea' => $ajeno,
+            ], IncidenteSeo::TIPO_SITEMAP_AJENO);
+        }
+
         $this->compararConLineaBase(
             $registro,
             LineaBaseSeo::ARTEFACTO_ROBOTS,
@@ -219,6 +235,38 @@ class VigilarIntegridadSeo extends Command
         }
 
         return array_values(array_unique($bloqueados));
+    }
+
+    /**
+     * Direcciones Sitemap declaradas en robots.txt que apuntan fuera de MarketGT.
+     *
+     * Se compara el anfitrión ya analizado y no un sufijo de cadena: con una expresión
+     * regular de sufijo, "marketgt.gt.sitio-del-atacante.tld" pasaba por propio.
+     *
+     * @return array<int, string>
+     */
+    private function sitemapsAjenos(string $contenido): array
+    {
+        $permitidos = self::SITEMAPS_PERMITIDOS;
+        $delEntorno = strtolower((string) parse_url((string) config('app.url'), PHP_URL_HOST));
+
+        if ($delEntorno !== '') {
+            $permitidos[] = $delEntorno;
+        }
+
+        preg_match_all('/^\s*Sitemap:\s*(\S+)/mi', $contenido, $coincidencias);
+
+        $ajenos = [];
+
+        foreach ($coincidencias[1] ?? [] as $url) {
+            $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+
+            if ($host === '' || ! in_array($host, $permitidos, true)) {
+                $ajenos[] = mb_substr('Sitemap: '.$url, 0, 200);
+            }
+        }
+
+        return $ajenos;
     }
 
     private function vigilarSitemap(GeneradorSitemap $sitemap, RegistroIncidentesSeo $registro): void
@@ -319,12 +367,32 @@ class VigilarIntegridadSeo extends Command
                 ]);
             }
 
-            if ($resumen['enlaces_sin_nofollow'] > 0) {
+            $linea = LineaBaseSeo::query()->where('artefacto', $artefacto)->first();
+
+            // Se alerta por el AUMENTO respecto de la línea base, no por el valor absoluto.
+            // La portada del proyecto enlaza a laravel.com sin nofollow desde que se instaló;
+            // con la comprobación absoluta, cada pasada abría un incidente crítico idéntico
+            // y en cuatro días el panel arrancaba la demostración con "integridad rota" y una
+            // alarma que ya nadie mira. Lo que delata la inyección de enlaces es que aparezcan
+            // MÁS de los autorizados, y un enlace hacia un anfitrión nuevo lo caza además la
+            // huella, que incluye la lista de anfitriones enlazados.
+            $autorizados = $linea instanceof LineaBaseSeo
+                ? (int) (($linea->resumen ?? [])['enlaces_sin_nofollow'] ?? 0)
+                : null;
+
+            if ($autorizados !== null && $resumen['enlaces_sin_nofollow'] > $autorizados) {
                 $this->alertar($registro, $artefacto, 'enlaces_salientes_sin_nofollow', [
-                    'explicacion' => 'Hay enlaces externos que ceden autoridad; en MarketGT todo enlace externo lleva nofollow',
-                    'cantidad' => $resumen['enlaces_sin_nofollow'],
+                    'explicacion' => 'Aparecieron enlaces externos sin nofollow que no estaban en la línea base autorizada',
+                    'autorizados' => $autorizados,
+                    'encontrados' => $resumen['enlaces_sin_nofollow'],
                     'hosts' => $resumen['hosts_enlazados'],
                 ]);
+            } elseif ($resumen['enlaces_sin_nofollow'] > 0) {
+                $this->fila(
+                    $artefacto,
+                    'aviso',
+                    $resumen['enlaces_sin_nofollow'].' enlace(s) externo(s) sin nofollow, dentro de lo sellado',
+                );
             }
 
             $this->compararConLineaBase($registro, $artefacto, $extractor->huella($resumen), $resumen, $url, $extractor);

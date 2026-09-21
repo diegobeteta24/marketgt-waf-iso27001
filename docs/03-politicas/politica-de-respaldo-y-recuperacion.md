@@ -299,4 +299,3 @@ existir.
 | Versión | Fecha | Autor | Cambio |
 |---|---|---|---|
 | 1.0 | 2026-09-21 | Nivel táctico — Gerencia de Operaciones | Emisión inicial. Sustituye el esquema de instantáneas semanales por volcado diario cifrado bajo esquema 3-2-1, conforme al anexo del triángulo de la ciberresiliencia |
-</content>

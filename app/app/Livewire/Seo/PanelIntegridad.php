@@ -74,6 +74,11 @@ class PanelIntegridad extends Component
 
         abort_unless($usuario !== null && $usuario->esAdministrador(), 403);
 
+        // Se toma antes de lanzar el comando y recortado al segundo, porque la columna
+        // sellada_en guarda segundos: sin recortar, una fila sellada en ese mismo segundo
+        // quedaría fuera del rango y sin firmar.
+        $momento = Carbon::now()->startOfSecond();
+
         try {
             Artisan::call('seo:vigilar', [
                 '--sellar' => true,
@@ -83,7 +88,14 @@ class PanelIntegridad extends Component
 
             // El comando corre en consola y no conoce al usuario de la sesión. La firma se
             // completa aquí: una línea base sin responsable no sirve para auditar nada.
-            LineaBaseSeo::query()->update(['sellada_por' => $usuario->getAuthIdentifier()]);
+            //
+            // Solo se firman las líneas que ESTA ejecución selló. El sellado del panel va con
+            // --sin-red, así que no toca las líneas base de las páginas; firmarlas todas
+            // ponía el nombre del administrador debajo de un estado que él nunca revisó, que
+            // es justo la falsificación de evidencia que este control existe para impedir.
+            LineaBaseSeo::query()
+                ->where('sellada_en', '>=', $momento)
+                ->update(['sellada_por' => $usuario->getAuthIdentifier()]);
 
             $this->salidaVigilancia = trim(Artisan::output());
             $this->vigilanciaCorrecta = true;

@@ -73,7 +73,12 @@ Route::get('ir', function (Request $peticion, RedireccionSegura $redireccion) {
     // revertir. Además se marca noindex para que ningún buscador guarde esta URL.
     return redirect()->away($destino, 302)
         ->header('X-Robots-Tag', 'noindex, nofollow');
-})->name('seo.ir');
+})->middleware('throttle:30,1')->name('seo.ir');
+// El límite no protege la lista blanca —esa no se puede forzar—, protege la BITÁCORA.
+// Cada clave inválida escribe una línea JSON en storage/logs/seguridad.log, y esta ruta es
+// pública y sin sesión: un bucle de curl llenaba el disco y ahogaba al SIEM en ruido propio
+// mientras el ataque de verdad pasaba desapercibido entre un millón de líneas iguales. El
+// incidente en la tabla sí está agregado por huella; el archivo no lo está.
 
 // -----------------------------------------------------------------------------
 // Panel de integridad de posicionamiento

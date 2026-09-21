@@ -3,6 +3,7 @@
 namespace App\Livewire\Siem;
 
 use App\Models\AlertaSeguridad;
+use App\Models\User;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -55,6 +56,21 @@ class PanelAlertas extends Component
         AlertaSeguridad::ESTADO_FALSO_POSITIVO => [],
     ];
 
+    /**
+     * Segunda linea de control sobre las acciones que escriben.
+     *
+     * La ruta ya exige rol:admin,auditor, pero un componente de Livewire recibe sus llamadas
+     * por su propio extremo: quien monte manana este panel desde otra pagina, o quien invoque
+     * el metodo a mano, se saltaria ese middleware. Comprobar solo que hay sesion iniciada no
+     * bastaba: cualquier cliente de la tienda podria cerrar alertas y falsear las metricas.
+     */
+    private function exigirAnalista(): void
+    {
+        $usuario = Auth::user();
+
+        abort_unless($usuario instanceof User && $usuario->tieneRol('admin', 'auditor'), 403);
+    }
+
     public function seleccionar(int $alertaId): void
     {
         if ($this->alertaSeleccionada === $alertaId) {
@@ -73,9 +89,7 @@ class PanelAlertas extends Component
      */
     public function cambiarEstado(int $alertaId, string $nuevoEstado): void
     {
-        // La ruta ya exige el rol de auditor o administrador; esta comprobacion es la segunda
-        // linea, por si el componente se monta manana desde otra pagina sin ese middleware.
-        abort_unless(Auth::check(), 403);
+        $this->exigirAnalista();
 
         $alerta = AlertaSeguridad::query()->findOrFail($alertaId);
 
@@ -97,7 +111,7 @@ class PanelAlertas extends Component
 
     public function guardarNotas(int $alertaId): void
     {
-        abort_unless(Auth::check(), 403);
+        $this->exigirAnalista();
 
         $alerta = AlertaSeguridad::query()->findOrFail($alertaId);
         $alerta->notas_triaje = trim($this->notas) === '' ? null : trim($this->notas);

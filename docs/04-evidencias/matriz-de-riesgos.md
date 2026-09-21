@@ -118,7 +118,7 @@ probabilidad e impacto.
 | **Evidencia** | `infra/scripts/02-hardening-servidor.sh` sección 1; `infra/docker/docker-compose.yml`, red `appnet` con `internal: true` |
 | **P residual / I residual** | 3 / 4 |
 | **Riesgo residual** | **12 · Alto** |
-| **Tratamiento** | **Mitigar, con acción pendiente.** El escaneo automatizado de dependencias no está configurado y el directorio de flujos de trabajo está vacío. Es la acción correctiva de mayor prioridad de esta matriz, comprometida antes de la presentación |
+| **Tratamiento** | **Mitigar, con acción pendiente.** La integración continua ejecuta estilo, análisis estático y pruebas, pero **ninguna etapa consulta un avisorio de vulnerabilidades**, y la actualización automática configurada alcanza solo a las acciones del flujo de trabajo, no a los paquetes de PHP ni de JavaScript. Es la acción correctiva de mayor prioridad de esta matriz, comprometida antes de la presentación |
 
 ### R-03 · Compromiso de credenciales por autenticación débil
 
@@ -337,7 +337,7 @@ Esta sección existe porque es la conclusión operativa de toda la matriz.
 |---|---|---|---|---|
 | **R-04** · Cifrado malicioso | Los guiones de respaldo no existen y ninguna restauración se ha probado. Un respaldo no probado se comporta como un respaldo ausente | Implementar el respaldo diario cifrado y levantar el acta `RES-2026-09` | Q20.00 mensuales, absorbidos por la reserva de contingencia | Antes de la presentación |
 | **R-13** · Error humano | Ninguna capacitación se ha impartido. La métrica de personal capacitado es del 0 % frente a su meta del 100 % | Impartir la primera edición de los seis módulos y ejecutar el simulacro de mesa | **Q0.00.** Cuesta cuatro horas | Antes de la presentación |
-| **R-02** · Componente vulnerable | El escaneo automatizado de dependencias no está configurado; el directorio de flujos de trabajo está vacío | Configurar la auditoría de dependencias y el escaneo de secretos | **Q0.00** | Antes de la presentación |
+| **R-02** · Componente vulnerable | La integración continua no consulta ningún avisorio de vulnerabilidades y la actualización automática cubre solo las acciones del flujo, no `composer` ni `npm` | Añadir la auditoría de dependencias de PHP y de JavaScript a `app/.github/workflows/tests.yml` y extender `dependabot.yml` a ambos ecosistemas; configurar el escaneo de secretos | **Q0.00** | Antes de la presentación |
 
 Dos de las tres correcciones no tienen costo económico alguno, y la tercera está presupuestada. Esto
 merece decirse con claridad: **el riesgo residual alto que subsiste en este proyecto no obedece a una
@@ -361,4 +361,3 @@ reales de personas. En un entorno productivo, los tres exigirían tratamiento.
 | Versión | Fecha | Autor | Cambio |
 |---|---|---|---|
 | 1.0 | 2026-09-21 | Nivel táctico — Arquitecto de Seguridad | Emisión inicial. Trece riesgos evaluados con probabilidad anclada en las frecuencias de la infografía del curso |
-</content>

@@ -48,6 +48,19 @@ class TableroPrincipal extends Component
     }
 
     /**
+     * mount() solo corre al entrar en la pagina. Una propiedad publica de Livewire tambien
+     * se puede cambiar desde el navegador en cada peticion posterior, y un valor absurdo no
+     * solo consultaria meses de eventos: la serie horaria construye un arreglo con una
+     * entrada por hora, asi que "horas=1000000" agota la memoria del proceso.
+     */
+    public function updatedHoras(): void
+    {
+        if (! in_array($this->horas, self::VENTANAS, true)) {
+            $this->horas = 24;
+        }
+    }
+
+    /**
      * @return array<string, int>
      */
     #[Computed]

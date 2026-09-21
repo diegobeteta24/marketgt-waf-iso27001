@@ -183,16 +183,36 @@ class Normalizador
     }
 
     /**
-     * Normaliza una linea del registro de la aplicacion Laravel (canal single).
-     * Formato: [2026-09-21 10:00:00] local.WARNING: mensaje {"contexto":"json"}
+     * Normaliza una linea del registro de la aplicacion Laravel.
+     *
+     * Se aceptan las dos formas que el proyecto escribe de verdad, porque cual de ellas
+     * llega depende de a que archivo apunte config/siem.php:
+     *   - Bitacora de seguridad (storage/logs/seguridad.log), un objeto JSON plano por
+     *     linea segun el contrato de App\Services\Seguridad\FormateadorBitacoraJson:
+     *     {"marca_tiempo":"...","evento":"...","usuario_id":1,"ip":"...","detalle":{...}}
+     *   - Canal general de Laravel con el formateador de linea de Monolog:
+     *     [2026-09-21 10:00:00] local.WARNING: mensaje {"contexto":"json"}
+     *
+     * Entender solo una de las dos dejaba ciegas a las reglas de fuerza bruta y de segundo
+     * factor: sus eventos viven en la bitacora, que es la que va en JSON.
      *
      * @return array<string, mixed>|null
      */
     public function desdeRegistroAplicacion(string $linea): ?array
     {
+        $linea = trim($linea);
+
+        if ($linea === '') {
+            return null;
+        }
+
+        if (str_starts_with($linea, '{')) {
+            return $this->desdeBitacoraSeguridad($linea);
+        }
+
         $patron = '/^\[(?P<fecha>[^\]]+)\]\s+(?P<canal>[\w\-]+)\.(?P<nivel>[A-Z]+):\s+(?P<cuerpo>.*)$/s';
 
-        if (preg_match($patron, trim($linea), $coincidencias) !== 1) {
+        if (preg_match($patron, $linea, $coincidencias) !== 1) {
             return null;
         }
 
@@ -232,12 +252,76 @@ class Normalizador
                 : null,
             'agente_usuario' => $this->textoPlano($contexto['agente'] ?? $contexto['user_agent'] ?? null),
             'es_demostracion' => false,
-            'huella' => $this->huella([
-                EventoSeguridad::FUENTE_APLICACION,
-                $marcaTiempo->toIso8601String(),
-                $direccionIp,
-                $mensaje,
-            ]),
+            // La huella se calcula sobre la linea entera y no sobre fecha + IP + mensaje:
+            // durante una rafaga de fuerza bruta caben varios intentos en el mismo segundo
+            // con el mismo texto, y una huella mas corta los habria fundido en uno solo,
+            // hundiendo justo el conteo que la regla de fuerza bruta necesita.
+            'huella' => $this->huella([EventoSeguridad::FUENTE_APLICACION, 'linea', $linea]),
+        ];
+    }
+
+    /**
+     * Bitacora de seguridad de la aplicacion: un objeto JSON plano por linea con las claves
+     * marca_tiempo, evento, usuario_id, correo, ip, agente_usuario, detalle y nivel.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function desdeBitacoraSeguridad(string $linea): ?array
+    {
+        $registro = json_decode($linea, true);
+
+        if (! is_array($registro)) {
+            return null;
+        }
+
+        $evento = $this->textoPlano($registro['evento'] ?? null);
+
+        // Sin nombre de evento la linea no es de la bitacora: puede ser cualquier otro JSON
+        // que alguien haya volcado en el archivo, y adivinarlo produciria eventos falsos.
+        if ($evento === null) {
+            return null;
+        }
+
+        $contexto = $this->aplanarContexto($registro);
+        $nivel = Str::upper($this->textoPlano($registro['nivel'] ?? null) ?? 'INFO');
+
+        // Las etiquetas salen solo del nombre del evento, no del detalle. El nombre es un
+        // identificador que la bitacora garantiza por contrato; el detalle lleva la ruta, y
+        // un 403 de rol sobre /user/two-factor-authentication habria quedado etiquetado como
+        // fallo de segundo factor, que es la regla mas grave de las siete. Una alerta critica
+        // falsa cuesta mas credibilidad que un evento sin etiquetar.
+        $etiquetas = $this->etiquetarMensajeAplicacion($evento, []);
+
+        $direccionIp = $this->textoPlano($registro['ip'] ?? null) ?? '0.0.0.0';
+
+        $fecha = $this->textoPlano($registro['marca_tiempo'] ?? null);
+        $marcaTiempo = $fecha === null ? CarbonImmutable::now() : $this->interpretarFecha($fecha);
+
+        $detalle = is_array($registro['detalle'] ?? null) ? $registro['detalle'] : [];
+
+        return [
+            'fuente' => EventoSeguridad::FUENTE_APLICACION,
+            'subfuente' => 'bitacora',
+            'marca_tiempo' => $marcaTiempo,
+            'direccion_ip' => Str::limit($direccionIp, 45, ''),
+            'pais' => null,
+            'metodo' => Str::upper(Str::limit((string) ($this->textoPlano($contexto['metodo'] ?? $contexto['method'] ?? null) ?? ''), 10, '')) ?: null,
+            'ruta' => $this->textoPlano($contexto['ruta'] ?? $contexto['url'] ?? $contexto['path'] ?? null),
+            'codigo_respuesta' => is_numeric($contexto['codigo'] ?? null) ? (int) $contexto['codigo'] : null,
+            'identificador_transaccion' => null,
+            'identificadores_regla' => [],
+            'puntuacion_anomalia' => 0,
+            'severidad' => $this->severidadAplicacion($nivel, $etiquetas),
+            'etiquetas' => $etiquetas,
+            'mensaje' => Str::limit($evento, 1000),
+            'carga_util' => $this->depurarCargaUtil($detalle === [] ? null : json_encode($detalle, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)),
+            'fue_bloqueado' => false,
+            'usuario_id' => is_numeric($registro['usuario_id'] ?? null) ? (int) $registro['usuario_id'] : null,
+            'agente_usuario' => $this->textoPlano($registro['agente_usuario'] ?? null),
+            'es_demostracion' => false,
+            // Misma razon que en el formato de linea: la bitacora solo tiene resolucion de
+            // segundo, asi que la linea completa es lo unico que distingue dos intentos.
+            'huella' => $this->huella([EventoSeguridad::FUENTE_APLICACION, 'bitacora', $linea]),
         ];
     }
 
@@ -454,9 +538,22 @@ class Normalizador
             $contexto,
         )));
 
+        // Los separadores van como clase y no como espacio literal porque los nombres de
+        // evento de la bitacora usan guion bajo ("segundo_factor_fallido"). Con un espacio
+        // fijo, la regla de segundo factor -la mas grave de las siete- no se disparaba nunca
+        // sobre datos reales, solo sobre los del semillero, que trae las etiquetas escritas.
+        $separador = '[\s_.\-]';
+
         $indicaFallo = (bool) preg_match('/fall|invalid|incorrect|denegad|rechazad|failed|throttle|bloque/u', $texto);
-        $indicaSegundoFactor = (bool) preg_match('/segundo factor|dos factores|two.?factor|2fa|totp|codigo de recuperacion|recovery.?code/u', $texto);
-        $indicaSesion = (bool) preg_match('/login|inicio de sesion|sesion|credencial|auth|contrasena|password/u', $texto);
+        $indicaSegundoFactor = (bool) preg_match(
+            '/segundo'.$separador.'?factor|dos'.$separador.'?factores|two.?factor|2fa|totp'
+            .'|codigo'.$separador.'?(?:de'.$separador.'?)?recuperacion|recovery.?code/u',
+            $texto,
+        );
+        $indicaSesion = (bool) preg_match(
+            '/login|inicio'.$separador.'?de'.$separador.'?sesion|sesion|credencial|auth|contrasena|password|intento/u',
+            $texto,
+        );
 
         if ($indicaSegundoFactor) {
             $etiquetas[] = $indicaFallo ? 'segundo_factor.fallido' : 'segundo_factor.correcto';
@@ -466,7 +563,7 @@ class Normalizador
 
         // "acceso_denegado_por_rol" es el evento que escribe el middleware de roles: se
         // etiqueta aparte de la autenticacion porque ahi el usuario ya habia iniciado sesion.
-        if (preg_match('/autoriza|permiso|rol|403|forbidden|acceso.denegado/u', $texto) === 1) {
+        if (preg_match('/autoriza|permiso|rol|403|forbidden|acceso'.$separador.'?denegado/u', $texto) === 1) {
             $etiquetas[] = 'autorizacion.denegada';
         }
 

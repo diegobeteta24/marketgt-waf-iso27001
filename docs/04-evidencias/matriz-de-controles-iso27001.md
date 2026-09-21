@@ -50,9 +50,10 @@ en el primer control que la verificación desmiente, y arrastra consigo a los qu
 | No aplica | 18 | 26.1 % |
 | **Total evaluado** | **69** | de los 93 del Anexo A |
 
-De los 69 evaluados, **18 se declaran fuera de alcance** —los catorce controles físicos de la familia
-A.7 y cuatro de la familia A.6 relativos a la relación laboral—, de modo que 51 controles quedan dentro
-del alcance efectivo del sistema de gestión. De esos 51, **31 están implementados y verificables hoy**.
+De los 69 evaluados, **18 se declaran fuera de alcance**: los catorce controles físicos de la familia
+A.7, tres de la familia A.6 relativos a la relación laboral —A.6.1, A.6.2 y A.6.4— y el control A.8.1
+sobre dispositivos de usuario final, que el proyecto no administra. Quedan así 51 controles dentro del
+alcance efectivo del sistema de gestión, y de esos 51 **31 están implementados y verificables hoy**.
 
 Los 24 controles restantes del Anexo A no se evalúan en esta versión por corresponder a ámbitos que el
 entorno académico del proyecto no reproduce. La sección 8 los enumera uno a uno.
@@ -126,13 +127,13 @@ una evidencia ajena, y declararlos implementados por cuenta propia sería falso.
 | **A.8.5** | Autenticación segura | Sí | Implementado | Segundo factor obligatorio en cuentas privilegiadas: código temporal conforme al RFC 6238 o credencial de clave pública WebAuthn; códigos de recuperación de un solo uso; reautenticación obligatoria antes de cualquier operación que debilite la cuenta | `app/routes/seguridad.php`, middleware `password.confirm`; `app/resources/views/pages/settings/⚡security.blade.php`; `app/tests/Feature/Settings/SecurityTest.php` |
 | **A.8.6** | Gestión de la capacidad | Sí | **Parcial** | La máquina virtual se dimensionó de forma explícita —cuatro núcleos y 16 GB— y se ajustaron los parámetros de núcleo y memoria de intercambio que el conjunto exige. No existe monitoreo continuo de capacidad con alerta por umbral | `infra/scripts/03-crear-vm-gcp.sh`; `infra/scripts/04-desplegar.sh` |
 | **A.8.7** | Protección contra código malicioso | Sí | **Pendiente** | No hay antivirus ni análisis de archivos subidos por usuarios. La plataforma admite carga de imágenes de producto, de modo que el vacío es real y no teórico. Mitigación parcial vigente: límite de tamaño de cuerpo y rechazo de excedentes en el cortafuegos | Ninguna. Se declara como vacío en la matriz de riesgos |
-| **A.8.8** | Gestión de vulnerabilidades técnicas | Sí | **Parcial** | Parcheo automático de seguridad del sistema operativo habilitado y ventana máxima de 72 horas declarada para vulnerabilidades críticas. La auditoría de dependencias y el escaneo automatizado del repositorio **no están configurados**: el directorio de flujos de trabajo está vacío | `infra/scripts/02-hardening-servidor.sh` sección 1. `.github/workflows/` **vacío**; reportes de OWASP ZAP, Nmap y Lynis **pendientes** |
+| **A.8.8** | Gestión de vulnerabilidades técnicas | Sí | **Parcial** | Parcheo automático de seguridad del sistema operativo habilitado y ventana máxima de 72 horas declarada para vulnerabilidades críticas. Existe integración continua que ejecuta estilo, análisis estático y pruebas en cada envío. Lo que **no está configurado** es la auditoría de vulnerabilidades de las dependencias: la actualización automática vigente cubre únicamente las acciones del flujo de trabajo, no los paquetes de PHP ni los de JavaScript, que son los que sostienen la aplicación | `infra/scripts/02-hardening-servidor.sh` sección 1; `app/.github/workflows/tests.yml`; `app/.github/dependabot.yml`, limitado a `github-actions`. Auditoría de `composer` y `npm` **no configurada**; reportes de OWASP ZAP, Nmap y Lynis **pendientes** |
 | **A.8.9** | Gestión de la configuración | Sí | Implementado | La configuración completa vive bajo control de versiones: conjunto de contenedores, reglas del cortafuegos, exclusiones y guiones de aprovisionamiento. Las imágenes se fijan por etiqueta exacta y no por etiqueta rodante | `infra/docker/docker-compose.yml`, imagen fijada a `4.29.0-nginx-202609180209` |
-| **A.8.10** | Eliminación de información | Sí | **Definido, no ejecutado** | Purga a los 90 días con archivado previo en frío y eliminación definitiva a los 15 meses. La rutina **no se ha ejercido** porque el sistema no acumula aún 90 días de operación | `app/config/siem.php`, bloque `retencion`; POL-005 sección 3 |
+| **A.8.10** | Eliminación de información | Sí | **Definido, no ejecutado** | Purga a los 90 días con archivado previo en frío y eliminación definitiva a los 15 meses. Los plazos están declarados en la configuración, pero **la rutina no está escrita**: no existe comando de purga, ni tarea programada, ni componente que lea el bloque `retencion`. El sistema tampoco acumula aún 90 días, de modo que la rutina no habría actuado todavía; eso explica que no se haya ejercido, no que no exista | `app/config/siem.php`, bloque `retencion`, **sin consumidor en el código**; POL-005 secciones 3 y 9 |
 | **A.8.11** | Enmascaramiento de datos | Sí | **Parcial** | El conjunto de reglas oculta el valor de campos sensibles cuando la regla correspondiente está activa. No existe enmascaramiento sistemático en la interfaz ni en los informes | `infra/modsecurity/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf`; POL-005 sección 5.1 |
 | **A.8.12** | Prevención de fuga de datos | Sí | Implementado | La inspección del cuerpo de la respuesta permanece habilitada de forma expresa para que operen las reglas de la familia 95x; las reglas propias detectan extracción masiva del catálogo | `infra/docker/docker-compose.yml`, `MODSEC_RESP_BODY_ACCESS: On`; `infra/modsecurity/REQUEST-946-MARKETGT-ANTISCRAPING.conf` |
 | **A.8.13** | Respaldo de la información | Sí | **Definido, no ejecutado** | Esquema 3-2-1 con volcado diario cifrado hacia almacenamiento externo de proveedor distinto, credencial sin permiso de borrado, objetivos de 24 y 4 horas y prueba mensual con acta. **Los guiones de respaldo y de restauración no constan en el repositorio** | `docs/03-politicas/politica-de-respaldo-y-recuperacion.md`. Guiones y acta `RES-2026-09` **pendientes** |
-| **A.8.15** | Registro de eventos | Sí | **Parcial** | Registro en formato JSON del cortafuegos, bitácora de seguridad de la aplicación y tabla de auditoría consultable; plazos de 90 días y 12 meses declarados en la configuración; separación de privilegios verificable. El archivado en frío **no se ha ejercido** | `app/config/siem.php`; `app/app/Models/RegistroAuditoria.php`; `app/app/Http/Middleware/RegistrarAuditoria.php`; `infra/scripts/leer-audit-log.sh` |
+| **A.8.15** | Registro de eventos | Sí | **Parcial** | Registro en formato JSON del cortafuegos, bitácora de seguridad de la aplicación y tabla de auditoría consultable; plazos de 90 días y 12 meses declarados en la configuración; separación de privilegios verificable mediante el montaje de solo lectura. El archivado en frío **no está implementado**, conforme a A.8.10 | `app/config/siem.php`; `app/app/Models/RegistroAuditoria.php`; `app/app/Http/Middleware/RegistrarAuditoria.php`; `infra/docker/docker-compose.yml`, montaje `modsec-audit:…:ro`; `infra/scripts/leer-audit-log.sh` |
 | **A.8.16** | Actividades de seguimiento | Sí | Implementado | Ingesta incremental del registro del cortafuegos, normalización, motor de correlación con reglas y umbrales, alertas con ciclo de estados y tablero de métricas contrastadas contra sus metas | `app/app/Console/Commands/IngerirEventosWaf.php`; `app/app/Console/Commands/CorrelacionarEventos.php`; `app/app/Services/Siem/MotorCorrelacion.php`; `app/routes/siem.php` |
 | **A.8.17** | Sincronización de relojes | Sí | Implementado | Sincronización por protocolo de tiempo de red en el anfitrión; los contenedores heredan su reloj | `infra/scripts/02-hardening-servidor.sh`; POL-005 sección 6.4 |
 | **A.8.19** | Instalación de software en sistemas operativos | Sí | Implementado | El sistema se construye desde guiones idempotentes bajo control de versiones; las dependencias de la aplicación se resuelven en la construcción de la imagen, no en ejecución | `infra/docker/Dockerfile.app`; `infra/scripts/00-setup-wsl.sh` |
@@ -166,7 +167,7 @@ motiva. Se enumeran para que la ausencia sea explícita y no se confunda con un 
 | Relación con proveedores | A.5.19 a A.5.23 | 5 | Los servicios empleados son gratuitos y se aceptan en sus términos publicados. No existe contrato negociado, ni acuerdo de nivel de servicio, ni capacidad de auditar al proveedor |
 | Cumplimiento legal y contractual | A.5.31, A.5.32, A.5.33, A.5.36 | 4 | El proyecto no procesa datos reales ni opera comercialmente. La única obligación normativa considerada es el requisito 6.4.2 del estándar PCI DSS, que motiva el despliegue del cortafuegos y sí está atendida |
 | Terminación de la relación y confidencialidad | A.6.5, A.6.6 | 2 | Misma razón que A.6.1: no existe relación laboral |
-| Tecnológicos no aplicables al diseño vigente | A.8.4, A.8.14, A.8.18, A.8.30, A.8.34 | 5 | Acceso al código fuente por terceros, redundancia de instalaciones, uso de utilidades privilegiadas, desarrollo subcontratado y protección durante auditorías. Ninguno de los cuatro supuestos se presenta, y la redundancia de instalaciones se descarta de forma expresa en POL-004 sección 6.2 por restricción de presupuesto |
+| Tecnológicos no aplicables al diseño vigente | A.8.4, A.8.14, A.8.18, A.8.30, A.8.34 | 5 | Acceso al código fuente por terceros, redundancia de instalaciones, uso de utilidades privilegiadas, desarrollo subcontratado y protección durante auditorías. Ninguno de los cinco supuestos se presenta, y la redundancia de instalaciones se descarta de forma expresa en POL-004 sección 6.2 por restricción de presupuesto |
 | **Total no evaluado** | — | **24** | 69 evaluados más 24 no evaluados suman los 93 controles del Anexo A |
 
 ---
@@ -180,7 +181,7 @@ Un auditor irá directamente a esta sección. Se presenta agrupada y sin atenuan
 | Control | Vacío | Riesgo que genera | Tratamiento |
 |---|---|---|---|
 | A.8.7 · Pendiente | Sin protección contra código malicioso en los archivos que suben los usuarios | Carga de un archivo malicioso disfrazado de imagen de producto | Aceptado para el entorno de demostración. Registrado como R-09 en la matriz de riesgos |
-| A.8.8 · componente pendiente del control parcial | Escaneo automatizado de dependencias no configurado; el directorio `.github/workflows/` está vacío | Una dependencia vulnerable puede permanecer sin detectar. Los componentes vulnerables representan el 12.36 % de las vulnerabilidades web | Pendiente de implementación antes de la presentación |
+| A.8.8 · componente pendiente del control parcial | Auditoría de vulnerabilidades de dependencias no configurada. La integración continua de `app/.github/workflows/tests.yml` verifica estilo, tipos y pruebas, pero no consulta ningún avisorio de vulnerabilidades; la actualización automática declarada en `app/.github/dependabot.yml` cubre solo las acciones del flujo, no `composer` ni `npm` | Una dependencia vulnerable puede permanecer sin detectar. Los componentes vulnerables representan el 12.36 % de las vulnerabilidades web | Pendiente de implementación antes de la presentación |
 
 ### 9.2 Definidos pero no ejecutados
 
@@ -194,7 +195,7 @@ implementada sin serlo.
 | A.5.27 | Actas de revisión posterior: no ha habido incidentes reales que revisar |
 | A.5.30 | Prueba de restauración que verifique los objetivos de 24 y 4 horas |
 | A.6.3 | Primera edición de la capacitación. Métrica de personal capacitado: 0 % |
-| A.8.10 | Rutina de purga y archivado en frío, no ejercida por antigüedad insuficiente del sistema |
+| A.8.10 | Rutina de purga y archivado en frío. No existe comando de consola ni tarea programada, y el bloque `retencion` de la configuración carece de consumidor en el código |
 | A.8.13 | Guiones de respaldo y de restauración, ausentes del repositorio |
 
 ### 9.3 Limitaciones declaradas de los controles parciales
@@ -210,7 +211,7 @@ Trece controles operan solo en parte. Cada uno declara aquí lo que le falta.
 | A.8.6 | Dimensionamiento explícito y ajuste de parámetros del núcleo | Monitoreo continuo de capacidad con alerta por umbral |
 | A.8.8 | Parcheo automático del sistema operativo y ventana de 72 horas declarada | Auditoría automatizada de dependencias |
 | A.8.11 | Ocultación de campos sensibles en el registro del cortafuegos | Enmascaramiento sistemático en interfaz e informes |
-| A.8.15 | Registro en tres fuentes, plazos configurados y separación de privilegios verificable | Archivado en frío, no ejercido |
+| A.8.15 | Registro en tres fuentes, plazos declarados en configuración y separación de privilegios verificable | Archivado en frío, no implementado |
 | A.8.20 | Cortafuegos de red con dos puertos expuestos y bloqueo automático | Mitigación de denegación de servicio en el borde, conforme a DA-001 |
 | A.8.24 | TLS 1.3 en tránsito y cifrado de datos personales en reposo | Cifrado del respaldo y gestión formal del ciclo de vida de las claves |
 | A.8.25 | Criterios de codificación segura y análisis estático configurado | Revisión de código por pares formalizada |
@@ -235,5 +236,4 @@ mayor peso del proyecto.
 
 | Versión | Fecha | Autor | Cambio |
 |---|---|---|---|
-| 1.0 | 2026-09-21 | Nivel táctico — Arquitecto de Seguridad | Emisión inicial. Declaración de Aplicabilidad con 47 controles evaluados y estado honesto de cada uno |
-</content>
+| 1.0 | 2026-09-21 | Nivel táctico — Arquitecto de Seguridad | Emisión inicial. Declaración de Aplicabilidad con 69 controles evaluados y estado honesto de cada uno |

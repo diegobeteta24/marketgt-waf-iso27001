@@ -373,4 +373,3 @@ Estas decisiones no se han tomado y se enumeran para que su ausencia conste.
 | Versión | Fecha | Autor | Cambio |
 |---|---|---|---|
 | 1.0 | 2026-09-21 | Nivel táctico — Arquitecto de Seguridad | Emisión inicial. Recoge ocho decisiones, incluidas las que documentan un componente anunciado y no desplegado (DA-003) y un cambio de proveedor (DA-002) |
-</content>
