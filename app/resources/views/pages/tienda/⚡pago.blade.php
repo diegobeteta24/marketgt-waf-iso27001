@@ -19,12 +19,6 @@ new
 #[Title('Pago')]
 class extends Component
 {
-    /**
-     * Clave de sesión con los números de pedido hechos desde este navegador. Es la que
-     * autoriza a ver el comprobante sin haber iniciado sesión.
-     */
-    public const PEDIDOS_RECIENTES = 'pedidos_recientes';
-
     public string $nombre_cliente = '';
 
     public string $correo_cliente = '';
@@ -268,9 +262,9 @@ class extends Component
 
         // El comprobante es una URL con número aleatorio; esta lista de sesión es lo que
         // permite abrirlo sin haber iniciado sesión, y solo desde el navegador que compró.
-        $recientes = Session::get(self::PEDIDOS_RECIENTES, []);
+        $recientes = Session::get(Pedido::CLAVE_SESION_RECIENTES, []);
         $recientes[] = $pedido->numero;
-        Session::put(self::PEDIDOS_RECIENTES, array_slice(array_unique($recientes), -20));
+        Session::put(Pedido::CLAVE_SESION_RECIENTES, array_slice(array_unique($recientes), -20));
 
         $this->dispatch('carrito-actualizado');
 

@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MarketGT · Proyecto de Seguridad y Auditoría de Sistemas</title>
+<meta name="description" content="Plataforma de comercio electrónico protegida por un Web Application Firewall bajo la norma ISO/IEC 27001:2022. Proyecto de curso, Universidad Mariano Gálvez de Guatemala.">
+<style>
+  :root{
+    --fondo:#fbfaf8; --superficie:#ffffff; --borde:#e5e1da;
+    --texto:#1c1a17; --texto-suave:#6b655c; --texto-tenue:#918a7f;
+    --acento:#8a3324; --acento-suave:#f5ece9;
+    --ok:#2d6a4f; --alerta:#9a6700; --peligro:#b3261e;
+    --sombra:0 1px 2px rgba(28,26,23,.05), 0 4px 12px rgba(28,26,23,.04);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --fondo:#15140f; --superficie:#1e1c17; --borde:#33302a;
+      --texto:#f0ece4; --texto-suave:#a9a294; --texto-tenue:#7d7768;
+      --acento:#e08a70; --acento-suave:#2a1f1a;
+      --ok:#74c69d; --alerta:#e3b341; --peligro:#f2837c;
+      --sombra:0 1px 2px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.2);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --fondo:#15140f; --superficie:#1e1c17; --borde:#33302a;
+    --texto:#f0ece4; --texto-suave:#a9a294; --texto-tenue:#7d7768;
+    --acento:#e08a70; --acento-suave:#2a1f1a;
+    --ok:#74c69d; --alerta:#e3b341; --peligro:#f2837c;
+    color-scheme: dark;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--fondo); color:var(--texto);
+    font:16px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .envoltura{max-width:920px; margin:0 auto; padding:0 20px}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  a{color:var(--acento)}
+
+  /* ── Encabezado ─────────────────────────────────────────── */
+  header{padding-block:clamp(48px,9vw,88px) clamp(32px,5vw,48px)}
+  .curso{
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--texto-tenue); font-weight:600; margin:0 0 20px;
+  }
+  h1{
+    font-size:clamp(38px,8vw,64px); line-height:1.02; margin:0 0 18px;
+    letter-spacing:-.03em; font-weight:700;
+  }
+  .lema{
+    font-size:clamp(17px,2.4vw,20px); color:var(--texto-suave);
+    max-width:62ch; margin:0 0 32px; line-height:1.55;
+  }
+  .institucion{
+    font-size:14px; color:var(--texto-tenue); line-height:1.7;
+    padding-top:24px; border-top:1px solid var(--borde);
+  }
+
+  /* ── Acceso al sistema ──────────────────────────────────── */
+  .acceso{
+    background:var(--superficie); border:1px solid var(--borde);
+    border-radius:14px; padding:28px; margin-block:40px;
+    box-shadow:var(--sombra);
+  }
+  .acceso h2{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--texto-tenue);margin:0 0 18px;font-weight:600}
+  .enlaces{display:flex; flex-wrap:wrap; gap:12px}
+  .boton{
+    display:inline-flex; align-items:center; gap:9px;
+    padding:12px 20px; border-radius:9px; text-decoration:none;
+    font-weight:600; font-size:15px; border:1px solid transparent;
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  .boton:hover{transform:translateY(-1px)}
+  .boton.principal{background:var(--acento); color:#fff}
+  .boton.secundario{background:transparent; color:var(--texto); border-color:var(--borde)}
+  .punto{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.85}
+  .nota-acceso{font-size:13.5px;color:var(--texto-tenue);margin:18px 0 0;line-height:1.6}
+
+  /* ── Secciones ──────────────────────────────────────────── */
+  section{padding-block:clamp(36px,6vw,56px); border-top:1px solid var(--borde)}
+  h2.titulo{font-size:clamp(23px,3.4vw,29px); margin:0 0 10px; letter-spacing:-.02em; font-weight:650}
+  .entradilla{color:var(--texto-suave); max-width:66ch; margin:0 0 30px; line-height:1.6}
+
+  /* ── Capas ──────────────────────────────────────────────── */
+  .capas{display:flex; flex-direction:column; gap:9px}
+  .capa{
+    display:grid; grid-template-columns:34px 1fr; gap:16px; align-items:start;
+    background:var(--superficie); border:1px solid var(--borde);
+    border-radius:11px; padding:16px 18px;
+  }
+  .num{
+    width:34px;height:34px;border-radius:8px; display:grid;place-items:center;
+    background:var(--acento-suave); color:var(--acento);
+    font-weight:700; font-size:14px; font-variant-numeric:tabular-nums;
+  }
+  .capa h3{margin:0 0 3px; font-size:15.5px; font-weight:650}
+  .capa .comp{font-size:13.5px; color:var(--texto-tenue); margin:0 0 7px}
+  .capa p{margin:0; font-size:14.5px; color:var(--texto-suave); line-height:1.55}
+  .activo{background:var(--acento); color:#fff}
+
+  /* ── Triángulo ──────────────────────────────────────────── */
+  .vertices{display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:14px}
+  .vertice{
+    background:var(--superficie); border:1px solid var(--borde);
+    border-radius:11px; padding:20px;
+  }
+  .vertice h3{margin:0 0 6px; font-size:16px; font-weight:650}
+  .estado{
+    display:inline-block; font-size:11.5px; font-weight:600; padding:3px 9px;
+    border-radius:20px; margin-bottom:11px; letter-spacing:.02em;
+  }
+  .estado.cubierto{background:color-mix(in srgb,var(--ok) 15%,transparent); color:var(--ok)}
+  .vertice p{margin:0; font-size:14px; color:var(--texto-suave); line-height:1.55}
+
+  /* ── Demostraciones ─────────────────────────────────────── */
+  ol.demos{list-style:none; counter-reset:d; padding:0; margin:0; display:flex; flex-direction:column; gap:14px}
+  ol.demos li{
+    counter-increment:d; position:relative; padding-left:44px;
+    font-size:15px; color:var(--texto-suave); line-height:1.6;
+  }
+  ol.demos li::before{
+    content:counter(d); position:absolute; left:0; top:1px;
+    width:28px;height:28px;border-radius:7px; display:grid;place-items:center;
+    background:var(--acento-suave); color:var(--acento); font-weight:700; font-size:13px;
+  }
+  ol.demos strong{color:var(--texto); font-weight:650; display:block; margin-bottom:2px}
+
+  /* ── Tabla ──────────────────────────────────────────────── */
+  .tabla-caja{overflow-x:auto; border:1px solid var(--borde); border-radius:11px; background:var(--superficie)}
+  table{border-collapse:collapse; width:100%; min-width:430px; font-size:14.5px}
+  th,td{padding:12px 16px; text-align:left; border-bottom:1px solid var(--borde)}
+  th{font-weight:650; font-size:12.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--texto-tenue)}
+  tbody tr:last-child td{border-bottom:none}
+  td.cero{color:var(--ok); font-weight:650; font-variant-numeric:tabular-nums}
+
+  /* ── Documentos ─────────────────────────────────────────── */
+  .docs{display:grid; grid-template-columns:repeat(auto-fit,minmax(245px,1fr)); gap:11px}
+  .doc{
+    display:block; text-decoration:none; color:inherit;
+    background:var(--superficie); border:1px solid var(--borde);
+    border-radius:10px; padding:16px 18px; transition:border-color .12s ease;
+  }
+  .doc:hover{border-color:var(--acento)}
+  .doc strong{display:block; font-size:14.5px; font-weight:650; margin-bottom:3px}
+  .doc span{font-size:13px; color:var(--texto-tenue); line-height:1.5}
+
+  /* ── Equipo y pie ───────────────────────────────────────── */
+  .equipo{display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:11px}
+  .persona{background:var(--superficie); border:1px solid var(--borde); border-radius:10px; padding:15px 18px}
+  .persona strong{display:block; font-size:14.5px; font-weight:600}
+  .persona span{font-size:13px; color:var(--texto-tenue); font-variant-numeric:tabular-nums}
+  footer{
+    padding-block:34px 48px; border-top:1px solid var(--borde);
+    font-size:13.5px; color:var(--texto-tenue); line-height:1.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="envoltura">
+
+  <header>
+    <p class="curso">Proyecto de curso · Seguridad y Auditoría de Sistemas</p>
+    <h1>MarketGT</h1>
+    <p class="lema">
+      Plataforma de comercio electrónico bajo modelo de software como servicio,
+      protegida por un Web Application Firewall e implementada conforme a la
+      norma ISO/IEC 27001:2022.
+    </p>
+    <p class="institucion">
+      Universidad Mariano Gálvez de Guatemala · Sede El Naranjo<br>
+      Facultad de Ingeniería en Sistemas de Información · Ingeniería en Ciencias y Sistemas
+    </p>
+  </header>
+
+  <div class="acceso">
+    <h2>Sistema en producción</h2>
+    <div class="enlaces">
+      <a class="boton principal" href="https://marketgt.us.kg" id="enlace-tienda">
+        <span class="punto"></span> Abrir la tienda
+      </a>
+      <a class="boton secundario" href="https://marketgt.us.kg/siem">Panel de monitoreo</a>
+      <a class="boton secundario" href="https://marketgt.us.kg/demo">Consola de ataques</a>
+    </div>
+    <p class="nota-acceso">
+      El panel de monitoreo y la consola de ataques requieren autenticación con
+      segundo factor. Las credenciales de revisión se entregan por separado junto
+      con el informe escrito.
+    </p>
+  </div>
+
+  <section>
+    <h2 class="titulo">Defensa en profundidad</h2>
+    <p class="entradilla">
+      Seis capas concéntricas rodean el activo que se protege: los datos de los
+      clientes. El supuesto de diseño es que cualquier capa puede fallar, de modo
+      que ninguna concentra por sí sola la seguridad del sistema.
+    </p>
+
+    <div class="capas">
+      <div class="capa">
+        <div class="num">1</div>
+        <div>
+          <h3>Perímetro</h3>
+          <p class="comp">Cloudflare</p>
+          <p>Mitigación de denegación de servicio, red de entrega de contenido y límite de tasa por dirección.</p>
+        </div>
+      </div>
+      <div class="capa">
+        <div class="num">2</div>
+        <div>
+          <h3>Red</h3>
+          <p class="comp">UFW y fail2ban</p>
+          <p>Únicamente los puertos 80 y 443 aceptan conexiones. El acceso remoto exige llave criptográfica y se bloquea tras intentos fallidos.</p>
+        </div>
+      </div>
+      <div class="capa">
+        <div class="num">3</div>
+        <div>
+          <h3>Sistema operativo</h3>
+          <p class="comp">Ubuntu Server · CIS Benchmark</p>
+          <p>Configuración endurecida, parcheo automático de seguridad, auditoría del núcleo con reglas inmutables y verificación periódica con Lynis.</p>
+        </div>
+      </div>
+      <div class="capa activo">
+        <div class="num activo" style="background:rgba(255,255,255,.2);color:#fff">4</div>
+        <div>
+          <h3>Servidor web y cortafuegos de aplicación</h3>
+          <p class="comp" style="color:rgba(255,255,255,.75)">Nginx · ModSecurity 3 · OWASP Core Rule Set 4</p>
+          <p style="color:rgba(255,255,255,.9)">Inspección del tráfico en capa 7 con puntuación de anomalía acumulada. Es el control central de la propuesta.</p>
+        </div>
+      </div>
+      <div class="capa">
+        <div class="num">5</div>
+        <div>
+          <h3>Aplicación</h3>
+          <p class="comp">Laravel</p>
+          <p>Segundo factor con contraseña de un solo uso y con passkeys, control de acceso por roles, validación de entradas y cabeceras de seguridad.</p>
+        </div>
+      </div>
+      <div class="capa">
+        <div class="num">6</div>
+        <div>
+          <h3>Datos</h3>
+          <p class="comp">MariaDB</p>
+          <p>Cifrado en reposo de los campos sensibles, tokenización de los medios de pago y respaldo diario cifrado fuera del servidor.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="titulo">Triángulo de la ciberresiliencia</h2>
+    <p class="entradilla">
+      El modelo sostiene que la prevención pura terminará fallando, de modo que la
+      supervivencia del negocio no depende de la robustez de un único control sino
+      del equilibrio entre protección, detección y respuesta. El anexo del proyecto
+      identificó que la propuesta original dejaba dos de esos vértices sin cubrir.
+      Esta implementación cierra los tres.
+    </p>
+
+    <div class="vertices">
+      <div class="vertice">
+        <h3>Protección</h3>
+        <span class="estado cubierto">Implementado</span>
+        <p>Las seis capas del esquema anterior, más la gestión de parches con ventana máxima definida y el plan de concienciación del personal.</p>
+      </div>
+      <div class="vertice">
+        <h3>Detección</h3>
+        <span class="estado cubierto">Implementado</span>
+        <p>Panel de monitoreo que ingiere el registro de auditoría del cortafuegos de aplicación, el del servidor web y el de la aplicación, los correlaciona con reglas de umbral y genera alertas con acción recomendada.</p>
+      </div>
+      <div class="vertice">
+        <h3>Respuesta</h3>
+        <span class="estado cubierto">Implementado</span>
+        <p>Plan de respuesta a incidentes con procedimientos por tipo, matriz de escalamiento, respaldo diario cifrado externo y prueba de restauración verificada.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="titulo">Demostraciones verificables</h2>
+    <p class="entradilla">
+      Cada afirmación de este proyecto puede comprobarse en vivo sobre el sistema
+      publicado, no solo leerse en el documento.
+    </p>
+
+    <ol class="demos">
+      <li>
+        <strong>Bloqueo de ataques de inyección</strong>
+        Se lanzan inyecciones SQL y secuencias de comandos en sitios cruzados contra el
+        sitio en ejecución. El servidor responde con código 403 y el registro muestra
+        el identificador de la regla que se activó y la puntuación de anomalía acumulada.
+      </li>
+      <li>
+        <strong>Autenticación multifactor</strong>
+        Inicio de sesión con contraseña de un solo uso basada en tiempo y con passkey,
+        más los códigos de recuperación de un solo uso.
+      </li>
+      <li>
+        <strong>Correlación de eventos y métricas</strong>
+        El panel muestra los eventos correlacionados en tiempo real, las alertas abiertas
+        con su estado de atención, y las métricas de los tres vértices calculadas a partir
+        de los datos registrados.
+      </li>
+      <li>
+        <strong>Ataques contra el posicionamiento</strong>
+        Inyección de contenido con enlaces publicitarios, suplantación de un rastreador
+        legítimo y abuso de redirección abierta, con su detección mediante reglas escritas
+        por el equipo.
+      </li>
+      <li>
+        <strong>Evidencias de auditoría</strong>
+        Informes de análisis de vulnerabilidades, descubrimiento de puertos, verificación
+        del endurecimiento del sistema operativo y la matriz de controles del Anexo A.
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <h2 class="titulo">Costo de la solución</h2>
+    <p class="entradilla">
+      La totalidad de las herramientas empleadas es de código abierto o se utiliza en
+      su modalidad gratuita. El costo de licenciamiento del proyecto asciende a cero.
+    </p>
+
+    <div class="tabla-caja">
+      <table>
+        <thead>
+          <tr><th>Componente</th><th>Producto</th><th>Costo</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Cortafuegos de aplicación</td><td>ModSecurity 3 y OWASP Core Rule Set</td><td class="cero">Q0.00</td></tr>
+          <tr><td>Servidor web</td><td>Nginx</td><td class="cero">Q0.00</td></tr>
+          <tr><td>Aplicación</td><td>PHP y Laravel</td><td class="cero">Q0.00</td></tr>
+          <tr><td>Base de datos</td><td>MariaDB</td><td class="cero">Q0.00</td></tr>
+          <tr><td>Sistema operativo</td><td>Ubuntu Server</td><td class="cero">Q0.00</td></tr>
+          <tr><td>Certificado de transporte</td><td>Let's Encrypt</td><td class="cero">Q0.00</td></tr>
+          <tr><td>Perímetro</td><td>Cloudflare</td><td class="cero">Q0.00</td></tr>
+          <tr><td>Nombre de dominio</td><td>DigitalPlat FreeDomain</td><td class="cero">Q0.00</td></tr>
+          <tr><td>Auditoría</td><td>OWASP ZAP, nmap, Lynis</td><td class="cero">Q0.00</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="titulo">Documentación</h2>
+    <p class="entradilla">
+      El sistema de gestión de la seguridad de la información no se sostiene con
+      herramientas sino con procesos documentados y evidencias verificables.
+    </p>
+
+    <div class="docs">
+      <a class="doc" href="docs/politica-de-seguridad-de-la-informacion.html">
+        <strong>Política de seguridad</strong>
+        <span>Alcance, roles por nivel y clasificación de la información</span>
+      </a>
+      <a class="doc" href="docs/plan-de-respuesta-a-incidentes.html">
+        <strong>Plan de respuesta a incidentes</strong>
+        <span>Procedimientos por tipo, conforme a NIST SP 800-61</span>
+      </a>
+      <a class="doc" href="docs/matriz-de-controles-iso27001.html">
+        <strong>Matriz de controles</strong>
+        <span>Anexo A de ISO/IEC 27001:2022 con su evidencia</span>
+      </a>
+      <a class="doc" href="docs/matriz-de-riesgos.html">
+        <strong>Matriz de riesgos</strong>
+        <span>Riesgo inherente, control aplicado y riesgo residual</span>
+      </a>
+      <a class="doc" href="docs/decisiones-de-arquitectura.html">
+        <strong>Decisiones de arquitectura</strong>
+        <span>Qué se decidió, por qué, y qué se descartó</span>
+      </a>
+      <a class="doc" href="docs/manual-de-operacion.html">
+        <strong>Manual de operación</strong>
+        <span>Despliegue, atención de alertas y restauración</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="titulo">Equipo</h2>
+    <div class="equipo">
+      <div class="persona"><strong>Diego Antonio Beteta García</strong><span>9490-22-12878</span></div>
+      <div class="persona"><strong>Jonathan Rogelio Herrera Soto</strong><span>9490-22-11551</span></div>
+      <div class="persona"><strong>Mario Roberto Rompich Yoc</strong><span>9490-17-1752</span></div>
+    </div>
+  </section>
+
+  <footer>
+    Guatemala, septiembre de 2026 · Seguridad y Auditoría de Sistemas<br>
+    El entorno publicado es de demostración académica. No procesa pagos reales
+    ni almacena información de tarjetas: los medios de pago se tokenizan y solo
+    se conservan los cuatro últimos dígitos.
+  </footer>
+
+</div>
+</body>
+</html>
