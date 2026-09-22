@@ -6,37 +6,80 @@
     justificarlos ante el profesor; y el SVG se dibuja en el servidor, de modo que necesita
     valores que no dependan de que el compilador de Tailwind haya visto la clase.
 
-    Los pares azul/rojo se eligieron por separacion bajo daltonismo (deuteranopia y
-    protanopia) contra ambos fondos, no por gusto. Ningun estado se comunica solo con color:
-    cada insignia lleva siempre su texto.
+    La plantilla del sitio fija la clase "dark" en el elemento raiz, de modo que el panel de
+    monitoreo solo se muestra sobre fondo oscuro. Antes habia dos bloques, uno claro de base
+    y uno oscuro como anadido, y varias variables solo estaban corregidas en el anadido: las
+    que faltaban se quedaban con el valor pensado para fondo blanco y apenas se distinguian.
+    Por eso ahora el bloque base YA es el del fondo oscuro: ninguna variable depende de que
+    otro selector la rescate.
+
+    Los colores se eligieron por separacion bajo daltonismo (deuteranopia y protanopia) y por
+    relacion de contraste contra el fondo de la tarjeta, zinc-900 (#171717), no por gusto.
+    Ningun estado se comunica solo con color: cada insignia lleva siempre su texto.
+
+    Que el WAF bloquee es un EXITO, no un error: por eso la serie de bloqueados va en verde
+    esmeralda y el rojo queda reservado para lo que exige atencion, que es la severidad
+    critica y el incumplimiento de una meta.
 --}}
 <style>
     .panel-siem {
-        --siem-serie-permitidos: #2a78d6;
-        --siem-serie-bloqueados: #d03b3b;
-        --siem-rejilla: rgba(11, 11, 11, 0.10);
-        --siem-eje: #898781;
-        --siem-superficie: #ffffff;
+        /*
+            Series de la grafica. Esmeralda (9.3:1 sobre la tarjeta) contra gris azulado
+            (7.0:1). Se separan sobre todo por TONO —verde saturado contra azul grisaceo
+            apagado—, que es una diferencia del eje azul-amarillo y por tanto la conserva
+            quien no distingue el rojo del verde. Por claridad, en cambio, apenas se separan:
+            1.33:1 entre si. Por eso las dos series NO se fian del color para delimitarse y
+            llevan ademas un filete del color de la tarjeta (vease .siem-barra-*): el borde
+            entre lo cortado y lo permitido se ve aunque el proyector lave el tono o aunque
+            quien mira no perciba color alguno. La leyenda lleva ademas su texto.
+        */
+        --siem-serie-bloqueados: #34d399;
+        --siem-serie-permitidos: #94a3b8;
 
-        --siem-critica: #d03b3b;
-        --siem-alta: #c2521f;
-        --siem-media: #9a6b00;
-        --siem-baja: #2a78d6;
-        --siem-informativa: #6b7280;
-        --siem-cumple: #0ca30c;
-    }
+        /*
+            La reja se ve, pero no compite con las barras. A 0.14 la linea se quedaba en
+            1.5:1 contra la tarjeta y en un proyector, que lava justamente los tonos
+            oscuros, desaparecia. A 0.20 sube a 1.9:1: sigue muy por debajo de las barras
+            (9.3:1 y 7.0:1), de modo que la jerarquia no cambia, pero la referencia
+            sobrevive desde el fondo del aula.
+        */
+        --siem-rejilla: rgba(255, 255, 255, 0.20);
 
-    .dark .panel-siem {
-        --siem-serie-permitidos: #3987e5;
-        --siem-serie-bloqueados: #d03b3b;
-        --siem-rejilla: rgba(255, 255, 255, 0.10);
-        --siem-eje: #a1a1aa;
+        /*
+            Contorno de una figura que SI es el dibujo, como el triangulo de ciberresiliencia.
+            Con el valor de la reja se perdia contra el fondo: una linea de referencia puede
+            ser tenue, pero la forma que se esta mirando no. A 0.32 se quedaba en 2.9:1,
+            justo por debajo del 3:1 que se exige a un elemento grafico con significado;
+            a 0.38 alcanza 3.6:1 y aguanta el proyector.
+        */
+        --siem-contorno: rgba(255, 255, 255, 0.38);
+
+        /* Eje: zinc-400, el minimo admisible para texto terciario sobre fondo oscuro. */
+        --siem-eje: #a3a3a3;
+
+        /* La cifra del pico es dato principal, no rotulo de eje: va en texto principal. */
+        --siem-destacado: #f5f5f5;
+
+        /* Fondo real de la tarjeta, para el contorno de la barra al pasar el raton. */
         --siem-superficie: #171717;
 
-        --siem-alta: #ec835a;
-        --siem-media: #fab219;
-        --siem-baja: #3987e5;
-        --siem-informativa: #a1a1aa;
+        /*
+            Color de texto por defecto del panel. La plantilla no fija ninguno en <body>, de
+            modo que todo lo que no llevaba clase de color —las columnas de cifras de las
+            tablas, sobre todo— heredaba el negro del navegador y desaparecia sobre la
+            tarjeta oscura. Esto es la red de seguridad; cada cifra lleva ademas su clase.
+        */
+        --siem-texto: #f5f5f5;
+
+        /* Severidades y estados. */
+        --siem-critica: #f87171;
+        --siem-alta: #fb923c;
+        --siem-media: #fbbf24;
+        --siem-baja: #38bdf8;
+        --siem-informativa: #a3a3a3;
+        --siem-cumple: #34d399;
+
+        color: var(--siem-texto);
     }
 
     .panel-siem .siem-rejilla {
@@ -51,10 +94,26 @@
     }
 
     .panel-siem .siem-etiqueta-directa {
-        fill: var(--siem-eje);
+        fill: var(--siem-destacado);
         font-size: 11px;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
+    }
+
+    /*
+        Filete del color de la tarjeta alrededor de cada tramo. Las dos series se distinguen
+        muy bien por tono, pero entre si solo se separan 1.33:1 en claridad, y van APILADAS:
+        lo bloqueado se dibuja justo encima de lo permitido, de modo que comparten un borde.
+        Sin el filete ese borde depende por entero del color, que es lo que se pierde en un
+        proyector y lo que no ve quien carece de vision cromatica. Con el, el limite entre
+        los dos tramos y entre una barra y la siguiente es una linea de fondo, siempre
+        visible. Un cuarto de unidad sobre un lienzo de 760 no adelgaza la barra de forma
+        apreciable. Al pasar el raton el mismo filete engorda y hace de realce.
+    */
+    .panel-siem .siem-barra-permitidos,
+    .panel-siem .siem-barra-bloqueados {
+        stroke: var(--siem-superficie);
+        stroke-width: 0.5;
     }
 
     .panel-siem .siem-barra-permitidos {
@@ -67,7 +126,6 @@
 
     .panel-siem .siem-grupo-barra:hover .siem-barra-permitidos,
     .panel-siem .siem-grupo-barra:hover .siem-barra-bloqueados {
-        stroke: var(--siem-superficie);
         stroke-width: 2;
     }
 
@@ -79,6 +137,12 @@
         flex: none;
     }
 
+    /*
+        Pastilla de severidad. El relleno se deriva del propio color con color-mix, de modo
+        que cada severidad trae su fondo tenue sin declarar cinco variables mas; el borde y
+        el punto siguen saliendo de currentColor. Se declara antes un relleno plano como
+        reserva, por si el navegador no soporta color-mix.
+    */
     .panel-siem .siem-sev {
         display: inline-flex;
         align-items: center;
@@ -90,6 +154,8 @@
         line-height: 1.4;
         white-space: nowrap;
         border: 1px solid currentColor;
+        background: rgba(255, 255, 255, 0.06);
+        background: color-mix(in srgb, currentColor 16%, transparent);
     }
 
     .panel-siem .siem-sev::before {
@@ -105,6 +171,18 @@
     .panel-siem .siem-sev-media { color: var(--siem-media); }
     .panel-siem .siem-sev-baja { color: var(--siem-baja); }
     .panel-siem .siem-sev-informativa { color: var(--siem-informativa); }
+
+    /*
+        La misma insignia sin pastilla, para el reparto por severidad: ahi el color ya lo
+        lleva la muestra de al lado, y una pastilla por etiqueta convertiria la linea en un
+        amontonamiento. La palabra conserva su color propio, que es lo que hace que la
+        proporcion se capte de un vistazo.
+    */
+    .panel-siem .siem-sev-suelta {
+        border: 0;
+        padding: 0;
+        background: none;
+    }
 
     .panel-siem .siem-numero {
         font-variant-numeric: tabular-nums;

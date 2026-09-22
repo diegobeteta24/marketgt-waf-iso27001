@@ -23,10 +23,10 @@
 <div wire:poll.15s class="space-y-6">
     @if ($this->ingestaDetenida)
         <div class="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 sm:p-4">
-            <flux:icon.exclamation-triangle class="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <flux:icon.exclamation-triangle class="mt-0.5 size-5 shrink-0 text-amber-400" />
             <div class="text-sm">
-                <p class="font-semibold text-amber-700 dark:text-amber-300">La ingesta parece detenida</p>
-                <p class="mt-1 text-zinc-600 dark:text-zinc-400">
+                <p class="font-semibold text-amber-300">La ingesta parece detenida</p>
+                <p class="mt-1 text-zinc-400">
                     @if ($this->ultimoEvento)
                         El evento mas reciente es de {{ $this->ultimoEvento->format('d/m/Y H:i') }}
                         ({{ $this->ultimoEvento->diffForHumans() }}).
@@ -78,30 +78,30 @@
         @foreach ($tarjetas as $tarjeta)
             <div class="rounded-xl border border-zinc-200 bg-white p-3 sm:p-4 dark:border-zinc-700 dark:bg-zinc-900">
                 <div class="flex items-start justify-between gap-2">
-                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    <p class="text-xs font-medium uppercase tracking-wide text-zinc-400">
                         {{ $tarjeta['titulo'] }}
                     </p>
                     @switch ($tarjeta['icono'])
                         @case('signal')
-                            <flux:icon.signal class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                            <flux:icon.signal class="size-4 shrink-0 text-zinc-400" />
                         @break
 
                         @case('shield-exclamation')
-                            <flux:icon.shield-exclamation class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                            <flux:icon.shield-exclamation class="size-4 shrink-0 text-zinc-400" />
                         @break
 
                         @case('bell-alert')
-                            <flux:icon.bell-alert class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                            <flux:icon.bell-alert class="size-4 shrink-0 text-zinc-400" />
                         @break
 
                         @default
-                            <flux:icon.globe-americas class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                            <flux:icon.globe-americas class="size-4 shrink-0 text-zinc-400" />
                     @endswitch
                 </div>
-                <p class="siem-numero mt-2 text-2xl font-semibold text-zinc-900 sm:text-3xl dark:text-white">
+                <p class="siem-numero mt-2 text-2xl font-semibold text-white sm:text-3xl">
                     {{ number_format($tarjeta['valor']) }}
                 </p>
-                <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{{ $tarjeta['pie'] }}</p>
+                <p class="mt-1 text-xs text-zinc-400">{{ $tarjeta['pie'] }}</p>
             </div>
         @endforeach
     </div>
@@ -115,7 +115,7 @@
             </div>
 
             <div class="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-start sm:gap-4">
-                <div class="flex items-center gap-4 text-xs text-zinc-600 dark:text-zinc-300">
+                <div class="flex items-center gap-4 text-xs text-zinc-300">
                     <span class="flex items-center gap-1.5">
                         <span class="siem-muestra" style="background: var(--siem-serie-bloqueados)"></span>
                         Bloqueados
@@ -133,8 +133,8 @@
                             wire:click="cambiarVentana({{ $ventana }})"
                             @class([
                                 'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 text-xs font-medium transition sm:min-h-0 sm:min-w-0 sm:py-1',
-                                'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' => $this->horas === $ventana,
-                                'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800' => $this->horas !== $ventana,
+                                'bg-white text-zinc-900' => $this->horas === $ventana,
+                                'text-zinc-300 hover:bg-zinc-800 hover:text-white' => $this->horas !== $ventana,
                             ])
                         >{{ $ventana }} h</button>
                     @endforeach
@@ -143,7 +143,7 @@
         </figcaption>
 
         @if ($grafica['sin_datos'])
-            <p class="py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
+            <p class="py-12 text-center text-sm text-zinc-400">
                 No hay eventos en esta ventana. Ejecute el semillero de demostracion o la ingesta del WAF.
             </p>
         @else
@@ -238,7 +238,7 @@
             <flux:subheading>Core Rule Set 4.29 y reglas propias del proyecto (15000-15099).</flux:subheading>
 
             @if ($reglas['truncado'])
-                <p class="mt-2 text-sm text-amber-600 sm:text-xs dark:text-amber-400">
+                <p class="mt-2 text-sm text-amber-400 sm:text-xs">
                     El conteo se calculo sobre las filas mas recientes: el volumen de la ventana supera el techo de lectura.
                 </p>
             @endif
@@ -246,7 +246,7 @@
             <div class="mt-4 overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                        <tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-400 dark:border-zinc-700">
                             <th class="pb-2 font-medium">Regla</th>
                             <th class="pb-2 text-right font-medium">Activaciones</th>
                             <th class="pb-2 text-right font-medium">Bloqueos</th>
@@ -260,13 +260,16 @@
                             @php $maximoRegla = $reglas['reglas'][0]['total'] ?: 1; @endphp
                             <tr>
                                 <td class="py-2">
-                                    <span class="siem-numero font-medium text-zinc-900 dark:text-white">{{ $regla['identificador'] }}</span>
+                                    <span class="siem-numero font-medium text-white">{{ $regla['identificador'] }}</span>
                                     @if ($regla['propia'])
                                         <flux:badge size="sm" class="ms-2">propia</flux:badge>
                                     @endif
                                 </td>
-                                <td class="siem-numero py-2 text-right">{{ number_format($regla['total']) }}</td>
-                                <td class="siem-numero py-2 text-right text-zinc-500 dark:text-zinc-400">{{ number_format($regla['bloqueados']) }}</td>
+                                {{-- Las cifras son el contenido de la tabla, no su adorno: van en
+                                     texto principal. Los bloqueos ademas en el verde de la serie,
+                                     porque que el WAF corte es el resultado que se busca. --}}
+                                <td class="siem-numero py-2 text-right font-medium text-zinc-100">{{ number_format($regla['total']) }}</td>
+                                <td class="siem-numero py-2 text-right font-medium" style="color: var(--siem-serie-bloqueados)">{{ number_format($regla['bloqueados']) }}</td>
                                 <td class="hidden w-28 py-2 pl-3 sm:table-cell">
                                     <div class="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
                                         <div
@@ -278,7 +281,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="py-6 text-center text-zinc-500 dark:text-zinc-400">
+                                <td colspan="4" class="py-6 text-center text-zinc-400">
                                     Ninguna regla se activo en esta ventana.
                                 </td>
                             </tr>
@@ -296,7 +299,7 @@
             <div class="mt-4 overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
-                        <tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                        <tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-400 dark:border-zinc-700">
                             <th class="pb-2 font-medium">Direccion</th>
                             {{-- Cinco columnas no caben en un telefono. El pais no desaparece:
                                  se muestra bajo la direccion, y la puntuacion maxima cede el
@@ -311,19 +314,19 @@
                         @forelse ($this->direcciones as $direccion)
                             <tr>
                                 <td class="py-2 pr-2">
-                                    <span class="siem-numero block break-all font-medium text-zinc-900 dark:text-white">{{ $direccion->direccion_ip }}</span>
-                                    <span class="block text-xs text-zinc-500 sm:hidden dark:text-zinc-400">{{ $direccion->pais ?? 'sin dato' }}</span>
+                                    <span class="siem-numero block break-all font-medium text-white">{{ $direccion->direccion_ip }}</span>
+                                    <span class="block text-xs text-zinc-400 sm:hidden">{{ $direccion->pais ?? 'sin dato' }}</span>
                                 </td>
-                                <td class="hidden py-2 text-zinc-500 sm:table-cell dark:text-zinc-400">{{ $direccion->pais ?? 'sin dato' }}</td>
-                                <td class="siem-numero py-2 text-right">{{ number_format((int) $direccion->total) }}</td>
-                                <td class="siem-numero py-2 text-right" style="color: var(--siem-serie-bloqueados)">
+                                <td class="hidden py-2 text-zinc-400 sm:table-cell">{{ $direccion->pais ?? 'sin dato' }}</td>
+                                <td class="siem-numero py-2 text-right font-medium text-zinc-100">{{ number_format((int) $direccion->total) }}</td>
+                                <td class="siem-numero py-2 text-right font-medium" style="color: var(--siem-serie-bloqueados)">
                                     {{ number_format((int) $direccion->bloqueados) }}
                                 </td>
-                                <td class="siem-numero hidden py-2 text-right sm:table-cell">{{ (int) $direccion->puntuacion_maxima }}</td>
+                                <td class="siem-numero hidden py-2 text-right font-medium text-zinc-100 sm:table-cell">{{ (int) $direccion->puntuacion_maxima }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="py-6 text-center text-zinc-500 dark:text-zinc-400">
+                                <td colspan="5" class="py-6 text-center text-zinc-400">
                                     Sin actividad registrada en esta ventana.
                                 </td>
                             </tr>
@@ -332,7 +335,7 @@
                 </table>
             </div>
 
-            <p class="mt-3 text-sm text-zinc-500 sm:text-xs dark:text-zinc-400">
+            <p class="mt-3 text-sm text-zinc-400 sm:text-xs">
                 El pais proviene del encabezado CF-IPCountry que anade Cloudflare en la capa 1. Cuando la
                 peticion no pasa por el perimetro se muestra "sin dato" en vez de suponerlo.
             </p>
@@ -360,10 +363,12 @@
 
             <div class="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs">
                 @foreach ($this->reparto as $severidad => $cantidad)
-                    <span class="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300">
+                    <span class="flex items-center gap-1.5 text-zinc-300">
                         <span class="siem-muestra" style="background: var(--siem-{{ $severidad }})"></span>
-                        <x-pages::siem.severidad :valor="$severidad" class="border-0! px-0!" />
-                        <span class="siem-numero font-medium">{{ number_format($cantidad) }}</span>
+                        {{-- Sin pastilla, pero con el color propio de cada severidad: asi la
+                             proporcion se capta de un vistazo y la palabra sigue estando. --}}
+                        <x-pages::siem.severidad :valor="$severidad" class="siem-sev-suelta" />
+                        <span class="siem-numero font-medium text-zinc-100">{{ number_format($cantidad) }}</span>
                     </span>
                 @endforeach
             </div>

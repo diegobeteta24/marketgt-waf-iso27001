@@ -3,7 +3,12 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900">
+    {{--
+        El color del texto se fija aquí, en el cuerpo. Sin esta declaración todo
+        lo que no sea un componente de Flux hereda el negro por omisión del
+        navegador, y sobre el fondo oscuro no se lee.
+    --}}
+    <body class="min-h-screen bg-white text-zinc-800 antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900 dark:text-zinc-100">
         {{--
             min-h-dvh en vez de h-dvh: si el formulario es más alto que la
             pantalla del teléfono, la página crece y se puede desplazar en

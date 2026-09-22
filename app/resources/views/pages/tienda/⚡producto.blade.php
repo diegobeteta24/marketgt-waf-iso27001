@@ -118,7 +118,7 @@ class extends Component
 }; ?>
 
 <div class="space-y-8 sm:space-y-10">
-    <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-1.5 break-words text-xs text-zinc-500 dark:text-zinc-400">
+    <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-1.5 break-words text-xs text-zinc-600 dark:text-zinc-300">
         <a href="{{ route('tienda.catalogo') }}" wire:navigate class="hover:text-zinc-900 dark:hover:text-white">Catálogo</a>
         <span>/</span>
         <a
@@ -140,7 +140,9 @@ class extends Component
                     <img src="{{ $producto->imagen_url }}" alt="{{ $producto->nombre }}" class="size-full object-cover" />
                 @else
                     <div class="flex size-full items-center justify-center">
-                        <span class="text-7xl font-black tracking-tight text-zinc-900/25 dark:text-white/30">
+                        {{-- La marca de agua de portada estaba en 1.7:1 en claro y 2.4:1 en oscuro,
+                             por debajo incluso del mínimo de texto grande. Ahora supera 4.5:1. --}}
+                        <span class="text-7xl font-black tracking-tight text-zinc-800/70 dark:text-white/60">
                             {{ $producto->iniciales() }}
                         </span>
                     </div>

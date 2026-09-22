@@ -234,7 +234,9 @@ new #[Title('Security settings')] class extends Component {
                         </div>
                     @else
                         <div class="space-y-4">
-                            <flux:text variant="subtle">
+                            {{-- La variante "subtle" de Flux es blanco al 50 %: demasiado
+                                 tenue para el texto que explica el segundo factor. --}}
+                            <flux:text class="text-zinc-600 dark:text-zinc-300">
                                 {{ __('When you enable two-factor authentication, you will be prompted for a secure pin during login. This pin can be retrieved from a TOTP-supported application on your phone.') }}
                             </flux:text>
 
@@ -275,7 +277,7 @@ new #[Title('Security settings')] class extends Component {
                                     </div>
                                     <div class="min-w-0 space-y-1">
                                         <div class="flex flex-wrap items-center gap-2">
-                                            <p class="font-medium tracking-tight break-words">{{ $passkey['name'] }}</p>
+                                            <p class="font-medium tracking-tight break-words text-zinc-900 dark:text-zinc-100">{{ $passkey['name'] }}</p>
                                             @if ($passkey['authenticator'])
                                                 <flux:badge size="sm">{{ $passkey['authenticator'] }}</flux:badge>
                                             @endif
@@ -297,15 +299,20 @@ new #[Title('Security settings')] class extends Component {
                                     icon="trash"
                                     icon:variant="outline"
                                     wire:click="confirmDelete({{ $passkey['id'] }})"
-                                    class="shrink-0 max-sm:size-11! text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                    {{-- En tema oscuro el rojo tiene que aclararse al pasar por
+                                         encima, no oscurecerse: red-600 sobre el fondo oscuro se
+                                         hunde justo cuando debería destacar. --}}
+                                    class="shrink-0 max-sm:size-11! text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/50 dark:hover:text-red-300"
                                 />
                             </div>
                         @empty
                             <div class="p-6 text-center sm:p-8">
                                 <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">
-                                    <flux:icon.key class="size-7 text-zinc-400 dark:text-zinc-500" />
+                                    {{-- Estaban invertidas: la variante oscura era la más
+                                         apagada de las dos, justo al revés de lo que toca. --}}
+                                    <flux:icon.key class="size-7 text-zinc-500 dark:text-zinc-400" />
                                 </div>
-                                <p class="font-medium">{{ __('No passkeys yet') }}</p>
+                                <p class="font-medium text-zinc-900 dark:text-zinc-100">{{ __('No passkeys yet') }}</p>
                                 <flux:text class="mt-1">{{ __('Add a passkey to sign in without a password') }}</flux:text>
                             </div>
                         @endforelse

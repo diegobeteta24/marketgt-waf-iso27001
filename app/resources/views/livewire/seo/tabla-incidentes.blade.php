@@ -73,6 +73,7 @@
                                 'critica' => 'red',
                                 'alta' => 'orange',
                                 'media' => 'amber',
+                                'baja' => 'sky',
                                 default => 'zinc',
                             }">{{ ucfirst($incidente->severidad) }}</flux:badge>
                         </td>
@@ -114,7 +115,7 @@
                                                  Se envuelve con break-all en vez de desplazarse de lado: una carga
                                                  útil de ataque es una sola línea larguísima y en un teléfono
                                                  desplazarla horizontalmente dentro de una celda no hay quien lo use. --}}
-                                            <pre class="mt-1 max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-zinc-900 p-3 text-xs leading-relaxed text-zinc-100">{{ json_encode($incidente->detalle, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+                                            <pre class="mt-1 max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-lg border border-zinc-700 bg-zinc-950 p-3 text-xs leading-relaxed text-zinc-100">{{ json_encode($incidente->detalle, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
                                         </div>
 
                                         <div class="text-xs text-zinc-500 dark:text-zinc-400">

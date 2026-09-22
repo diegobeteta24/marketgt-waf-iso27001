@@ -111,6 +111,17 @@ class AuditorMapaSitio
     private const TIMEOUT_COMPROBACION = 6;
 
     /**
+     * Tope de bytes que se aceptan de un mapa comprimido.
+     *
+     * gzip amplifica: un archivo de un kilobyte puede descomprimirse en gigabytes, y
+     * gzdecode() sin segundo argumento lo intenta hasta agotar la memoria del proceso. El
+     * sitio que se audita puede estar en manos del atacante, así que la bomba de
+     * descompresión no es un supuesto teórico: es la forma más barata que tiene de apagar
+     * el control que lo está mirando.
+     */
+    private const MAXIMO_BYTES_MAPA = 33554432;
+
+    /**
      * Marca de casa de apuestas asiática.
      *
      * No es vocabulario, es FORMA, y por eso ninguna lista de palabras la caza: "p9bet" no
@@ -135,8 +146,15 @@ class AuditorMapaSitio
     /**
      * Palabras que acompañan a la marca en la página puente. "login" y "daftar" (registrarse
      * en indonesio) aparecían literalmente en la consulta del caso real: "p9bet login".
+     *
+     * "gacor" y "judi" se añadieron después de medir: sin ellas, una campaña de "slot gacor"
+     * —que es LA forma que toma este ataque en la práctica— se quedaba en tres puntos y no
+     * cruzaba el umbral. Ninguna de las dos es palabra española ni término del sector de la
+     * videovigilancia: "gacor" es jerga indonesia de apuestas y "judi" significa juego de
+     * azar. El riesgo de que aparezcan en el catálogo honesto de una tienda guatemalteca de
+     * cámaras es cero, y sin ellas el control ve el 60 % de la campaña y cree que ve todo.
      */
-    private const PATRON_PUERTA_ENTRADA = '/\b(login|daftar|masuk|link\s*alternatif|rtp|maxwin|deposit|depo|pulsa|situs|bandar|agen|terpercaya|gampang|anti\s*rungkad)\b/iu';
+    private const PATRON_PUERTA_ENTRADA = '/\b(login|daftar|masuk|link\s*alternatif|rtp|maxwin|gacor|judi|deposit|depo|pulsa|situs|bandar|agen|terpercaya|gampang|anti\s*rungkad)\b/iu';
 
     /**
      * Alfabetos que no corresponden a un sitio guatemalteco.
@@ -163,11 +181,55 @@ class AuditorMapaSitio
         'fps', 'ghz', 'mhz', 'mm', 'led', 'ir', 'sd', 'ssd', 'hdd', 'sata', 'hdmi', 'vga',
     ];
 
+    /**
+     * Dirección publicada del proyecto.
+     *
+     * Está escrita y no deducida de app.url porque en el equipo de desarrollo app.url es
+     * http://localhost:8000, y eso no sirve para lo que este control hace:
+     *
+     *   - Auditar el propio localhost DESDE la petición que pinta el panel se bloquea a sí
+     *     mismo cuando el servidor tiene un solo proceso de PHP, que es el mismo motivo por
+     *     el que el panel de integridad lanza su vigilancia con --sin-red.
+     *   - Lo que hay que auditar es el sitio PUBLICADO. Es el que lee Google, y el único
+     *     sobre el que un hallazgo significa algo.
+     */
+    public const DIRECCION_PUBLICADA = 'https://marketgt.duckdns.org';
+
+    /**
+     * Resultado del filtro anti-petición-falsificada por anfitrión, memorizado por corrida.
+     *
+     * @var array<string, bool>
+     */
+    private array $resolucionesDeHost = [];
+
     public function __construct(
         private readonly DetectorSpamSeo $detector,
         private readonly RegistroIncidentesSeo $registro,
         private readonly PoliticaIndexacion $politica,
     ) {}
+
+    /**
+     * Qué sitio auditar cuando nadie dice cuál.
+     *
+     * Si la aplicación está configurada contra un anfitrión local se devuelve el sitio
+     * publicado; si ya apunta a un dominio real —el servidor de producción— se respeta lo
+     * que diga la configuración, porque allí app.url ya es la respuesta correcta.
+     */
+    public function direccionPorDefecto(): string
+    {
+        $configurada = (string) config('app.url');
+        $host = strtolower((string) parse_url($configurada, PHP_URL_HOST));
+
+        if ($host === '' || $host === 'localhost' || str_ends_with($host, '.test') || str_ends_with($host, '.local')) {
+            return self::DIRECCION_PUBLICADA;
+        }
+
+        $esDireccionIp = filter_var($host, FILTER_VALIDATE_IP) !== false;
+        $esInterna = $esDireccionIp
+            && filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
+
+        return $esInterna ? self::DIRECCION_PUBLICADA : $configurada;
+    }
 
     // -------------------------------------------------------------------------
     // Entrada principal
@@ -190,6 +252,11 @@ class AuditorMapaSitio
         $base = $this->normalizarBase($urlSitio);
         $host = (string) parse_url($base, PHP_URL_HOST);
 
+        // Se valida lo que escribió el operador ANTES de tocar la red: si el campo no sirve,
+        // decírselo cuesta cero peticiones, y así el mensaje de error habla de su campo y
+        // no del robots.txt que no llegó a mirarse.
+        $pedido = $this->mapaPedido($opciones['mapa'] ?? null, $base);
+
         $errores = [];
         $exclusion = $this->auditarExclusion($base, $host);
 
@@ -197,9 +264,7 @@ class AuditorMapaSitio
         // operador, los que declara el propio robots.txt (ahí es donde el atacante añade
         // el suyo) y, como último recurso, la ruta convencional.
         $mapas = array_values(array_unique(array_filter(array_merge(
-            isset($opciones['mapa']) && is_string($opciones['mapa']) && trim($opciones['mapa']) !== ''
-                ? [trim($opciones['mapa'])]
-                : [],
+            $pedido,
             $exclusion['sitemaps_declarados'],
             [$base.'/sitemap.xml'],
         ))));
@@ -356,10 +421,26 @@ class AuditorMapaSitio
         }
 
         // --- Forma anómala respecto del resto ---------------------------------
+        //
+        // Las dos señales de esta familia se suman entre sí pero NO por encima de tres
+        // puntos, y ese tope no es prudencia decorativa: está medido. Profundidad y
+        // segmento kilométrico miden lo mismo por dos caminos —que la dirección es larga—,
+        // así que sumaban 3+2=5 y alcanzaban solas el umbral de alarma. Con eso,
+        // "/blog/2026/09/22/guia-completa-de-instalacion-de-camaras-de-seguridad/parte-2",
+        // que es una entrada de blog honesta de la propia tienda, salía marcada como
+        // ANÓMALA y abría un incidente crítico. Contar dos veces la misma evidencia es
+        // exactamente cómo un control se convierte en ruido, y un control ruidoso no se
+        // mira dos veces. Con el tope, la forma por sí sola deja la dirección en
+        // "sospechosa" —se ve en pantalla, no despierta a nadie— y hace falta una señal de
+        // otra familia (vocabulario, marca, fecha) para cruzar el umbral. Las páginas
+        // realmente inyectadas del caso real cruzan igual, porque ninguna dependía de la
+        // forma: el doorway /wp-content/uploads/2019/slot-gacor-maxwin/… suma 9 por
+        // puerta_de_entrada, vocabulario ajeno y fecha futura.
         $mediana = (int) $contexto['profundidad_mediana'];
+        $forma = 0;
 
         if ($profundidad > $mediana + 3 && $profundidad >= 4) {
-            $puntuacion += 3;
+            $forma += 3;
             $motivos[] = $this->motivo(
                 'profundidad_anomala',
                 'Profundidad muy superior a la del resto del mapa (mediana '.$mediana.')',
@@ -370,7 +451,7 @@ class AuditorMapaSitio
 
         foreach ($segmentos as $segmento) {
             if (mb_strlen($segmento) > 80 || substr_count($segmento, '-') > 8) {
-                $puntuacion += 2;
+                $forma += 2;
                 $motivos[] = $this->motivo(
                     'segmento_kilometrico',
                     'Segmento cargado de palabras clave, típico de la página generada en masa',
@@ -381,6 +462,8 @@ class AuditorMapaSitio
                 break;
             }
         }
+
+        $puntuacion += min(3, $forma);
 
         // --- Fuera del vocabulario del propio sitio ---------------------------
         // La medida más valiosa y la que atrapa lo que ninguna lista negra atrapa: una
@@ -466,12 +549,26 @@ class AuditorMapaSitio
             );
         }
 
-        if (preg_match(self::PATRON_PUERTA_ENTRADA, $texto, $puerta) === 1) {
+        // Se cuentan las palabras DISTINTAS, no una sola vez la regla.
+        //
+        // "login" suelto no prueba nada: cualquier sitio tiene su /login, y de hecho la
+        // política de indexación ya lo marca como no indexable, así que sumarle más de dos
+        // puntos convertía "/login" declarado en el mapa en una anomalía con incidente.
+        // Pero "daftar situs judi bola terpercaya" son cinco palabras de un mismo idioma
+        // que no es el del sitio: eso ya no es una coincidencia, es una frase. Dos puntos
+        // por la primera y dos por cada palabra distinta más, con tope de seis para que la
+        // familia no se coma ella sola el veredicto de una dirección larga.
+        if (preg_match_all(self::PATRON_PUERTA_ENTRADA, $texto, $puertas) >= 1) {
+            $distintas = array_values(array_unique(array_map(
+                static fn (string $p): string => mb_strtolower((string) preg_replace('/\s+/u', ' ', trim($p))),
+                $puertas[0],
+            )));
+
             $senales[] = $this->motivo(
                 'puerta_de_entrada',
-                'Vocabulario de página puente de apuestas (login, daftar, situs, rtp)',
-                2,
-                (string) $puerta[0],
+                'Vocabulario de página puente de apuestas (login, daftar, situs, rtp, gacor)',
+                min(6, 2 * count($distintas)),
+                implode(', ', array_slice($distintas, 0, 6)),
             );
         }
 
@@ -511,6 +608,7 @@ class AuditorMapaSitio
     {
         $propias = 0;
         $evaluables = 0;
+        $inventadas = 0;
 
         foreach ($this->tokens($legible) as $token) {
             if (mb_strlen($token) < 4 || is_numeric($token)) {
@@ -519,14 +617,39 @@ class AuditorMapaSitio
 
             $evaluables++;
 
+            if ($this->pareceJergaInventada($token)) {
+                $inventadas++;
+            }
+
             if ($this->coincideConVocabulario($token, $vocabulario)) {
                 $propias++;
             }
         }
 
+        if ($propias > 0) {
+            return false;
+        }
+
         // Una dirección de un solo token (/contacto, /es, /2026) no prueba nada por sí
         // misma: exigir evidencia mínima es lo que separa una señal de una casualidad.
-        return $evaluables >= 2 && $propias === 0;
+        //
+        // LA EXCEPCIÓN ES "porh300", Y ES EL MOTIVO DE QUE ESTÉ ESCRITA
+        // -----------------------------------------------------------------------
+        // De las cinco consultas del caso real, cuatro cruzaban el umbral y "porh300" se
+        // quedaba en 2, porque es un solo token y esta regla se apagaba por falta de
+        // evidencia. Detectar cuatro de cinco no es detectar el caso: es dejar viva la
+        // campaña por la puerta que menos ruido hace.
+        //
+        // Un solo token basta cuando ADEMÁS tiene forma de marca inventada —letras y
+        // dígitos, y la sigla no está en la lista de siglas técnicas del sector—. No es
+        // contar dos veces la misma prueba: pareceJergaInventada() habla de la FORMA del
+        // token y esta regla habla del CONTEXTO, de que el sitio no usa esa palabra en
+        // ninguna otra dirección. Y el borde está justo donde tiene que estar: si la
+        // tienda vendiera de verdad un producto llamado "porh300", la palabra aparecería
+        // en más de una dirección, entraría en el vocabulario propio y esta regla no
+        // dispararía. "/contacto" sigue sin puntuar porque no mezcla dígitos, y "/win10"
+        // y "/cat6" tampoco porque "win" y "cat" son siglas técnicas conocidas.
+        return $evaluables >= 2 || $inventadas === 1;
     }
 
     /**
@@ -631,6 +754,30 @@ class AuditorMapaSitio
                 // Están ordenadas de peor a mejor: la primera limpia marca el final de lo
                 // que merece una petición.
                 break;
+            }
+
+            // La <loc> la escribe el sitio auditado. Pedirla a ciegas convertía el paso 3
+            // en un escáner de la red interna a las órdenes del atacante: bastaba declarar
+            // http://10.0.0.5:8080/admin/reiniciar en el mapa para que el servidor lo
+            // pidiera. Se cuenta contra la muestra a propósito: así el recorrido sigue
+            // acotado aunque el mapa traiga cinco mil direcciones internas, y además
+            // declarar una dirección interna en el mapa público de un sitio público es en
+            // sí mismo un hallazgo que merece quedar escrito.
+            if (! $this->puedePedirse((string) $direccion['url'])) {
+                $comprobadas++;
+                $direcciones[$indice]['puntuacion'] = (int) $direccion['puntuacion'] + 3;
+                $direcciones[$indice]['motivos'][] = $this->motivo(
+                    'destino_interno_declarado',
+                    'El mapa declara una dirección interna o de un esquema que no es http: no se pide y queda como hallazgo',
+                    3,
+                    mb_substr((string) $direccion['url'], 0, 160),
+                );
+
+                if ((int) $direcciones[$indice]['puntuacion'] >= self::UMBRAL_ANOMALA) {
+                    $direcciones[$indice]['veredicto'] = self::VEREDICTO_ANOMALA;
+                }
+
+                continue;
             }
 
             $respuesta = $this->pedir((string) $direccion['url'], self::TIMEOUT_COMPROBACION);
@@ -1249,6 +1396,12 @@ class AuditorMapaSitio
         }
 
         foreach ($hallazgosExclusion as $hallazgo) {
+            // El mismo tope que arriba: un robots.txt puede traer cientos de líneas Allow
+            // y cada una fabricaba una fila sin contar contra el límite de evidencia.
+            if ($filas >= self::MAXIMO_EVIDENCIAS) {
+                break;
+            }
+
             HallazgoMapaSitio::query()->create([
                 'ejecucion' => $ejecucion,
                 'sitio' => $sitio,
@@ -1403,27 +1556,60 @@ class AuditorMapaSitio
                     $errores[] = 'Índice de mapas anidado más allá del límite en '.$url;
                 } else {
                     foreach ($analisis['hijos'] as $hijo) {
+                        // El índice lo sirve el sitio auditado, que es justo el que puede
+                        // estar en manos del atacante: cada <loc> de aquí decide a dónde va
+                        // a ir el servidor a buscar. Sin estas dos líneas, escribir
+                        // "http://169.254.169.254/" en el índice bastaba para que el panel
+                        // leyera las credenciales de la máquina y las trajera de vuelta.
+                        if (! $this->puedePedirse($hijo)) {
+                            $mapas[] = ['url' => $hijo, 'tipo' => 'rechazado', 'direcciones' => 0, 'detalle' => 'destino no público'];
+                            $errores[] = 'El índice declara un mapa que apunta a una dirección interna o a un esquema que no es http: no se pide. '.mb_substr($hijo, 0, 160);
+
+                            continue;
+                        }
+
+                        // Un mapa hijo alojado en otro dominio no es legítimo —el protocolo
+                        // obliga a que el índice y sus mapas compartan anfitrión— y además
+                        // convertiría el panel en el trampolín del atacante hacia el sitio
+                        // que él elija. Se informa, que es lo que interesa, y no se descarga.
+                        if (! $this->mismoSitio((string) parse_url($hijo, PHP_URL_HOST), $host)) {
+                            $mapas[] = ['url' => $hijo, 'tipo' => 'rechazado', 'direcciones' => 0, 'detalle' => 'mapa hijo de otro dominio'];
+                            $errores[] = 'El índice de mapas declara un mapa alojado en otro dominio: no se descarga y queda como hallazgo. '.mb_substr($hijo, 0, 160);
+
+                            continue;
+                        }
+
                         $pendientes[] = ['url' => $hijo, 'nivel' => $actual['nivel'] + 1];
                     }
                 }
             }
 
+            $lleno = false;
+
             foreach ($analisis['direcciones'] as $entrada) {
                 if (count($direcciones) >= self::MAXIMO_DIRECCIONES) {
                     $errores[] = 'Se alcanzó el tope de '.self::MAXIMO_DIRECCIONES.' direcciones analizadas';
+                    $lleno = true;
 
-                    break 2;
+                    break;
                 }
 
                 $direcciones[] = $entrada;
             }
 
+            // La fila del mapa se anota siempre, también cuando se llegó al tope dentro de
+            // él: con "break 2" el mapa que colmó el análisis desaparecía de la tabla de
+            // mapas leídos, y la pantalla decía haber leído menos archivos de los que leyó.
             $mapas[] = [
                 'url' => $url,
                 'tipo' => $analisis['tipo'],
                 'direcciones' => $analisis['tipo'] === 'indice' ? count($analisis['hijos']) : count($analisis['direcciones']),
                 'detalle' => $analisis['detalle'],
             ];
+
+            if ($lleno) {
+                break;
+            }
         }
 
         // Un mapa envenenado puede declarar la misma dirección mil veces para inflar el
@@ -1534,7 +1720,10 @@ class AuditorMapaSitio
     private function descomprimir(string $cuerpo): string
     {
         if (str_starts_with($cuerpo, "\x1f\x8b")) {
-            $plano = @gzdecode($cuerpo);
+            // El segundo argumento es la diferencia entre descomprimir y morir: sin él,
+            // gzdecode() expande hasta donde diga el archivo, y un mapa comprimido de un
+            // kilobyte fabricado para eso deja sin memoria al proceso que lo audita.
+            $plano = @gzdecode($cuerpo, self::MAXIMO_BYTES_MAPA);
 
             return $plano === false ? $cuerpo : $plano;
         }
@@ -1922,10 +2111,17 @@ class AuditorMapaSitio
 
     private function esDestinoPermitido(string $host): bool
     {
+        // La resolución se memoriza por corrida. Sin memoria, un mapa envenenado con cinco
+        // mil anfitriones distintos convertiría la comprobación de seguridad en cinco mil
+        // consultas de DNS, es decir, en la denegación de servicio que venía a evitar.
+        if (array_key_exists($host, $this->resolucionesDeHost)) {
+            return $this->resolucionesDeHost[$host];
+        }
+
         $propio = strtolower((string) parse_url((string) config('app.url'), PHP_URL_HOST));
 
         if ($propio !== '' && $this->mismoSitio($host, $propio)) {
-            return true;
+            return $this->resolucionesDeHost[$host] = true;
         }
 
         $ip = filter_var($host, FILTER_VALIDATE_IP) !== false ? $host : gethostbyname($host);
@@ -1933,10 +2129,78 @@ class AuditorMapaSitio
         if ($ip === $host && filter_var($host, FILTER_VALIDATE_IP) === false) {
             // No resolvió. Se deja pasar: el error real lo dará la petición HTTP, y
             // rechazar aquí confundiría un DNS lento con un destino prohibido.
-            return true;
+            return $this->resolucionesDeHost[$host] = true;
         }
 
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+        return $this->resolucionesDeHost[$host]
+            = filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+    }
+
+    /**
+     * ¿Se puede pedir esta dirección concreta sin convertir el panel en un escáner interno?
+     *
+     * POR QUÉ HACE FALTA ADEMÁS DE normalizarBase()
+     * -----------------------------------------------------------------------
+     * normalizarBase() filtra lo que escribe el operador, y con eso solo se cierra una de
+     * las tres puertas. Las otras dos las abre el sitio auditado, que es precisamente el
+     * que puede estar en manos del atacante:
+     *
+     *   - Un índice de mapas puede declarar <loc>http://169.254.169.254/…</loc>, y el
+     *     servidor iría a buscarlo con sus propias credenciales de red.
+     *   - Una <loc> cualquiera puede ser http://10.0.0.5:8080/admin/reiniciar, y la
+     *     comprobación de respuesta del paso 3 la pediría con un GET.
+     *
+     * Es el vector clásico de petición falsificada del lado del servidor, y aquí es peor de
+     * lo habitual porque el contenido que decide a dónde se pide lo escribe el adversario.
+     * Se filtra por esquema —un mapa nunca declara file:// ni gopher://— y por dirección
+     * resuelta, con la única excepción del anfitrión de la propia aplicación, que es el que
+     * hace falta para poder demostrar el control contra el sitio local.
+     */
+    private function puedePedirse(string $url): bool
+    {
+        $partes = parse_url($url);
+
+        if ($partes === false) {
+            return false;
+        }
+
+        $esquema = strtolower((string) ($partes['scheme'] ?? ''));
+        $host = strtolower((string) ($partes['host'] ?? ''));
+
+        if ($host === '' || ! in_array($esquema, ['http', 'https'], true)) {
+            return false;
+        }
+
+        return $this->esDestinoPermitido($host);
+    }
+
+    /**
+     * Mapa concreto que pidió el operador, ya normalizado y filtrado.
+     *
+     * Se admite escribirlo relativo ("/sitemap-productos.xml") porque es lo que teclea
+     * quien tiene delante la dirección del sitio; y se pasa por el mismo filtro que la
+     * base, porque un campo que pide una dirección y la descarga desde el servidor es una
+     * petición falsificada del lado del servidor con otro nombre.
+     *
+     * @return array<int, string>
+     */
+    private function mapaPedido(mixed $valor, string $base): array
+    {
+        if (! is_string($valor) || trim($valor) === '') {
+            return [];
+        }
+
+        $mapa = trim($valor);
+
+        if (preg_match('#^https?://#i', $mapa) !== 1) {
+            $mapa = $base.'/'.ltrim($mapa, '/');
+        }
+
+        if (! $this->puedePedirse($mapa)) {
+            throw new InvalidArgumentException('El mapa indicado no es una dirección pública que se pueda pedir: '.mb_substr($mapa, 0, 120));
+        }
+
+        return [$mapa];
     }
 
     private function pedir(string $url, int $segundos): ?Response

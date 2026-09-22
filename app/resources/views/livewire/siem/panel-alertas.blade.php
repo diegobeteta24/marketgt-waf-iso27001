@@ -51,15 +51,15 @@
 
                             <span @class([
                                 'rounded-full px-2 py-0.5 text-[0.7rem] font-semibold',
-                                'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' => $alerta->estado === AlertaSeguridad::ESTADO_NUEVA,
-                                'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' => $alerta->estado !== AlertaSeguridad::ESTADO_NUEVA,
+                                'bg-white text-zinc-900' => $alerta->estado === AlertaSeguridad::ESTADO_NUEVA,
+                                'bg-zinc-800 text-zinc-200' => $alerta->estado !== AlertaSeguridad::ESTADO_NUEVA,
                             ])>{{ $alerta->etiquetaEstado() }}</span>
 
                             @if ($alerta->es_demostracion)
                                 <flux:badge size="sm">demo</flux:badge>
                             @endif
 
-                            <span class="siem-numero break-all text-xs text-zinc-500 dark:text-zinc-400">
+                            <span class="siem-numero break-all text-xs text-zinc-400">
                                 #{{ $alerta->id }} · {{ $alerta->clave_regla }}
                             </span>
                         </div>
@@ -67,9 +67,9 @@
                         {{-- En pantalla ancha el titulo se recorta a una linea para que la lista
                              mantenga el ritmo; en el telefono se deja envolver, porque ahi
                              recortar significa no leer el titulo entero de ninguna alerta. --}}
-                        <p class="break-words font-semibold text-zinc-900 sm:truncate dark:text-white">{{ $alerta->titulo }}</p>
+                        <p class="break-words font-semibold text-white sm:truncate">{{ $alerta->titulo }}</p>
 
-                        <p class="siem-numero text-xs text-zinc-500 dark:text-zinc-400">
+                        <p class="siem-numero text-xs text-zinc-400">
                             Detectada {{ $alerta->detectada_en?->format('d/m/Y H:i') }}
                             @if ($alerta->minutosHastaDeteccion() !== null)
                                 · {{ $alerta->minutosHastaDeteccion() }} min desde el primer evento
@@ -89,49 +89,49 @@
 
                 @if ($abierta)
                     <div class="space-y-4 border-t border-zinc-200 p-3 sm:p-4 dark:border-zinc-700">
-                        <p class="text-sm text-zinc-700 dark:text-zinc-300">{{ $alerta->descripcion }}</p>
+                        <p class="text-sm text-zinc-300">{{ $alerta->descripcion }}</p>
 
                         {{-- La accion recomendada es lo que convierte una alerta en trabajo ejecutable. --}}
                         <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Accion recomendada</p>
-                            <p class="mt-1 text-sm text-zinc-800 dark:text-zinc-200">{{ $alerta->accion_recomendada }}</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-zinc-400">Accion recomendada</p>
+                            <p class="mt-1 text-sm text-zinc-200">{{ $alerta->accion_recomendada }}</p>
                         </div>
 
                         <div class="grid gap-4 lg:grid-cols-2">
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Evidencia</p>
+                                <p class="text-xs font-semibold uppercase tracking-wide text-zinc-400">Evidencia</p>
                                 <dl class="mt-2 space-y-1 text-sm">
                                     <div class="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
-                                        <dt class="text-zinc-500 dark:text-zinc-400">Direccion de origen</dt>
-                                        <dd class="siem-numero break-all font-medium">{{ $alerta->direccion_ip ?? 'no aplica' }}</dd>
+                                        <dt class="text-zinc-400">Direccion de origen</dt>
+                                        <dd class="siem-numero break-all font-medium text-zinc-100">{{ $alerta->direccion_ip ?? 'no aplica' }}</dd>
                                     </div>
                                     <div class="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
-                                        <dt class="text-zinc-500 dark:text-zinc-400">Ventana / umbral</dt>
-                                        <dd class="siem-numero font-medium">
+                                        <dt class="text-zinc-400">Ventana / umbral</dt>
+                                        <dd class="siem-numero font-medium text-zinc-100">
                                             {{ data_get($alerta->evidencia, 'ventana_minutos', '—') }} min /
                                             {{ data_get($alerta->evidencia, 'umbral', '—') }}
                                         </dd>
                                     </div>
                                     <div class="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
-                                        <dt class="text-zinc-500 dark:text-zinc-400">Primer evento</dt>
-                                        <dd class="siem-numero font-medium">{{ $alerta->primer_evento_en?->format('d/m/Y H:i:s') ?? 'sin dato' }}</dd>
+                                        <dt class="text-zinc-400">Primer evento</dt>
+                                        <dd class="siem-numero font-medium text-zinc-100">{{ $alerta->primer_evento_en?->format('d/m/Y H:i:s') ?? 'sin dato' }}</dd>
                                     </div>
                                     @if ($alerta->usuarioObjetivo)
                                         <div class="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
-                                            <dt class="text-zinc-500 dark:text-zinc-400">Cuenta afectada</dt>
-                                            <dd class="break-words font-medium">{{ $alerta->usuarioObjetivo->name }}</dd>
+                                            <dt class="text-zinc-400">Cuenta afectada</dt>
+                                            <dd class="break-words font-medium text-zinc-100">{{ $alerta->usuarioObjetivo->name }}</dd>
                                         </div>
                                     @endif
                                     @if ($alerta->confirmada_en)
                                         <div class="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
-                                            <dt class="text-zinc-500 dark:text-zinc-400">Confirmada</dt>
-                                            <dd class="siem-numero font-medium">{{ $alerta->confirmada_en->format('d/m/Y H:i') }}</dd>
+                                            <dt class="text-zinc-400">Confirmada</dt>
+                                            <dd class="siem-numero font-medium text-zinc-100">{{ $alerta->confirmada_en->format('d/m/Y H:i') }}</dd>
                                         </div>
                                     @endif
                                     @if ($alerta->contenida_en)
                                         <div class="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
-                                            <dt class="text-zinc-500 dark:text-zinc-400">Contenida</dt>
-                                            <dd class="siem-numero font-medium">
+                                            <dt class="text-zinc-400">Contenida</dt>
+                                            <dd class="siem-numero font-medium text-zinc-100">
                                                 {{ $alerta->contenida_en->format('d/m/Y H:i') }}
                                                 @if ($alerta->minutosHastaContencion() !== null)
                                                     ({{ $alerta->minutosHastaContencion() }} min)
@@ -143,7 +143,7 @@
                             </div>
 
                             <div>
-                                <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                                     Muestra de eventos
                                 </p>
                                 {{-- overflow-auto y no solo overflow-y: la ruta de un ataque es
@@ -155,14 +155,14 @@
                                         <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
                                             @forelse (data_get($alerta->evidencia, 'muestra', []) as $muestra)
                                                 <tr>
-                                                    <td class="siem-numero whitespace-nowrap px-2 py-1.5 text-zinc-500 dark:text-zinc-400">
+                                                    <td class="siem-numero whitespace-nowrap px-2 py-1.5 text-zinc-400">
                                                         {{ \Illuminate\Support\Str::after($muestra['marca_tiempo'] ?? '', ' ') }}
                                                     </td>
                                                     <td class="px-2 py-1.5">
-                                                        <span class="siem-numero font-semibold">{{ $muestra['metodo'] ?? '' }}</span>
-                                                        <span class="break-all">{{ $muestra['ruta'] ?? ($muestra['mensaje'] ?? '') }}</span>
+                                                        <span class="siem-numero font-semibold text-zinc-100">{{ $muestra['metodo'] ?? '' }}</span>
+                                                        <span class="break-all text-zinc-300">{{ $muestra['ruta'] ?? ($muestra['mensaje'] ?? '') }}</span>
                                                     </td>
-                                                    <td class="siem-numero whitespace-nowrap px-2 py-1.5 text-right text-zinc-500 dark:text-zinc-400">
+                                                    <td class="siem-numero whitespace-nowrap px-2 py-1.5 text-right text-zinc-400">
                                                         {{ $muestra['codigo_respuesta'] ?? '' }}
                                                         @if (($muestra['puntuacion_anomalia'] ?? 0) > 0)
                                                             · {{ $muestra['puntuacion_anomalia'] }}
@@ -171,7 +171,7 @@
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="3" class="px-2 py-3 text-center text-zinc-500 dark:text-zinc-400">
+                                                    <td colspan="3" class="px-2 py-3 text-center text-zinc-400">
                                                         Sin muestra guardada.
                                                     </td>
                                                 </tr>
@@ -217,8 +217,8 @@
             </div>
         @empty
             <div class="rounded-xl border border-dashed border-zinc-300 p-6 text-center sm:p-10 dark:border-zinc-700">
-                <flux:icon.shield-check class="mx-auto size-8 text-zinc-400 dark:text-zinc-500" />
-                <p class="mt-3 font-medium text-zinc-900 dark:text-white">No hay alertas con este filtro</p>
+                <flux:icon.shield-check class="mx-auto size-8 text-zinc-400" />
+                <p class="mt-3 font-medium text-white">No hay alertas con este filtro</p>
                 <flux:text class="mt-1">
                     Si esperaba alertas, compruebe que el comando de correlacion se este ejecutando.
                 </flux:text>

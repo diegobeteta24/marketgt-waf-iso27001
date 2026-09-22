@@ -33,7 +33,9 @@ new class extends Component
     <span class="hidden sm:inline">Carrito</span>
 
     @if ($this->articulos > 0)
-        <span class="flex min-w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 px-1.5 text-xs font-semibold tabular-nums text-white">
+        {{-- El blanco sobre emerald-600 se queda en 3.8:1 y este contador es una cifra
+             que se lee; con el 700 sube a 5.5:1. --}}
+        <span class="flex min-w-5 shrink-0 items-center justify-center rounded-full bg-emerald-700 px-1.5 text-xs font-semibold tabular-nums text-white">
             {{ $this->articulos }}
         </span>
     @endif

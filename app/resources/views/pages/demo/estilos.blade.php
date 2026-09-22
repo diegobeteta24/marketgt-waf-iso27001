@@ -6,6 +6,10 @@
     VERDE, porque en esta pantalla un bloqueo es el éxito —el WAF hizo su trabajo—, y el
     tráfico que pasa se pinta de ámbar. Ningún estado se comunica solo con color: cada
     insignia y cada código llevan siempre su texto al lado.
+
+    Los valores que se ven de verdad son los del tema oscuro, porque la plantilla fuerza la
+    clase `dark`. Están elegidos para un proyector, que lava los colores y se come los tonos
+    apagados: todos caen en la franja 300-400, ninguno en la 600-700.
 --}}
 <style>
     .panel-demo {
@@ -16,6 +20,14 @@
         --demo-peligro: #d03b3b;     /* avisos de tráfico real contra infraestructura. */
         --demo-borde-codigo: rgba(11, 11, 11, 0.08);
         --demo-fondo-codigo: #f5f5f4;
+        --demo-texto-codigo: #27272a; /* el bloque de código fija su color, nunca lo hereda. */
+        --demo-clave: #18181b;        /* lo resaltado dentro del bloque de código. */
+
+        /* Fondos de las pastillas: tenues, solo para dar cuerpo al color del texto. */
+        --demo-tinte-bloqueado: rgba(12, 163, 12, 0.10);
+        --demo-tinte-paso: rgba(194, 82, 31, 0.10);
+        --demo-tinte-detectado: rgba(154, 107, 0, 0.10);
+        --demo-tinte-neutro: rgba(107, 114, 128, 0.10);
     }
 
     .dark .panel-demo {
@@ -24,8 +36,17 @@
         --demo-detectado: #fab219;
         --demo-neutro: #a1a1aa;
         --demo-peligro: #f87171;
-        --demo-borde-codigo: rgba(255, 255, 255, 0.10);
+        /* Al 10 % de blanco el borde no se veía y el bloque de código se fundía con la
+           tarjeta que lo contiene. Al 18 % se lee como bloque sin robar atención. */
+        --demo-borde-codigo: rgba(255, 255, 255, 0.18);
         --demo-fondo-codigo: #0a0a0a;
+        --demo-texto-codigo: #e5e5e5;
+        --demo-clave: #ffffff;
+
+        --demo-tinte-bloqueado: rgba(52, 211, 153, 0.16);
+        --demo-tinte-paso: rgba(236, 131, 90, 0.16);
+        --demo-tinte-detectado: rgba(250, 178, 25, 0.16);
+        --demo-tinte-neutro: rgba(161, 161, 170, 0.16);
     }
 
     /*
@@ -35,6 +56,10 @@
         desplazamiento lateral se encierra en este bloque y nunca llega a la página.
         `max-width: 100%` y `min-width: 0` evitan que el bloque estire a su padre cuando
         está dentro de una rejilla o de un contenedor flexible.
+
+        El `color` es explícito a propósito. Sin él, el bloque heredaba el color del
+        documento —casi negro— sobre un fondo casi negro: la carga útil del ataque, que es
+        justo lo que hay que enseñar, quedaba ilegible.
     */
     .panel-demo .demo-codigo {
         font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
@@ -43,6 +68,7 @@
         white-space: pre-wrap;
         word-break: break-word;
         overflow-wrap: anywhere;
+        color: var(--demo-texto-codigo);
         background: var(--demo-fondo-codigo);
         border: 1px solid var(--demo-borde-codigo);
         border-radius: 0.5rem;
@@ -50,6 +76,13 @@
         overflow-x: auto;
         max-width: 100%;
         min-width: 0;
+    }
+
+    /* Lo resaltado dentro del bloque —el método de la petición— tiene que ganarle al
+       resto del bloque, no empatar con él. */
+    .panel-demo .demo-codigo .demo-clave {
+        color: var(--demo-clave);
+        font-weight: 700;
     }
 
     /* Todo `code` suelto de la consola —rutas, dominios, nombres de variable— puede
@@ -73,36 +106,57 @@
         font-variant-numeric: tabular-nums;
     }
 
-    /* Semáforo del código de respuesta. El color es un refuerzo; el número manda. */
+    /* Semáforo del código de respuesta. El color es un refuerzo; el número manda.
+       Es el remate de la demostración y se proyecta, así que no puede depender de un
+       trazo fino: letra algo mayor, borde de 2 px y un fondo tenue del propio color. */
     .panel-demo .demo-http {
         display: inline-flex;
         align-items: center;
         max-width: 100%;
         gap: 0.4rem;
         border-radius: 0.5rem;
-        padding: 0.15rem 0.6rem;
+        padding: 0.2rem 0.7rem;
+        font-size: 1.05rem;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
-        border: 1px solid currentColor;
+        border: 2px solid currentColor;
+        background: var(--demo-tinte-neutro);
     }
 
-    .panel-demo .demo-http-bloqueado { color: var(--demo-bloqueado); }
-    .panel-demo .demo-http-paso { color: var(--demo-paso); }
-    .panel-demo .demo-http-error { color: var(--demo-neutro); }
+    .panel-demo .demo-http-bloqueado {
+        color: var(--demo-bloqueado);
+        background: var(--demo-tinte-bloqueado);
+    }
 
+    .panel-demo .demo-http-paso {
+        color: var(--demo-paso);
+        background: var(--demo-tinte-paso);
+    }
+
+    .panel-demo .demo-http-error {
+        color: var(--demo-neutro);
+        background: var(--demo-tinte-neutro);
+    }
+
+    /* El identificador de la regla que se activó es la prueba de que el WAF hizo algo,
+       y se lee desde el fondo del aula: fondo tenue propio y un punto más de tamaño. */
     .panel-demo .demo-regla {
         display: inline-flex;
         align-items: center;
         max-width: 100%;
         gap: 0.35rem;
         border-radius: 9999px;
-        padding: 0.05rem 0.55rem;
-        font-size: 0.72rem;
+        padding: 0.1rem 0.6rem;
+        font-size: 0.75rem;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
         border: 1px solid currentColor;
         color: var(--demo-bloqueado);
+        background: var(--demo-tinte-bloqueado);
     }
 
-    .panel-demo .demo-regla-propia { color: var(--demo-detectado); }
+    .panel-demo .demo-regla-propia {
+        color: var(--demo-detectado);
+        background: var(--demo-tinte-detectado);
+    }
 </style>

@@ -57,19 +57,19 @@
                         </p>
                         @switch ($tarjeta['icono'])
                             @case('shield-exclamation')
-                                <flux:icon.shield-exclamation class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                                <flux:icon.shield-exclamation class="size-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
                             @break
 
                             @case('bug-ant')
-                                <flux:icon.bug-ant class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                                <flux:icon.bug-ant class="size-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
                             @break
 
                             @case('chat-bubble-left-ellipsis')
-                                <flux:icon.chat-bubble-left-ellipsis class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                                <flux:icon.chat-bubble-left-ellipsis class="size-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
                             @break
 
                             @default
-                                <flux:icon.document-magnifying-glass class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+                                <flux:icon.document-magnifying-glass class="size-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
                         @endswitch
                     </div>
                     <p class="mt-2 text-3xl font-semibold tabular-nums text-zinc-900 dark:text-white">
@@ -194,6 +194,7 @@
                                     'critica' => 'red',
                                     'alta' => 'orange',
                                     'media' => 'amber',
+                                    'baja' => 'sky',
                                     default => 'zinc',
                                 }">{{ ucfirst($incidente->severidad) }}</flux:badge>
 

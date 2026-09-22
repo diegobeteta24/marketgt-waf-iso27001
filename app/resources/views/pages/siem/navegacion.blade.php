@@ -28,8 +28,10 @@
                     wire:navigate
                     @class([
                         'flex min-h-11 items-center justify-center rounded-md px-3 text-sm font-medium transition sm:min-h-0 sm:py-1.5',
-                        'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' => request()->routeIs($pestana['ruta']),
-                        'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800' => ! request()->routeIs($pestana['ruta']),
+                        {{-- La activa se invierte: fondo claro y letra oscura. Las inactivas
+                             van en zinc-300, legible pero claramente por debajo. --}}
+                        'bg-white text-zinc-900' => request()->routeIs($pestana['ruta']),
+                        'text-zinc-300 hover:bg-zinc-800 hover:text-white' => ! request()->routeIs($pestana['ruta']),
                     ])
                     @if (request()->routeIs($pestana['ruta'])) aria-current="page" @endif
                 >{{ $pestana['texto'] }}</a>

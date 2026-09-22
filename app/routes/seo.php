@@ -98,4 +98,32 @@ Route::middleware(['auth', 'verified', 'rol:administrador,auditor'])
         Route::livewire('laboratorio', 'pages::seo.laboratorio')->name('laboratorio');
 
         Route::livewire('demostracion', 'pages::seo.demostracion')->name('demostracion');
+
+        /*
+        |------------------------------------------------------------------
+        | Detección de un envenenamiento ya consumado
+        |------------------------------------------------------------------
+        |
+        | Los controles anteriores son preventivos: impiden que el contenido
+        | malicioso entre por donde escriben los usuarios. No sirven cuando el
+        | atacante ya obtuvo acceso al gestor de contenidos o al servidor, que
+        | es el caso más frecuente en un sitio comprometido de verdad.
+        |
+        | Estos tres son detectivos. Parten de la premisa contraria: asumen que
+        | el ataque ya ocurrió y buscan su huella.
+        |
+        */
+
+        // Las consultas por las que un buscador muestra el sitio son la huella
+        // más difícil de borrar: el atacante controla el contenido inyectado,
+        // pero no lo que el buscador informa al dueño del dominio.
+        Route::livewire('consultas', 'pages::seo.consultas')->name('consultas');
+
+        // Quien inyecta páginas necesita que el buscador las encuentre, y para
+        // eso suele declararlas en el mapa del sitio.
+        Route::livewire('mapa-sitio', 'pages::seo.mapa-sitio')->name('mapa-sitio');
+
+        // El contenido diferenciado explica por qué el responsable de un sitio
+        // puede navegarlo entero sin ver nada anómalo.
+        Route::livewire('cloaking', 'pages::seo.cloaking')->name('cloaking');
     });

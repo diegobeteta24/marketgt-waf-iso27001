@@ -100,7 +100,7 @@ new #[Title('Guion de demostración')] class extends Component {
                     {{-- Los comandos NO se envuelven a propósito: una orden partida por la mitad
                          se copia mal y se lee peor. Se desplazan de lado dentro de su propio
                          contenedor, que es lo único que puede ser más ancho que la pantalla. --}}
-                    <pre class="overflow-x-auto rounded-lg bg-zinc-900 p-3 text-xs leading-relaxed text-zinc-100">{{ $acto['comando'] }}</pre>
+                    <pre class="overflow-x-auto rounded-lg border border-zinc-700 bg-zinc-950 p-3 text-xs leading-relaxed text-zinc-100">{{ $acto['comando'] }}</pre>
 
                     <div class="grid gap-4 sm:grid-cols-2 sm:gap-3">
                         <div class="min-w-0">

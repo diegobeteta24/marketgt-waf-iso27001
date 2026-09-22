@@ -90,7 +90,7 @@
                                         <span class="font-mono text-zinc-500 dark:text-zinc-400">{{ $motivo['regla'] }}</span>
                                         <span class="tabular-nums">+{{ $motivo['puntos'] }}</span>
                                         · {{ $motivo['descripcion'] }}
-                                        <span class="block break-all font-mono text-[11px] text-zinc-400">{{ $motivo['evidencia'] }}</span>
+                                        <span class="block break-all font-mono text-[11px] text-zinc-600 dark:text-zinc-300">{{ $motivo['evidencia'] }}</span>
                                     </li>
                                 @endforeach
                             </ul>
@@ -363,9 +363,9 @@
                                     </td>
                                     <td class="hidden px-3 py-2 tabular-nums text-zinc-600 md:table-cell dark:text-zinc-300 sm:px-4">
                                         @if ($d['codigo_http'] === null)
-                                            <span class="text-zinc-400">no pedida</span>
+                                            <span class="text-zinc-500 dark:text-zinc-400">no pedida</span>
                                         @elseif ($d['codigo_http'] === 0)
-                                            <span class="text-zinc-400">sin respuesta</span>
+                                            <span class="text-zinc-500 dark:text-zinc-400">sin respuesta</span>
                                         @else
                                             {{ $d['codigo_http'] }}
                                         @endif
@@ -377,7 +377,7 @@
                                                     <span class="font-mono text-zinc-500 dark:text-zinc-400">{{ $motivo['regla'] }}</span>
                                                     <span class="tabular-nums">+{{ $motivo['puntos'] }}</span>
                                                     · {{ $motivo['descripcion'] }}
-                                                    <span class="block break-all font-mono text-[11px] text-zinc-400">{{ $motivo['evidencia'] }}</span>
+                                                    <span class="block break-all font-mono text-[11px] text-zinc-600 dark:text-zinc-300">{{ $motivo['evidencia'] }}</span>
                                                 </li>
                                             @endforeach
                                         </ul>
@@ -445,7 +445,7 @@
                                     <td class="break-all py-2 pr-3 font-mono text-xs text-zinc-700 dark:text-zinc-200">{{ $m['url'] }}</td>
                                     <td class="py-2 pr-3 text-xs text-zinc-600 dark:text-zinc-300">
                                         {{ $m['tipo'] }}
-                                        <span class="block text-[11px] text-zinc-400">{{ $m['detalle'] }}</span>
+                                        <span class="block text-[11px] text-zinc-500 dark:text-zinc-400">{{ $m['detalle'] }}</span>
                                     </td>
                                     <td class="py-2 text-right tabular-nums text-zinc-900 dark:text-white">{{ $m['direcciones'] }}</td>
                                 </tr>
@@ -496,7 +496,7 @@
                                 </td>
                                 <td class="px-3 py-2 sm:px-4">
                                     <span class="block break-all font-mono text-xs text-zinc-800 dark:text-zinc-100">{{ $hallazgo->urlCorta() }}</span>
-                                    <span class="block text-[11px] text-zinc-400">{{ $hallazgo->sitio }} · {{ $hallazgo->etiquetaTipo() }}</span>
+                                    <span class="block text-[11px] text-zinc-500 dark:text-zinc-400">{{ $hallazgo->sitio }} · {{ $hallazgo->etiquetaTipo() }}</span>
                                 </td>
                                 <td class="px-3 py-2 sm:px-4">
                                     <span class="inline-block rounded px-2 py-0.5 text-xs font-medium {{ $t['fondo'] }} {{ $t['texto'] }}">

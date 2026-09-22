@@ -80,6 +80,18 @@ class DetectorContenidoDiferenciado
 
     private const SEGUNDOS_CONEXION = 5;
 
+    /**
+     * Techo de tiempo para la comparación ENTERA.
+     *
+     * El techo por petición no basta: cinco identidades por cinco saltos por doce segundos
+     * son cinco minutos, y una pantalla que se queda cinco minutos pensando es una pantalla
+     * que el operador mata a mitad y deja sin resultado. Cuarenta y cinco segundos caben
+     * dentro del tiempo de ejecución de PHP por omisión y dejan sitio de sobra para un sitio
+     * lento honesto. Las identidades que no lleguen a medirse se informan como no medidas, y
+     * entonces el veredicto es "incompleto": no medir y no encontrar no son lo mismo.
+     */
+    private const SEGUNDOS_PRESUPUESTO = 45;
+
     /** Redirecciones que se siguen a mano. Más que esto es un bucle, y un bucle es un hallazgo. */
     private const MAXIMO_SALTOS = 4;
 
@@ -247,16 +259,64 @@ class DetectorContenidoDiferenciado
     ];
 
     /**
-     * Forma de marca de apuestas: alfanumérico pegado a una raíz del sector.
+     * Forma de marca de apuestas: raíz del sector pegada a cifras.
      *
-     * Reconoce p9bet, 0016bet, 789bet, slot88 y sbobet sin conocerlos de antes. Exige al
-     * menos un carácter DELANTE de la raíz a propósito: sin eso, "bet" y "win" sueltos
-     * harían saltar la señal con cualquier palabra en inglés de una página normal.
+     * Reconoce p9bet, 0016bet, 789bet, 1xbet y slot88 sin conocerlos de antes.
+     *
+     * La CIFRA es obligatoria, y esa condición es la que hace utilizable la señal. Una
+     * primera versión pedía solo un carácter delante de la raíz, y entonces "darwin",
+     * "twin", "drawing" y "showing" eran marcas de apuestas: la raíz "win" aparece dentro de
+     * media lengua inglesa. Exigiendo al menos un dígito se cae toda esa familia de errores y
+     * no se pierde nada del caso real, donde las cinco marcas llevan cifras. Las que no las
+     * llevan —sbobet, pgsoft— van en la lista de indicadores de arriba, que es donde debe
+     * estar lo que solo se reconoce de memoria.
      */
-    private const PATRON_MARCA_PEGADA = '/\b[a-z0-9]{1,8}(?:bet|bets|slot|slots|casino|lotto|win)[a-z0-9]{0,6}\b/iu';
+    private const PATRON_MARCA_PEGADA = '/\b(?=[a-z0-9]{3,14}\b)(?=[a-z0-9]*\d)[a-z0-9]*(?:bet|bets|slot|slots|casino|lotto|win)[a-z0-9]*\b/iu';
 
-    /** Letras seguidas de una cifra de la suerte: kmj888, mega888, taya777. */
+    /**
+     * Letras seguidas de una cifra de la suerte: kmj888, mega888, taya777.
+     *
+     * Esta forma NO lleva ninguna raíz del sector dentro, y por eso es la más débil de las
+     * tres: reconoce kmj888, pero también reconoce nvr168 y hd918, que son códigos de modelo
+     * corrientes en el catálogo de una tienda de cámaras. Lo que encuentra se recoge como
+     * indicio DÉBIL —aparece en la evidencia, suma poco y nunca decide solo el veredicto— y
+     * además se descartan los códigos cuyo prefijo es una abreviatura técnica conocida.
+     *
+     * El caso real no pierde nada: las cinco marcas del panel de Search Console están en la
+     * lista de indicadores de arriba y cuatro de ellas también en el patrón con raíz.
+     */
     private const PATRON_MARCA_CIFRA = '/\b[a-z]{2,8}(?:888|999|777|666|168|1688|918)\b/iu';
+
+    /**
+     * Prefijos de código de producto que la forma anterior confunde con una marca.
+     *
+     * Son las abreviaturas del catálogo de un negocio de videovigilancia y de informática. Sin
+     * esta lista, "Grabador NVR168 de 8 canales" en el título de la versión servida al
+     * rastreador puntuaba ocho puntos como marca fuerte, se declaraba concluyente y dejaba a
+     * la empresa con un incidente crítico por vender un grabador.
+     *
+     * @var array<int, string>
+     */
+    private const RAICES_TECNICAS = [
+        'nvr', 'dvr', 'xvr', 'hvr', 'hd', 'ahd', 'tvi', 'cvi', 'sdi', 'cam', 'ptz', 'poe',
+        'ip', 'rj', 'utp', 'stp', 'cat', 'usb', 'hdmi', 'vga', 'led', 'lcd', 'oled',
+        'ram', 'ssd', 'hdd', 'cpu', 'gpu', 'gb', 'mb', 'tb', 'kb', 'mp', 'fps',
+        'mhz', 'ghz', 'vdc', 'vac', 'ah', 'va', 'mah', 'iso', 'ds', 'dh', 'mod', 'ref',
+        'win', 'ios', 'lte', 'wifi', 'onvif', 'rtsp', 'http', 'sip',
+    ];
+
+    /**
+     * Lo que la forma de marca reconoce por error y no es nada.
+     *
+     * Son versiones de sistemas y de formatos que mezclan la raíz "win" con cifras. Se
+     * excluyen por lista en lugar de afinar más el patrón porque afinarlo costaría la
+     * detección de 0016bet, que tiene exactamente la misma forma que win10.
+     *
+     * @var array<int, string>
+     */
+    private const PALABRAS_INOCENTES = [
+        'win7', 'win8', 'win10', 'win11', 'win32', 'win64', 'windows7', 'windows10', 'windows11',
+    ];
 
     /**
      * Dominios de segundo nivel que obligan a mirar tres etiquetas para saber de quién es el
@@ -302,10 +362,13 @@ class DetectorContenidoDiferenciado
         $normalizada = $this->normalizarUrl($url);
         $inicio = microtime(true);
 
+        $limite = $inicio + self::SEGUNDOS_PRESUPUESTO;
         $brutos = [];
 
         foreach (self::PERFILES as $clave => $perfil) {
-            $brutos[$clave] = $this->pedirConPerfil($normalizada, $perfil);
+            $brutos[$clave] = microtime(true) >= $limite
+                ? $this->capturaNoMedida($normalizada)
+                : $this->pedirConPerfil($normalizada, $perfil, $limite);
         }
 
         $resultado = $this->compararCapturas($normalizada, $brutos);
@@ -496,7 +559,7 @@ class DetectorContenidoDiferenciado
      * @param  array{cabeceras: array<string, string>}  $perfil
      * @return array{codigo: int|null, url_final: string, cadena: array<int, array<string, mixed>>, cuerpo: string, tipo_contenido: string, error: string|null, ms: int}
      */
-    private function pedirConPerfil(string $url, array $perfil): array
+    private function pedirConPerfil(string $url, array $perfil, ?float $limite = null): array
     {
         $inicio = microtime(true);
 
@@ -508,10 +571,20 @@ class DetectorContenidoDiferenciado
         $error = null;
 
         for ($salto = 0; $salto <= self::MAXIMO_SALTOS; $salto++) {
+            // El presupuesto se mira ANTES de cada salto, no solo antes de cada identidad: una
+            // cadena de redirecciones lentas es justamente lo que agota el tiempo.
+            $restante = $limite !== null ? (int) floor($limite - microtime(true)) : self::SEGUNDOS_ESPERA;
+
+            if ($restante < 1) {
+                $error = 'Se agotó el presupuesto de tiempo de la comparación antes de terminar esta identidad.';
+
+                break;
+            }
+
             try {
                 $respuesta = Http::withHeaders(array_merge(self::CABECERAS_COMUNES, $perfil['cabeceras']))
-                    ->timeout(self::SEGUNDOS_ESPERA)
-                    ->connectTimeout(self::SEGUNDOS_CONEXION)
+                    ->timeout(min(self::SEGUNDOS_ESPERA, $restante))
+                    ->connectTimeout(min(self::SEGUNDOS_CONEXION, $restante))
                     ->withoutRedirecting()
                     ->get($actual);
             } catch (Throwable $fallo) {
@@ -634,15 +707,42 @@ class DetectorContenidoDiferenciado
             return true;
         }
 
-        $ip = filter_var($host, FILTER_VALIDATE_IP) !== false ? $host : gethostbyname($host);
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            return filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+        }
 
-        if ($ip === $host && filter_var($host, FILTER_VALIDATE_IP) === false) {
+        // TODAS las direcciones del anfitrión, no la primera.
+        //
+        // gethostbyname() devuelve una sola dirección IPv4 y ninguna IPv6. Con eso, un nombre
+        // con dos registros A —uno público y otro 10.x— pasaba el filtro la mitad de las
+        // veces, y un nombre que solo tiene AAAA apuntando a ::1 pasaba siempre, porque
+        // gethostbyname devuelve el nombre tal cual y esa rama se interpreta como "no
+        // resolvió". Un campo que pide una dirección y la descarga desde el servidor es una
+        // petición falsificada del lado del servidor de manual: basta con que UNA de las
+        // direcciones sea interna para no seguir.
+        $direcciones = gethostbynamel($host) ?: [];
+
+        $registros = @dns_get_record($host, DNS_AAAA) ?: [];
+
+        foreach ($registros as $registro) {
+            if (isset($registro['ipv6']) && is_string($registro['ipv6'])) {
+                $direcciones[] = $registro['ipv6'];
+            }
+        }
+
+        if ($direcciones === []) {
             // No resolvió. Se deja pasar: el error real lo dará la petición, y rechazar aquí
             // confundiría un DNS lento con un destino prohibido.
             return true;
         }
 
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+        foreach ($direcciones as $direccion) {
+            if (filter_var($direccion, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** Convierte un Location relativo en absoluto. Devuelve null si no es http ni https. */
@@ -718,6 +818,28 @@ class DetectorContenidoDiferenciado
             'cuerpo' => '',
             'tipo_contenido' => '',
             'error' => 'No se ejecutó esta identidad.',
+            'ms' => 0,
+        ];
+    }
+
+    /**
+     * Identidad que se quedó fuera del presupuesto de tiempo.
+     *
+     * Se devuelve una captura con error y no se omite la identidad, para que cuente como
+     * fallida en el resumen y el veredicto baje a "incompleto" en vez de dar por limpio lo
+     * que no se llegó a pedir.
+     *
+     * @return array{codigo: int|null, url_final: string, cadena: array<int, array<string, mixed>>, cuerpo: string, tipo_contenido: string, error: string|null, ms: int}
+     */
+    private function capturaNoMedida(string $url): array
+    {
+        return [
+            'codigo' => null,
+            'url_final' => $url,
+            'cadena' => [],
+            'cuerpo' => '',
+            'tipo_contenido' => '',
+            'error' => 'No se midió: la comparación agotó su presupuesto de '.self::SEGUNDOS_PRESUPUESTO.' segundos con las identidades anteriores.',
             'ms' => 0,
         ];
     }
@@ -865,7 +987,7 @@ class DetectorContenidoDiferenciado
                 continue;
             }
 
-            foreach ($this->marcasEn($contenido) as $marca) {
+            foreach ($this->marcasEn($contenido) as $marca => $fiable) {
                 if (isset($vistas[$marca])) {
                     continue;
                 }
@@ -874,7 +996,10 @@ class DetectorContenidoDiferenciado
                 $hallazgos[] = [
                     'marca' => $marca,
                     'donde' => $donde,
-                    'fuerte' => in_array($donde, ['titulo', 'descripcion', 'encabezados'], true),
+                    // Hacen falta las dos cosas para que la marca decida el veredicto: que
+                    // esté donde se inyecta —título, descripción, encabezado— y que el nombre
+                    // sea reconocible como marca y no una forma parecida.
+                    'fuerte' => $fiable && in_array($donde, ['titulo', 'descripcion', 'encabezados'], true),
                 ];
             }
         }
@@ -882,13 +1007,13 @@ class DetectorContenidoDiferenciado
         foreach ((array) $resumen['hosts_enlazados'] as $host) {
             $nombre = $this->nombreRegistrable((string) $host);
 
-            foreach ($this->marcasEn($nombre) as $marca) {
+            foreach ($this->marcasEn($nombre) as $marca => $fiable) {
                 if (isset($vistas[$marca])) {
                     continue;
                 }
 
                 $vistas[$marca] = true;
-                $hallazgos[] = ['marca' => $marca, 'donde' => 'enlace a '.$host, 'fuerte' => true];
+                $hallazgos[] = ['marca' => $marca, 'donde' => 'enlace a '.$host, 'fuerte' => $fiable];
             }
 
             // Anfitrión con nombre corto que mezcla letras y cifras: 96n.com, p9bet.com. No
@@ -904,7 +1029,13 @@ class DetectorContenidoDiferenciado
     }
 
     /**
-     * @return array<int, string>
+     * Marcas encontradas en un texto, cada una con si es FIABLE por sí sola.
+     *
+     * Fiable significa que el nombre lo reconoce la lista de indicadores o que lleva dentro
+     * una raíz del sector pegada a cifras. Solo una marca fiable puede hacer concluyente la
+     * señal; lo que aporta la forma de "cifra de la suerte" se enseña, pero no decide.
+     *
+     * @return array<string, bool>
      */
     private function marcasEn(string $texto): array
     {
@@ -913,19 +1044,51 @@ class DetectorContenidoDiferenciado
 
         foreach (self::MARCAS_APUESTAS as $marca) {
             if (preg_match('/\b'.preg_quote($marca, '/').'\b/u', $texto) === 1) {
-                $encontradas[] = $marca;
+                $encontradas[$marca] = true;
             }
         }
 
-        foreach ([self::PATRON_MARCA_PEGADA, self::PATRON_MARCA_CIFRA] as $patron) {
-            if (preg_match_all($patron, $texto, $coincidencias) > 0) {
-                foreach (array_slice($coincidencias[0], 0, 8) as $coincidencia) {
-                    $encontradas[] = (string) $coincidencia;
+        if (preg_match_all(self::PATRON_MARCA_PEGADA, $texto, $coincidencias) > 0) {
+            foreach (array_slice($coincidencias[0], 0, 8) as $coincidencia) {
+                $palabra = (string) $coincidencia;
+
+                if (in_array($palabra, self::PALABRAS_INOCENTES, true)) {
+                    continue;
                 }
+
+                $encontradas[$palabra] = true;
             }
         }
 
-        return array_values(array_unique($encontradas));
+        if (preg_match_all(self::PATRON_MARCA_CIFRA, $texto, $coincidencias) > 0) {
+            foreach (array_slice($coincidencias[0], 0, 8) as $coincidencia) {
+                $palabra = (string) $coincidencia;
+
+                if (in_array($palabra, self::PALABRAS_INOCENTES, true) || $this->esCodigoTecnico($palabra)) {
+                    continue;
+                }
+
+                // Si la lista o el patrón con raíz ya la dieron por fiable, se respeta.
+                $encontradas[$palabra] ??= false;
+            }
+        }
+
+        return $encontradas;
+    }
+
+    /**
+     * ¿Es un código de producto y no una marca?
+     *
+     * Se parte la palabra por la cifra de la suerte y se mira el prefijo: de "nvr168" queda
+     * "nvr", que es un grabador de vídeo en red, no una casa de apuestas.
+     */
+    private function esCodigoTecnico(string $palabra): bool
+    {
+        if (preg_match('/^([a-z]{2,8})(?:888|999|777|666|168|1688|918)$/i', $palabra, $partes) !== 1) {
+            return false;
+        }
+
+        return in_array(mb_strtolower($partes[1]), self::RAICES_TECNICAS, true);
     }
 
     // -------------------------------------------------------------------------
@@ -1138,7 +1301,21 @@ class DetectorContenidoDiferenciado
             return null;
         }
 
-        $puntos = min(10, (int) array_sum(array_column($exclusivas, 'puntos')) + 2);
+        // La EVIDENCIA es lo que suman las reglas exclusivas por sí solas. El margen de dos
+        // puntos que se añade después sirve para que una diferencia de vocabulario pese en la
+        // suma general, pero NO puede decidir que la señal es concluyente.
+        //
+        // Sumar el margen antes de comparar contra el umbral era un generador de falsas
+        // alarmas: una sola regla de tres puntos —un enlace exclusivo a un dominio .xyz, .link
+        // o .work— llegaba a cinco, se declaraba concluyente y forzaba el veredicto de
+        // cloaking en una tienda que lo único que había hecho era rotar un banner de un
+        // proveedor entre dos peticiones. Y una alarma que salta por un banner se apaga a la
+        // semana, que es como muere de verdad un control de detección.
+        //
+        // El umbral sigue siendo el cinco del detector de spam y del WAF, para que las tres
+        // capas no se contradigan; lo que cambia es que ahora se mide sobre la evidencia.
+        $evidencia = (int) array_sum(array_column($exclusivas, 'puntos'));
+        $puntos = min(10, $evidencia + 2);
         $descripciones = array_map(
             static fn (array $motivo): string => (string) $motivo['descripcion'].' ('.$motivo['evidencia'].')',
             $exclusivas,
@@ -1150,9 +1327,7 @@ class DetectorContenidoDiferenciado
             $puntos,
             'Ninguna de estas señales',
             implode(' · ', $descripciones),
-            // Cinco puntos es el umbral que usa el detector de spam del proyecto y el que usa
-            // el WAF. Se mantiene el mismo criterio para que las tres capas no se contradigan.
-            concluyente: $puntos >= DetectorSpamSeo::UMBRAL,
+            concluyente: $evidencia >= DetectorSpamSeo::UMBRAL,
             explicacion: 'El detector de spam del proyecto reconoce estas señales en la versión servida a esta identidad y no en la del navegador.',
         );
     }
@@ -1314,10 +1489,16 @@ class DetectorContenidoDiferenciado
             return null;
         }
 
+        // Cinco puntos y no cuatro, que es justo el umbral de sospecha, porque esta señal no
+        // tiene ninguna explicación honesta: ningún sitio decide por agente de usuario si
+        // quiere ser indexado. Con cuatro, servir "noindex" a la persona e "index, follow" al
+        // rastreador —y nada más— quedaba por debajo del umbral y la pantalla lo etiquetaba
+        // como diferencia menor. Es el indicio de cloaking más barato que existe y tiene que
+        // llevar a alguien a mirar la página él solo.
         return $this->senal(
             'meta_robots_distinta',
             'Directiva meta robots distinta',
-            4,
+            5,
             $antes !== '' ? $antes : '(sin meta robots)',
             $ahora !== '' ? $ahora : '(sin meta robots)',
             explicacion: 'Marcar noindex para la persona e index para el rastreador deja la página fuera de cualquier revisión manual y dentro del índice.',
@@ -1532,6 +1713,15 @@ class DetectorContenidoDiferenciado
             ? ComparacionContenido::VEREDICTO_INCOMPLETO
             : $this->veredictoDe($puntuacion);
 
+        // "No encontré diferencias" y "no pude medir" son cosas distintas, y confundirlas es
+        // la forma más silenciosa de fallar: si la identidad de Googlebot es justo la que dio
+        // tiempo de espera, decir que el sitio está limpio es afirmar lo que no se comprobó.
+        // Un hallazgo sí se sostiene con perfiles caídos —lo que se vio, se vio—, por eso solo
+        // se degrada el veredicto tranquilo.
+        if ($fallidos > 0 && in_array($veredicto, [ComparacionContenido::VEREDICTO_SIN_DIFERENCIAS, ComparacionContenido::VEREDICTO_ESPERABLE], true)) {
+            $veredicto = ComparacionContenido::VEREDICTO_INCOMPLETO;
+        }
+
         // Contenido de sector de abuso en TODAS las versiones no es cloaking: es una
         // inyección que ni siquiera se molesta en esconderse. Se informa aparte porque el
         // hallazgo es igual de grave y el control no debe callarlo solo porque no hay
@@ -1540,6 +1730,22 @@ class DetectorContenidoDiferenciado
             $perfiles,
             static fn (array $perfil): bool => $perfil['alcanzado'] && (int) $perfil['spam']['puntuacion'] < DetectorSpamSeo::UMBRAL,
         );
+
+        // La versión de referencia sale del dominio o trae marcas de apuestas.
+        //
+        // Este control compara identidades, de modo que un secuestro que se sirve IGUAL a las
+        // cinco no produce ni una sola señal: la comparación es perfecta y el veredicto salía
+        // "sin diferencias" sobre un dominio que redirige a todo el mundo a una casa de
+        // apuestas. Decir que un sitio está limpio porque está uniformemente sucio es el peor
+        // fallo posible en esta pantalla, así que se mira además la referencia por sí sola.
+        $referenciaComprometida = (bool) $referencia['alcanzado'] && (
+            (bool) $referencia['salio_del_dominio'] || $referencia['marcas'] !== []
+        );
+
+        if ($referenciaComprometida && in_array($veredicto, [ComparacionContenido::VEREDICTO_SIN_DIFERENCIAS, ComparacionContenido::VEREDICTO_ESPERABLE], true)) {
+            $veredicto = ComparacionContenido::VEREDICTO_SOSPECHOSO;
+            $puntuacion = max($puntuacion, self::UMBRAL_SOSPECHA);
+        }
 
         return [
             'puntuacion' => $puntuacion,
@@ -1550,20 +1756,29 @@ class DetectorContenidoDiferenciado
             'perfiles_alcanzados' => $alcanzados,
             'perfiles_fallidos' => $fallidos,
             'spam_en_todas_las_versiones' => $spamEnTodas,
+            'referencia_comprometida' => $referenciaComprometida,
             'referencia_alcanzada' => (bool) $referencia['alcanzado'],
-            'explicacion' => $this->explicacionGlobal($veredicto, $fallidos, $spamEnTodas),
+            'explicacion' => $this->explicacionGlobal($veredicto, $fallidos, $spamEnTodas, $referenciaComprometida),
         ];
     }
 
-    private function explicacionGlobal(string $veredicto, int $fallidos, bool $spamEnTodas): string
+    private function explicacionGlobal(string $veredicto, int $fallidos, bool $spamEnTodas, bool $referenciaComprometida = false): string
     {
         $base = match ($veredicto) {
             ComparacionContenido::VEREDICTO_CLOAKING => 'El sitio sirve contenido distinto según quién lo pida. Lo que el buscador indexa de este dominio no es lo que la página enseña a las personas.',
             ComparacionContenido::VEREDICTO_SOSPECHOSO => 'Hay diferencias que no se explican solas. Hace falta que una persona abra la página con las dos identidades y confirme.',
-            ComparacionContenido::VEREDICTO_ESPERABLE => 'Hay diferencias, pero todas caen dentro de lo que un sitio honesto produce.',
+            // No se afirma que todo esté explicado, porque no lo está: hay señales que suman
+            // por debajo del umbral y que la tabla de tolerancias no reconoce. Decirle al
+            // auditor que todo encaja cuando quedan puntos sin explicar es exactamente el
+            // tipo de resumen tranquilizador que hace que nadie abra el detalle.
+            ComparacionContenido::VEREDICTO_ESPERABLE => 'Hay diferencias menores, por debajo del umbral de sospecha. Las marcadas como esperables tienen explicación conocida; si alguna suma puntos, mírela en la tabla antes de darla por buena.',
             ComparacionContenido::VEREDICTO_SIN_DIFERENCIAS => 'Las señales estables coinciden en las cinco identidades.',
             default => 'No se pudo completar la comparación.',
         };
+
+        if ($referenciaComprometida) {
+            $base .= ' Atención: la propia versión de navegador sale del dominio o trae marcas de apuestas. Si las cinco identidades reciben lo mismo no hay cloaking que medir, pero eso no significa que el sitio esté limpio: significa que la inyección ni siquiera se esconde.';
+        }
 
         if ($spamEnTodas) {
             $base .= ' Además, el vocabulario de sectores de abuso aparece en TODAS las versiones: si hay contenido inyectado, no está escondido, está a la vista de cualquiera.';
@@ -1584,7 +1799,13 @@ class DetectorContenidoDiferenciado
         $resumen = $resultado['resumen'] ?? [];
         $concluyentes = (array) ($resumen['concluyentes'] ?? []);
 
-        return 'Contenido diferenciado en '.((string) ($resultado['url'] ?? '')).': '
+        // La demostración del sábado también puede guardarse, y sin esta marca dejaría en el
+        // panel de incidentes un hallazgo crítico sobre un dominio inventado, indistinguible
+        // de uno medido de verdad. Un incidente que no dice que es un simulacro contamina la
+        // única lista que el auditor se toma en serio.
+        $marca = ($resultado['simulada'] ?? false) ? '[REPRODUCCIÓN DEL CASO REAL, sin medición en vivo] ' : '';
+
+        return $marca.'Contenido diferenciado en '.((string) ($resultado['url'] ?? '')).': '
             .($resumen['puntuacion'] ?? 0).' puntos de divergencia. '
             .($concluyentes !== [] ? implode('; ', array_slice($concluyentes, 0, 3)) : ((string) ($resumen['explicacion'] ?? '')));
     }

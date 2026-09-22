@@ -41,13 +41,40 @@ use Throwable;
  * marca de apuestas y con 45 impresiones y cero clics, sí.
  *
  * Dos umbrales en vez de uno porque el destinatario no es un bloqueo automático sino una
- * persona: por debajo de 4 no se molesta a nadie, entre 4 y 6 se pide revisión humana, desde
+ * persona: por debajo de 5 no se molesta a nadie, entre 5 y 6 se pide revisión humana, desde
  * 7 se declara envenenada y se abre incidente.
+ *
+ * SEÑALES GENÉRICAS Y SEÑALES ESPECÍFICAS
+ * ---------------------------------------------------------------------------
+ * Las señales no valen lo mismo y agruparlas por peso no basta. Hay dos clases:
+ *
+ *   - GENÉRICAS: dicen que algo no encaja, pero no nombran la amenaza. Que una consulta no
+ *     tenga clics y que no use el vocabulario declarado describe también la cola larga
+ *     normal de cualquier sitio: "botón de pánico para negocio" con doce impresiones y cero
+ *     clics es una consulta legítima de esta misma empresa, y el responsable no escribió
+ *     "botón de pánico" en su lista porque ninguna lista de diez palabras cubre un catálogo.
+ *   - ESPECÍFICAS: nombran la amenaza. Vocabulario de un sector que abusa de dominios
+ *     ajenos, forma de marca de apuestas, la consulta que es otro dominio, un alfabeto que
+ *     no corresponde al mercado.
+ *
+ * Por eso las genéricas llevan techo propio (TOPE_GENERICAS) por debajo del umbral de
+ * envenenada. Es la garantía estructural del control: sin una señal que NOMBRE la amenaza,
+ * una consulta nunca se declara envenenada ni abre incidente, por mucho que acumulen las
+ * genéricas. Sin este techo, la desproporción de clics más la distancia semántica sumaban
+ * ocho puntos por sí solas y el control declaraba envenenada la mitad de la cola larga
+ * legítima del propio negocio, que es la forma más rápida de que nadie lo use dos veces.
  */
 class AnalizadorConsultas
 {
-    /** Desde aquí la consulta merece que una persona la mire. */
-    public const UMBRAL_REVISION = 4;
+    /**
+     * Desde aquí la consulta merece que una persona la mire.
+     *
+     * Cinco y no cuatro: con cuatro entraba en revisión cualquier consulta legítima que a la
+     * vez no tuviera clics y usara una palabra fuera del vocabulario declarado, y eso es la
+     * cola larga entera. Cinco exige o bien una señal específica, o bien dos genéricas con
+     * volumen de impresiones detrás.
+     */
+    public const UMBRAL_REVISION = 5;
 
     /** Desde aquí se da por contenido ajeno indexado y se abre incidente. */
     public const UMBRAL_ENVENENADA = 7;
@@ -101,6 +128,15 @@ class AnalizadorConsultas
     /** El mismo techo cuando la consulta sí habla del negocio. Ver senalesVocabulario(). */
     private const TOPE_VOCABULARIO_NEGOCIO = 3;
 
+    /**
+     * Techo del bloque de señales genéricas: desproporción de clics, distancia semántica y
+     * búsqueda de un acceso. Vale uno menos que UMBRAL_ENVENENADA a propósito, porque de ahí
+     * sale la garantía del control: acumulando solo señales genéricas se puede llegar como
+     * mucho a pedir revisión humana, nunca a declarar el dominio envenenado ni a abrir un
+     * incidente. Declarar envenenada una consulta exige una señal que nombre la amenaza.
+     */
+    private const TOPE_GENERICAS = self::UMBRAL_ENVENENADA - 2;
+
     /** Vocabulario del negocio real que motivó el control. Es un ejemplo editable. */
     public const VOCABULARIO_EJEMPLO = 'camara, camaras, seguridad, vigilancia, cctv, alarma, monitoreo, instalacion, mantenimiento, dvr, nvr';
 
@@ -141,7 +177,13 @@ class AnalizadorConsultas
         'apuestas' => [
             // "rtp" se dejó FUERA del patrón a propósito: es también el protocolo de vídeo
             // de las cámaras IP, y marcaría como spam las consultas legítimas del negocio.
-            'patron' => '/(\b(bet|bets|betting|casino|kasino|slot|slots|togel|toto|judi|situs|daftar|gacor|maxwin|bandar|taruhan|sabong|baccarat|sportsbook|jackpot|4d)\b|娱乐城|娛樂城|赌场|賭場|博彩|老虎机|百家乐|彩票|バカラ|カジノ|スロット|온라인카지노|바카라)/iu',
+            // "daftar", "masuk" y "link alternatif" viven AQUÍ y no entre las señales de
+            // acceso porque no son genéricas: nadie busca "link alternatif" de una tienda de
+            // cámaras. Son el vocabulario con el que se busca el espejo de una casa de
+            // apuestas bloqueada, y nombran la amenaza igual que "casino".
+            // "poker" y "sbobet" faltaban y son tan vocabulario de apuestas como "casino":
+            // sin ellos, "dewa poker" con sesenta impresiones y cero clics salía limpia.
+            'patron' => '/(\b(bet|bets|betting|casino|kasino|slot|slots|poker|sbobet|togel|toto|judi|situs|daftar|masuk|gacor|maxwin|bandar|taruhan|sabong|baccarat|sportsbook|jackpot|4d)\b|\blink\s+alternatif\b|\balternatif\b|娱乐城|娛樂城|赌场|賭場|博彩|老虎机|百家乐|彩票|バカラ|カジノ|スロット|온라인카지노|바카라)/iu',
             'puntos' => 5,
             'descripcion' => 'Vocabulario de apuestas o casinos',
         ],
@@ -189,13 +231,18 @@ class AnalizadorConsultas
             // Se exige al menos una cifra para no marcar palabras corrientes que terminan
             // igual ("gameplay", "nightclub").
             'patron' => '/^(?=.{3,14}$)(?=.*\d)[a-z0-9]*(bet|win|slot|togel|toto|judi|casino|poker|club|vip)[a-z0-9]*$/',
-            'puntos' => 4,
+            'puntos' => 5,
             'descripcion' => 'Forma de marca de apuestas: cifras y sufijo del sector',
         ],
         'letras_y_cifras' => [
-            // kmj888, porh300: dos a seis letras impronunciables seguidas de cifras.
-            'patron' => '/^[a-z]{2,6}\d{2,5}$/',
-            'puntos' => 4,
+            // kmj888, porh300: TRES a seis letras impronunciables seguidas de cifras.
+            //
+            // Tres y no dos: con dos letras el patrón se comía los códigos técnicos de dos
+            // letras que vende esta misma empresa —ip66 e ip67 (grado de estanqueidad),
+            // rj45 (conector), rg59 (cable coaxial), dc12— y los declaraba forma de marca de
+            // apuestas. Ninguna de las marcas del caso real tiene menos de tres letras.
+            'patron' => '/^[a-z]{3,6}\d{2,5}$/',
+            'puntos' => 5,
             'descripcion' => 'Forma de marca de apuestas: letras sin significado seguidas de cifras',
         ],
         'cifras_y_letras' => [
@@ -206,7 +253,10 @@ class AnalizadorConsultas
         ],
         'cifras_de_la_suerte' => [
             // Cualquier mezcla que termine en las cifras que estas marcas repiten sin parar.
-            'patron' => '/^(?=.*[a-z])(?=.*\d)[a-z0-9]{3,12}(88|99|77|777|888|999|4d)$/',
+            // Desde una sola letra delante, porque "m88" y "w88" son nombres de marca reales
+            // y con el mínimo anterior de tres caracteres no llegaban a mirarse siquiera.
+            // Ningún código del catálogo de este negocio termina en 88, 99 ni 77.
+            'patron' => '/^(?=.*[a-z])(?=.*\d)[a-z0-9]{1,12}(88|99|77|777|888|999|4d)$/',
             'puntos' => 3,
             'descripcion' => 'Termina en las cifras habituales de estas marcas (88, 99, 777)',
         ],
@@ -224,11 +274,45 @@ class AnalizadorConsultas
     ];
 
     /**
+     * Unidades de medida pegadas a la cifra. Son lo que separa "1080p", "12v", "16ch",
+     * "128gb" o "305m" —el catálogo entero de un instalador de cámaras— de "96n", que tiene
+     * la misma forma y no es ninguna medida de nada.
+     *
+     * Esta lista y la siguiente están pensadas para ESTE negocio, igual que NUMEROS_TECNICOS.
+     * Otro sector tendría que rehacerlas, y esa es una limitación declarada del control, no
+     * un descuido: la alternativa era un diccionario de unidades del mundo entero que dejaría
+     * exentas también las marcas que se quieren detectar.
+     *
+     * @var array<int, string>
+     */
+    private const UNIDADES_TECNICAS = [
+        'p', 'k', 'v', 'w', 'm', 'mm', 'cm', 'mt', 'mts', 'mp', 'ch', 'gb', 'tb', 'mah', 'ah',
+        'hz', 'khz', 'mhz', 'ghz', 'fps', 'db', 'va', 'awg', 'a', 'ma', 'px', 'pcs', 'ft', 'pulg',
+    ];
+
+    /**
+     * Prefijos con los que empiezan los códigos de producto y las normas técnicas de este
+     * sector. Un token que empieza por uno de ellos y sigue con cifras es una referencia de
+     * catálogo (ip66, rj45, cat6, utp305, poe48, ds2cd), no el nombre de una casa de apuestas.
+     *
+     * @var array<int, string>
+     */
+    private const PREFIJOS_TECNICOS = [
+        'ip', 'rj', 'rg', 'cat', 'utp', 'ftp', 'stp', 'poe', 'dc', 'ac', 'hd', 'ahd', 'tvi',
+        'cvi', 'sdi', 'usb', 'hdmi', 'vga', 'rca', 'bnc', 'awg', 'dvr', 'nvr', 'xvr', 'ptz',
+        'ram', 'ssd', 'hdd', 'lte', 'ds', 'dh', 'dhi', 'ipc', 'thc', 'tl', 'wd',
+    ];
+
+    /**
      * Palabras con las que se busca la puerta de entrada de un servicio ajeno. Solas no
      * significan nada; junto a una marca desconocida son la consulta típica de quien busca
      * OTRO sitio y acaba viendo el tuyo.
+     *
+     * Solo quedan aquí las genéricas. "daftar", "masuk" y "link alternatif" se movieron al
+     * diccionario de sector, donde cuentan como señal específica: son vocabulario de apuestas,
+     * no palabras corrientes como "login" o "app".
      */
-    private const PATRON_ACCESO = '/\b(login|masuk|daftar|apk|app|descargar\s+apk|link\s+alternatif|alternatif|register|deposit|withdraw)\b/iu';
+    private const PATRON_ACCESO = '/\b(login|apk|app|descargar\s+apk|register|deposit|withdraw)\b/iu';
 
     /** Alfabetos que en una tienda guatemalteca no tienen ninguna explicación honesta. */
     private const PATRON_ALFABETO_AJENO = '/[\x{0400}-\x{04ff}\x{0590}-\x{05ff}\x{0600}-\x{06ff}\x{0e00}-\x{0e7f}\x{0900}-\x{097f}]/u';
@@ -312,6 +396,16 @@ class AnalizadorConsultas
             $clics = isset($campos[0]) && $this->esNumero($campos[0]) ? $this->aEntero($campos[0]) : null;
             $impresiones = isset($campos[1]) && $this->esNumero($campos[1]) ? $this->aEntero($campos[1]) : null;
 
+            // Search Console no puede informar más clics que impresiones: un clic exige
+            // haberse mostrado antes. Si llegan al revés, las columnas vienen invertidas
+            // (hay exportaciones que ponen las impresiones primero), y dejarlo pasar tenía
+            // dos consecuencias: la desproporción se medía contra la columna equivocada y la
+            // tasa se iba por encima de 1, que es más de lo que admite la columna
+            // decimal(6,4) de la tabla. La fila se perdía al guardar, callando.
+            if ($clics !== null && $impresiones !== null && $clics > $impresiones) {
+                [$clics, $impresiones] = [$impresiones, $clics];
+            }
+
             $clave = $this->normalizar($consulta);
 
             // La misma consulta pegada dos veces (dos rangos de fechas, o un pegado
@@ -353,30 +447,44 @@ class AnalizadorConsultas
         $normalizada = $this->normalizar($consulta);
         $tokens = $this->tokenizar($normalizada);
 
-        $senales = [];
-
         // La distancia semántica se calcula primero porque las demás señales dependen de
         // ella: una palabra ambigua pesa distinto en una consulta que habla del negocio que
         // en una que no habla de nada de lo que el sitio vende.
         $distancia = $this->senalDistanciaSemantica($tokens, $contexto);
         $hablaDelNegocio = $distancia === null && $contexto['vocabulario'] !== [];
 
+        // Las genéricas van en su propio bloque y en este orden —de la más informativa a la
+        // que menos— porque el techo recorta por el final: si algo tiene que perder puntos,
+        // que sea la señal de apoyo y no la que trae los datos de Google.
+        $genericas = [];
+
         foreach ([
             $this->senalDesproporcion($fila, $contexto),
-            $this->senalDominio($normalizada, $contexto),
             $distancia,
-            $this->senalMarcaApuestas($tokens),
             $this->senalAcceso($normalizada, $hablaDelNegocio),
+        ] as $senal) {
+            if ($senal !== null) {
+                $genericas[] = $senal;
+            }
+        }
+
+        $especificas = [];
+
+        foreach ([
+            $this->senalDominio($normalizada, $contexto),
+            $this->senalMarcaApuestas($tokens),
             $this->senalAlfabetoAjeno($consulta),
         ] as $senal) {
             if ($senal !== null) {
-                $senales[] = $senal;
+                $especificas[] = $senal;
             }
         }
 
         foreach ($this->senalesVocabulario($consulta, $normalizada, $hablaDelNegocio) as $senal) {
-            $senales[] = $senal;
+            $especificas[] = $senal;
         }
+
+        $senales = array_merge($this->aplicarTope($genericas, self::TOPE_GENERICAS), $especificas);
 
         $puntuacion = array_sum(array_column($senales, 'puntos'));
 
@@ -405,6 +513,18 @@ class AnalizadorConsultas
      * Google enseña de ese dominio no es lo que la persona buscaba. Esa distancia entre lo
      * que se indexa y lo que el sitio es, es la definición del contenido inyectado.
      *
+     * POR QUÉ PUNTÚA POCO Y POR TRAMOS
+     * ---------------------------------------------------------------------------
+     * Porque cero clics dice mucho menos de lo que parece. Con una tasa de clics normal del
+     * dos por ciento, veinte impresiones esperan 0,4 clics: observar cero no tiene nada de
+     * raro y le pasa a la mitad de la cola larga de cualquier sitio honesto. A doscientas
+     * impresiones la cuenta cambia, y ahí sí empieza a significar algo.
+     *
+     * Antes valía cinco o seis puntos —casi el umbral entero— y bastaba con que además la
+     * consulta usara una palabra fuera del vocabulario declarado para declararla envenenada.
+     * Medido contra cincuenta consultas reales de esta empresa, eso marcaba treinta. Los
+     * tramos de ahora reconocen lo que la cifra aguanta: corrobora, no decide.
+     *
      * @param  array{consulta: string, clics: int|null, impresiones: int|null}  $fila
      * @param  array<string, mixed>  $contexto
      * @return array{regla: string, descripcion: string, puntos: int, evidencia: string}|null
@@ -421,7 +541,15 @@ class AnalizadorConsultas
 
         if ($clics === 0) {
             // Cuantas más impresiones sin un solo clic, menos margen queda para el azar.
-            $puntos = $impresiones >= $minimo * 3 ? 6 : 5;
+            // Los tramos salen de la cuenta de arriba: con una tasa de clics normal del 2 %,
+            // cien impresiones esperan dos clics y ver cero ocurre una de cada siete veces;
+            // trescientas esperan seis y ver cero ocurre una de cada cuatrocientas. Por
+            // debajo de cien no hay nada que afirmar, y por eso todo eso vale lo mismo.
+            $puntos = match (true) {
+                $impresiones >= $minimo * 30 => 4,
+                $impresiones >= $minimo * 10 => 3,
+                default => 2,
+            };
 
             return [
                 'regla' => 'desproporcion_clics',
@@ -433,11 +561,11 @@ class AnalizadorConsultas
 
         $tasa = $clics / $impresiones;
 
-        if ($tasa < 0.01 && $impresiones >= $minimo * 3) {
+        if ($tasa < 0.01 && $impresiones >= $minimo * 10) {
             return [
                 'regla' => 'tasa_clics_nula',
                 'descripcion' => 'Tasa de clics por debajo del 1 % con volumen alto de impresiones',
-                'puntos' => 3,
+                'puntos' => 2,
                 'evidencia' => $impresiones.' impresiones, '.$clics.' clics ('.round($tasa * 100, 2).' %)',
             ];
         }
@@ -489,8 +617,12 @@ class AnalizadorConsultas
      *
      * El responsable declara el vocabulario de su actividad. Una consulta que no comparte
      * NINGÚN término con ese vocabulario ni con la marca no describe lo que el sitio vende.
-     * Vale poco por sí sola —hay consultas legítimas con palabras que nadie declaró— y por
-     * eso puntúa 3: es la señal que convierte en sospechoso lo que otra señal ya insinuó.
+     *
+     * Puntúa 2, que es lo menos que puede puntuar una señal y seguir contando. Ninguna lista
+     * de diez palabras cubre un catálogo: "botón de pánico", "cerca eléctrica", "videoportero"
+     * y "control de acceso biométrico" son consultas legítimas de esta misma empresa y
+     * ninguna comparte término con el vocabulario declarado. Lo que esta señal mide de verdad
+     * es lo corta que es la lista, y por eso no puede pesar como una prueba.
      *
      * @param  array<int, string>  $tokens
      * @param  array<string, mixed>  $contexto
@@ -516,7 +648,7 @@ class AnalizadorConsultas
         return [
             'regla' => 'distancia_semantica',
             'descripcion' => 'Ningún término de la consulta pertenece al vocabulario declarado del negocio',
-            'puntos' => 3,
+            'puntos' => 2,
             'evidencia' => implode(' ', array_slice($tokens, 0, 6)),
         ];
     }
@@ -531,7 +663,7 @@ class AnalizadorConsultas
     private function senalMarcaApuestas(array $tokens): ?array
     {
         foreach ($tokens as $token) {
-            if ($this->esNumeroTecnico($token)) {
+            if ($this->esEspecificacionTecnica($token)) {
                 continue;
             }
 
@@ -557,7 +689,7 @@ class AnalizadorConsultas
      * frases y su regla de caracteres chinos, japoneses y coreanos siguen valiendo aquí— y
      * añade encima el vocabulario suelto que aparece en consultas de dos palabras.
      *
-     * @return array<int, array{regla: string, descripcion: string, puntos: int, evidencia: string}>
+     * @return array<int, array{regla: string, descripcion: string, puntos: int, evidencia: string, topada: bool}>
      */
     private function senalesVocabulario(string $consulta, string $normalizada, bool $hablaDelNegocio): array
     {
@@ -923,11 +1055,11 @@ class AnalizadorConsultas
     }
 
     /**
-     * Reparte el techo entre las señales de vocabulario recortando la última que se pasa, en
-     * lugar de tirarla entera: la evidencia sigue visible en la pantalla aunque no sume.
+     * Reparte el techo recortando la última señal que se pasa, en lugar de tirarla entera:
+     * la evidencia sigue visible en la pantalla aunque no sume.
      *
      * @param  array<int, array{regla: string, descripcion: string, puntos: int, evidencia: string}>  $senales
-     * @return array<int, array{regla: string, descripcion: string, puntos: int, evidencia: string}>
+     * @return array<int, array{regla: string, descripcion: string, puntos: int, evidencia: string, topada: bool}>
      */
     private function aplicarTope(array $senales, int $tope): array
     {
@@ -936,6 +1068,9 @@ class AnalizadorConsultas
         foreach ($senales as $indice => $senal) {
             $disponible = max(0, $tope - $acumulado);
             $senales[$indice]['puntos'] = min($senal['puntos'], $disponible);
+            // Se marca la señal recortada para que la pantalla pueda decir por qué suma
+            // menos de lo que dice su regla. Un "+0" sin explicación parece un error.
+            $senales[$indice]['topada'] = $senales[$indice]['puntos'] < $senal['puntos'];
             $acumulado += $senales[$indice]['puntos'];
         }
 
@@ -956,7 +1091,11 @@ class AnalizadorConsultas
         // Coma: solo si las columnas 2 y 3 son cifras. "camaras de seguridad, guatemala" es
         // UNA consulta con una coma dentro, no una consulta con columnas.
         if (str_contains($linea, ',')) {
-            $campos = $this->limpiarCampos(explode(',', $linea));
+            // str_getcsv y no explode: la coma dentro de unas comillas es parte de la
+            // consulta, no un separador. Partiendo a mano, la fila
+            // «"camaras de seguridad, guatemala",28,1320» no se reconocía como tabla y la
+            // línea ENTERA acababa guardada como si fuera el texto de la consulta.
+            $campos = $this->limpiarCampos(str_getcsv($linea, ',', '"', '\\'));
 
             if ($this->pareceTabla($campos)) {
                 return $campos;
@@ -981,7 +1120,7 @@ class AnalizadorConsultas
     }
 
     /**
-     * @param  array<int, string>  $campos
+     * @param  array<int, string|null>  $campos
      * @return array<int, string>
      */
     private function limpiarCampos(array $campos): array
@@ -991,7 +1130,8 @@ class AnalizadorConsultas
         foreach ($campos as $campo) {
             // Se quitan las comillas del CSV y el espacio duro que trae el pegado del
             // navegador, que no es el mismo carácter que el espacio y rompe cualquier trim.
-            $campo = str_replace(["\u{00a0}", "\u{202f}"], ' ', $campo);
+            // El campo puede llegar nulo: str_getcsv devuelve [null] para una línea vacía.
+            $campo = str_replace(["\u{00a0}", "\u{202f}"], ' ', (string) $campo);
             $limpios[] = trim($campo, " \t\"'");
         }
 
@@ -1131,12 +1271,36 @@ class AnalizadorConsultas
         return str_contains($token, $termino) || str_contains($termino, $token);
     }
 
-    private function esNumeroTecnico(string $token): bool
+    /**
+     * ¿El token es una especificación técnica de este catálogo y no el nombre de una marca?
+     *
+     * Se comprueban tres formas distintas porque la gente escribe la misma cifra de tres
+     * maneras y mirar solo una dejaba pasar las otras dos. Mirar únicamente las cifras
+     * FINALES exoneraba "hd1080" y marcaba "1080p", que es como se escribe casi siempre.
+     */
+    private function esEspecificacionTecnica(string $token): bool
     {
-        if (preg_match('/(\d+)$/', $token, $partes) !== 1) {
-            return false;
+        // 1. Una cifra técnica en cualquier posición: hd1080, 1080p, h265, ahd720.
+        preg_match_all('/\d+/', $token, $cifras);
+
+        foreach ($cifras[0] as $cifra) {
+            if (in_array($cifra, self::NUMEROS_TECNICOS, true)) {
+                return true;
+            }
         }
 
-        return in_array($partes[1], self::NUMEROS_TECNICOS, true);
+        // 2. Cifra seguida de unidad de medida: 12v, 305m, 16ch, 128gb, 12mp.
+        if (preg_match('/^\d+([a-z]{1,4})$/', $token, $unidad) === 1
+            && in_array($unidad[1], self::UNIDADES_TECNICAS, true)) {
+            return true;
+        }
+
+        // 3. Referencia de catálogo o norma: ip66, rj45, cat6, utp305, poe48.
+        if (preg_match('/^([a-z]{2,4})\d/', $token, $prefijo) === 1
+            && in_array($prefijo[1], self::PREFIJOS_TECNICOS, true)) {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -77,7 +77,7 @@ class extends Component
                 <div wire:key="linea-pedido-{{ $linea->id }}" class="flex items-start justify-between gap-3 text-sm">
                     <div class="min-w-0">
                         <p class="break-words font-medium text-zinc-900 dark:text-white">{{ $linea->nombre_producto }}</p>
-                        <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                        <p class="text-xs tabular-nums text-zinc-600 dark:text-zinc-300">
                             {{ $linea->cantidad }} &times; {{ $linea->precioFormateado() }}
                         </p>
                     </div>
@@ -92,11 +92,11 @@ class extends Component
 
         <dl class="space-y-2 text-sm">
             <div class="flex justify-between gap-3">
-                <dt class="text-zinc-500 dark:text-zinc-400">Subtotal</dt>
+                <dt class="text-zinc-600 dark:text-zinc-300">Subtotal</dt>
                 <dd class="shrink-0 font-medium tabular-nums">{{ $pedido->subtotalFormateado() }}</dd>
             </div>
             <div class="flex justify-between gap-3">
-                <dt class="text-zinc-500 dark:text-zinc-400">Envío</dt>
+                <dt class="text-zinc-600 dark:text-zinc-300">Envío</dt>
                 <dd class="shrink-0 font-medium tabular-nums">
                     {{ (float) $pedido->envio > 0 ? $pedido->envioFormateado() : 'Gratis' }}
                 </dd>
@@ -121,23 +121,26 @@ class extends Component
                 {{ $pedido->municipio_envio }}, {{ $pedido->departamento_envio }}<br />
                 Tel. {{ $pedido->telefono_cliente }}
                 @if (filled($pedido->referencia_envio))
-                    <br /><span class="text-xs text-zinc-500 dark:text-zinc-400">{{ $pedido->referencia_envio }}</span>
+                    <br /><span class="text-xs text-zinc-600 dark:text-zinc-400">{{ $pedido->referencia_envio }}</span>
                 @endif
             </address>
         </section>
 
         <section class="rounded-2xl border border-zinc-200 bg-white p-4 text-sm sm:p-5 dark:border-zinc-700 dark:bg-zinc-800">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-white">Medio de pago</h2>
+            {{-- Los cuatro últimos dígitos son la prueba visible de la tokenización: se
+                 destacan con cifras de ancho fijo y peso fuerte para que se lean de un vistazo. --}}
             <p class="mt-3 break-words font-medium text-zinc-900 dark:text-white">
-                {{ $pedido->marca_tarjeta }} &bull;&bull;&bull;&bull; {{ $pedido->ultimos_cuatro }}
+                {{ $pedido->marca_tarjeta }} &bull;&bull;&bull;&bull;
+                <span class="text-base font-bold tracking-wide tabular-nums">{{ $pedido->ultimos_cuatro }}</span>
             </p>
-            <p class="mt-2 text-sm leading-relaxed text-zinc-500 sm:text-xs dark:text-zinc-400">
+            <p class="mt-2 text-sm leading-relaxed text-zinc-600 sm:text-xs dark:text-zinc-300">
                 De la tarjeta solo quedaron registrados la marca y los últimos cuatro dígitos, junto a un
                 token opaco emitido por la pasarela. El número completo y el código de seguridad nunca
                 llegaron a la base de datos.
             </p>
             @if ($pedido->pagado_en !== null)
-                <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                <p class="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
                     Cobro simulado el {{ $pedido->pagado_en->format('d/m/Y \a \l\a\s H:i') }}
                 </p>
             @endif

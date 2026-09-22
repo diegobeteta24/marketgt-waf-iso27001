@@ -235,7 +235,7 @@
                                 <td class="demo-numero py-2 pe-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">{{ $fila['hora'] }}</td>
                                 <td class="py-2 pe-3 text-zinc-900 dark:text-white">{{ $fila['nombre'] }}</td>
                                 <td class="py-2 pe-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">{{ $fila['modo'] === 'deteccion' ? 'solo detección' : 'activo' }}</td>
-                                <td class="demo-numero py-2 pe-3 text-right whitespace-nowrap">{{ $fila['error'] ? 'sin envío' : ($fila['codigo'] ?? '—') }}</td>
+                                <td class="demo-numero py-2 pe-3 text-right font-semibold whitespace-nowrap text-zinc-900 dark:text-white">{{ $fila['error'] ? 'sin envío' : ($fila['codigo'] ?? '—') }}</td>
                                 <td class="py-2 text-right whitespace-nowrap">
                                     @if ($fila['error'])
                                         <span style="color: var(--demo-neutro)">error de conexión</span>

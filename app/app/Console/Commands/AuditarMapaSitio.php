@@ -38,7 +38,7 @@ use Throwable;
 class AuditarMapaSitio extends Command
 {
     protected $signature = 'seo:auditar-mapa
-        {sitio? : Dirección del sitio a auditar; por omisión, la de la aplicación}
+        {sitio? : Dirección del sitio a auditar; por omisión, la del sitio publicado}
         {--mapa= : Mapa concreto a auditar en lugar del que declare robots.txt}
         {--sin-comprobar : No pide ninguna página; solo analiza lo declarado}
         {--muestra= : Cuántas direcciones sospechosas se comprueban por HTTP}
@@ -50,7 +50,10 @@ class AuditarMapaSitio extends Command
 
     public function handle(ServicioAuditorMapaSitio $auditor): int
     {
-        $sitio = (string) ($this->argument('sitio') ?? config('app.url'));
+        // Sin argumento se audita el sitio publicado, no app.url: en el equipo de
+        // desarrollo app.url es localhost y auditar localhost no dice nada sobre lo que
+        // Google está viendo, que es la única pregunta que este comando contesta.
+        $sitio = (string) ($this->argument('sitio') ?? $auditor->direccionPorDefecto());
 
         try {
             $auditoria = $auditor->auditar($sitio, [
@@ -78,10 +81,10 @@ class AuditarMapaSitio extends Command
             } catch (Throwable $fallo) {
                 // El hallazgo ya está en la bitácora que escribe RegistroIncidentesSeo; que
                 // falle la tabla no puede hacer que la tarea programada calle.
-                $this->warn('No se pudieron guardar los hallazgos: '.$fallo->getMessage());
+                $this->aviso('No se pudieron guardar los hallazgos: '.$fallo->getMessage());
             }
         } else {
-            $this->warn('Falta la tabla hallazgos_mapa_sitio: se analiza pero no se guarda la evidencia.');
+            $this->aviso('Falta la tabla hallazgos_mapa_sitio: se analiza pero no se guarda la evidencia.');
         }
 
         if ($this->option('json')) {
@@ -98,6 +101,28 @@ class AuditarMapaSitio extends Command
         return $graves === [] && $auditoria['exclusion']['hallazgos'] === [] && ! $auditoria['linea_base']['cambio']
             ? self::SUCCESS
             : self::FAILURE;
+    }
+
+    /**
+     * Aviso que no puede ensuciar la salida encadenable.
+     *
+     * Con --json la salida tiene que ser JSON y nada más: escribir "Falta la tabla…" en el
+     * mismo flujo rompía a quien la leyera con jq o la mandara al SIEM, que es justo para
+     * lo que existe esa opción. El aviso no se pierde, se manda al flujo de error, donde
+     * una persona lo sigue viendo en la terminal y una tubería no lo confunde con datos.
+     */
+    private function aviso(string $texto): void
+    {
+        if ($this->option('json')) {
+            // getErrorStyle() devuelve el flujo de error cuando la salida es una consola de
+            // verdad y se devuelve a sí mismo cuando no lo es (una prueba con búfer, por
+            // ejemplo): el aviso nunca se pierde y en la terminal va donde tiene que ir.
+            $this->output->getErrorStyle()->writeln('<comment>'.$texto.'</comment>');
+
+            return;
+        }
+
+        $this->warn($texto);
     }
 
     /**

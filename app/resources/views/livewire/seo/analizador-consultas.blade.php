@@ -99,9 +99,16 @@
                     description="Por debajo de esto la tasa de clics no significa nada: una impresión y cero clics es ruido, no una anomalía."
                 />
 
-                @error('pegado')
-                    <p class="text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
-                @enderror
+                {{-- Se pintan TODOS los errores y no solo el del pegado: si falla la
+                     validación de otro campo, analizar no hace nada y sin este bloque la
+                     pantalla se queda igual, sin decir por qué. --}}
+                @if ($errors->any())
+                    <ul class="space-y-1">
+                        @foreach ($errors->all() as $mensaje)
+                            <li class="text-sm text-red-600 dark:text-red-400">{{ $mensaje }}</li>
+                        @endforeach
+                    </ul>
+                @endif
             </div>
         </div>
     </div>
@@ -219,14 +226,19 @@
                                     </td>
                                     <td class="px-3 py-2">
                                         @if ($fila['senales'] === [])
-                                            <span class="text-zinc-400">Ninguna</span>
+                                            <span class="text-zinc-500 dark:text-zinc-400">Ninguna</span>
                                         @else
                                             <ul class="space-y-1">
                                                 @foreach ($fila['senales'] as $senal)
                                                     <li class="break-words text-zinc-600 dark:text-zinc-300">
                                                         <span class="font-mono text-[11px] text-zinc-500 dark:text-zinc-400">+{{ $senal['puntos'] }}</span>
                                                         {{ $senal['descripcion'] }}
-                                                        <span class="block break-all font-mono text-[11px] text-zinc-400">{{ $senal['evidencia'] }}</span>
+                                                        @if ($senal['topada'] ?? false)
+                                                            {{-- Sin esta nota, una señal que suma cero parece un fallo
+                                                                 del programa en vez de un tope deliberado. --}}
+                                                            <span class="text-[11px] text-zinc-500 dark:text-zinc-400">(recortada por el techo de su bloque)</span>
+                                                        @endif
+                                                        <span class="block break-all font-mono text-[11px] text-zinc-600 dark:text-zinc-300">{{ $senal['evidencia'] }}</span>
                                                     </li>
                                                 @endforeach
                                             </ul>
@@ -250,6 +262,14 @@
                 {{ $servicio::UMBRAL_ENVENENADA }} se da por contenido ajeno indexado. El patrón de marca
                 de apuestas es una heurística sobre la FORMA de la cadena, no una prueba del sector: por eso
                 suma puntos en lugar de decidir, y por eso nunca llega sola al veredicto de envenenada.
+                <span class="block mt-2">
+                    Las señales que no nombran la amenaza —no tener clics, no usar el vocabulario declarado,
+                    buscar un acceso— llevan techo propio por debajo del umbral de envenenada. Esa es la
+                    garantía: una consulta solo se declara envenenada si algo la señala por lo que es
+                    (vocabulario de sector, forma de marca, otro dominio o un alfabeto ajeno). Sin ese techo,
+                    la cola larga legítima del propio negocio —«botón de pánico para negocio», con doce
+                    impresiones y ningún clic— salía envenenada.
+                </span>
             </div>
         </div>
     @else

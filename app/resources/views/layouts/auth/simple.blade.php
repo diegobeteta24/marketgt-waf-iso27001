@@ -3,7 +3,12 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900">
+    {{--
+        El color del texto se fija aquí, en el cuerpo. Sin esta declaración todo
+        lo que no sea un componente de Flux hereda el negro por omisión del
+        navegador, y sobre el fondo oscuro no se lee.
+    --}}
+    <body class="min-h-screen bg-white text-zinc-800 antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900 dark:text-zinc-100">
         {{-- Relleno progresivo: en un teléfono de 375 px no sobra el ancho. --}}
         <div class="bg-background flex min-h-svh flex-col items-center justify-center gap-6 p-4 sm:p-6 md:p-10">
             <div class="flex w-full max-w-sm flex-col gap-2">

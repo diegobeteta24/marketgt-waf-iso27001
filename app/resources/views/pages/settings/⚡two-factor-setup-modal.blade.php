@@ -266,7 +266,7 @@ new class extends Component {
                 <div class="space-y-4">
                     <div class="relative flex items-center justify-center w-full">
                         <div class="absolute inset-0 w-full h-px top-1/2 bg-stone-200 dark:bg-stone-600"></div>
-                        <span class="relative px-2 text-sm bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-400">
+                        <span class="relative px-2 text-sm bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300">
                             {{ __('or, enter the code manually') }}
                         </span>
                     </div>
@@ -305,10 +305,12 @@ new class extends Component {
                                     class="flex min-h-11 min-w-11 items-center justify-center px-3 transition-colors border-l cursor-pointer border-stone-200 dark:border-stone-600"
                                 >
                                     <flux:icon.document-duplicate x-show="!copied" variant="outline"></flux:icon>
+                                    {{-- Verde para lo que salió bien, en el tono claro que
+                                         se lee sobre el fondo oscuro. --}}
                                     <flux:icon.check
                                         x-show="copied"
                                         variant="solid"
-                                        class="text-green-500"
+                                        class="text-emerald-600 dark:text-emerald-400"
                                     ></flux:icon>
                                 </button>
                             @endempty

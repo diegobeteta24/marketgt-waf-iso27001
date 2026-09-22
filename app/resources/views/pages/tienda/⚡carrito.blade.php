@@ -110,7 +110,7 @@ class extends Component
     <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="min-w-0">
             <h1 class="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl dark:text-white">Carrito de compras</h1>
-            <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
                 Revisá las cantidades antes de continuar al pago.
             </p>
         </div>
@@ -125,10 +125,11 @@ class extends Component
     @if ($carrito === null || $carrito->estaVacio())
         <section class="rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-12 text-center sm:px-6 sm:py-16 dark:border-zinc-700 dark:bg-zinc-800">
             <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-700">
-                <flux:icon.shopping-bag class="text-zinc-400" />
+                {{-- Sin variante oscura el icono quedaba en 2.2:1 sobre el círculo claro. --}}
+                <flux:icon.shopping-bag class="text-zinc-500 dark:text-zinc-300" />
             </div>
             <h2 class="mt-4 text-base font-semibold text-zinc-900 dark:text-white">Tu carrito está vacío</h2>
-            <p class="mx-auto mt-1 max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
+            <p class="mx-auto mt-1 max-w-sm text-sm text-zinc-600 dark:text-zinc-300">
                 Todavía no agregaste productos. Empezá por el café de Antigua o por los textiles del altiplano.
             </p>
             <div class="mt-5">
@@ -153,7 +154,10 @@ class extends Component
                             @if (filled($linea->producto->imagen_url))
                                 <img src="{{ $linea->producto->imagen_url }}" alt="{{ $linea->producto->nombre }}" class="size-full object-cover" />
                             @else
-                                <span class="flex size-full items-center justify-center text-lg font-black text-zinc-900/30 dark:text-white/40">
+                                {{-- Estas iniciales son las más pequeñas del sitio (18 px), así que
+                                     no cuentan como «texto grande»: necesitan 4.5:1 y estaban
+                                     en 1.9:1 sobre el tono claro. --}}
+                                <span class="flex size-full items-center justify-center text-lg font-black text-zinc-800/70 dark:text-white/60">
                                     {{ $linea->producto->iniciales() }}
                                 </span>
                             @endif
@@ -172,7 +176,8 @@ class extends Component
                                             {{ $linea->producto->nombre }}
                                         </h2>
                                     </a>
-                                    <p class="mt-0.5 text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                                    {{-- Precio unitario: es un precio, no una nota al pie. --}}
+                                    <p class="mt-0.5 text-xs tabular-nums text-zinc-600 dark:text-zinc-300">
                                         {{ $linea->precioFormateado() }} c/u
                                     </p>
                                 </div>
@@ -239,18 +244,19 @@ class extends Component
 
                     <dl class="space-y-2 text-sm">
                         <div class="flex justify-between gap-3">
-                            <dt class="min-w-0 text-zinc-500 dark:text-zinc-400">
+                            <dt class="min-w-0 text-zinc-600 dark:text-zinc-300">
                                 Subtotal ({{ $carrito->totalArticulos() }} {{ \Illuminate\Support\Str::plural('artículo', $carrito->totalArticulos()) }})
                             </dt>
                             <dd class="shrink-0 font-medium tabular-nums">{{ \App\Models\Producto::quetzales($carrito->subtotal()) }}</dd>
                         </div>
                         <div class="flex justify-between gap-3">
-                            <dt class="text-zinc-500 dark:text-zinc-400">Envío</dt>
+                            <dt class="text-zinc-600 dark:text-zinc-300">Envío</dt>
                             <dd class="shrink-0 font-medium tabular-nums">
                                 @if ($carrito->costoEnvio() > 0)
                                     {{ \App\Models\Producto::quetzales($carrito->costoEnvio()) }}
                                 @else
-                                    <span class="text-emerald-600 dark:text-emerald-400">Gratis</span>
+                                    {{-- emerald-600 sobre blanco da 3.8:1; el 700 llega a 5.5:1. --}}
+                                    <span class="font-semibold text-emerald-700 dark:text-emerald-400">Gratis</span>
                                 @endif
                             </dd>
                         </div>
@@ -275,7 +281,9 @@ class extends Component
                         Continuar al pago
                     </flux:button>
 
-                    <p class="text-center text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    {{-- Aviso de entorno de demostración: es la constancia de que no se cobra
+                         dinero real, así que no puede ir en el gris más tenue de la pantalla. --}}
+                    <p class="text-center text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300">
                         Entorno de demostración: el pago es simulado y no se almacena ningún número de tarjeta.
                     </p>
                 </div>

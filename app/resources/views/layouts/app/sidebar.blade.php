@@ -3,13 +3,24 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
+    {{--
+        El color del texto se fija aquí, en el cuerpo. Sin esta declaración todo
+        lo que no sea un componente de Flux hereda el negro por omisión del
+        navegador, y sobre el fondo oscuro no se lee.
+    --}}
+    <body class="min-h-screen bg-white text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100">
         {{--
             Por debajo de lg el menú lateral es el cajón del teléfono y sus
             enlaces miden 40 px: se suben a 44 para que se puedan pulsar con el
             dedo. En escritorio se deja la altura compacta de Flux.
+
+            Los encabezados de grupo (General, Detección, Posicionamiento,
+            Demostración) los pinta Flux en zinc-400 fijo: sobre el fondo oscuro
+            quedan más apagados que los propios enlaces, que van en blanco al 80 %.
+            Se aclaran y se marcan como encabezados con versalitas, de modo que la
+            jerarquía no dependa de que estén más tenues que lo que encabezan.
         --}}
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 max-lg:[&_[data-flux-sidebar-item]]:h-11!">
+        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 max-lg:[&_[data-flux-sidebar-item]]:h-11! [&_[data-flux-sidebar-group]>div:first-child]:uppercase [&_[data-flux-sidebar-group]>div:first-child]:tracking-wide [&_[data-flux-sidebar-group]>div:first-child]:text-zinc-500! dark:[&_[data-flux-sidebar-group]>div:first-child]:text-zinc-300!">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 {{-- El botón de cerrar el cajón también necesita 44 px reales. --}}
@@ -64,6 +75,22 @@
 
                         <flux:sidebar.item icon="finger-print" :href="route('seo.integridad')" :current="request()->routeIs('seo.integridad')" wire:navigate>
                             {{ __('Integridad') }}
+                        </flux:sidebar.item>
+
+                        {{-- Los tres controles detectivos. Los anteriores impiden que el
+                             contenido malicioso entre por donde escriben los usuarios;
+                             estos parten de que el ataque ya ocurrió y buscan su huella,
+                             que es el escenario de un sitio comprometido de verdad. --}}
+                        <flux:sidebar.item icon="magnifying-glass" :href="route('seo.consultas')" :current="request()->routeIs('seo.consultas')" wire:navigate>
+                            {{ __('Consultas') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="map" :href="route('seo.mapa-sitio')" :current="request()->routeIs('seo.mapa-sitio')" wire:navigate>
+                            {{ __('Mapa del sitio') }}
+                        </flux:sidebar.item>
+
+                        <flux:sidebar.item icon="eye-slash" :href="route('seo.cloaking')" :current="request()->routeIs('seo.cloaking')" wire:navigate>
+                            {{ __('Contenido diferenciado') }}
                         </flux:sidebar.item>
                     </flux:sidebar.group>
                 @endif

@@ -3,7 +3,12 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
+    {{--
+        El color del texto se fija aquí, en el cuerpo. Sin esta declaración todo
+        lo que no sea un componente de Flux hereda el negro por omisión del
+        navegador, y sobre el fondo oscuro no se lee.
+    --}}
+    <body class="min-h-screen bg-white text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100">
         <flux:header container class="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
             {{-- 44 px reales para que el botón del menú se pueda pulsar con el dedo. --}}
             <flux:sidebar.toggle class="lg:hidden mr-2 size-11!" icon="bars-2" inset="left" />
@@ -47,8 +52,10 @@
         </flux:header>
 
         <!-- Mobile Menu -->
-        {{-- Enlaces del cajón a 44 px para poder pulsarlos con el dedo. --}}
-        <flux:sidebar collapsible="mobile" sticky class="lg:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 [&_[data-flux-sidebar-item]]:h-11!">
+        {{-- Enlaces del cajón a 44 px para poder pulsarlos con el dedo, y los
+             encabezados de grupo aclarados: Flux los pinta en zinc-400 fijo y
+             sobre el fondo oscuro quedan más apagados que los propios enlaces. --}}
+        <flux:sidebar collapsible="mobile" sticky class="lg:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 [&_[data-flux-sidebar-item]]:h-11! [&_[data-flux-sidebar-group]>div:first-child]:uppercase [&_[data-flux-sidebar-group]>div:first-child]:tracking-wide [&_[data-flux-sidebar-group]>div:first-child]:text-zinc-500! dark:[&_[data-flux-sidebar-group]>div:first-child]:text-zinc-300!">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 <flux:sidebar.collapse class="size-11! [&_button]:size-11! in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />

@@ -59,7 +59,7 @@
     <div class="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
         <table class="w-full min-w-[34rem] text-sm lg:min-w-[56rem]">
             <thead>
-                <tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                <tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-400 dark:border-zinc-700">
                     <th class="px-3 py-3 font-medium sm:px-4">Momento</th>
                     <th class="hidden px-3 py-3 font-medium sm:px-4 lg:table-cell">Fuente</th>
                     <th class="px-3 py-3 font-medium sm:px-4">Direccion</th>
@@ -73,20 +73,20 @@
             <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
                 @forelse ($eventos as $evento)
                     <tr class="align-top hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                        <td class="siem-numero whitespace-nowrap px-3 py-3 text-zinc-600 sm:px-4 dark:text-zinc-300">
+                        <td class="siem-numero whitespace-nowrap px-3 py-3 text-zinc-300 sm:px-4">
                             {{ $evento->marca_tiempo?->format('d/m H:i:s') }}
                             @if ($evento->es_demostracion)
                                 <flux:badge size="sm" class="ms-1">demo</flux:badge>
                             @endif
                             {{-- La fuente tiene columna propia desde lg; en el telefono se
                                  acompana del momento para no perderla al ocultar columnas. --}}
-                            <span class="block text-xs text-zinc-500 lg:hidden dark:text-zinc-400">
+                            <span class="block text-xs text-zinc-400 lg:hidden">
                                 {{ ucfirst($evento->fuente) }}
                             </span>
                         </td>
                         <td class="hidden whitespace-nowrap px-3 py-3 sm:px-4 lg:table-cell">
-                            <span class="text-zinc-900 dark:text-white">{{ ucfirst($evento->fuente) }}</span>
-                            <span class="block text-xs text-zinc-500 dark:text-zinc-400">{{ $evento->subfuente }}</span>
+                            <span class="text-white">{{ ucfirst($evento->fuente) }}</span>
+                            <span class="block text-xs text-zinc-400">{{ $evento->subfuente }}</span>
                         </td>
                         <td class="whitespace-nowrap px-3 py-3 sm:px-4">
                             {{-- La direccion viaja por Js::from y no entre comillas a mano: lo que
@@ -99,10 +99,10 @@
                             <button
                                 type="button"
                                 wire:click="filtrarPorIp({{ \Illuminate\Support\Js::from($evento->direccion_ip) }})"
-                                class="siem-numero -my-3 inline-flex min-h-11 items-center py-3 font-medium text-zinc-900 underline-offset-2 hover:underline dark:text-white"
+                                class="siem-numero -my-3 inline-flex min-h-11 items-center py-3 font-medium text-white underline-offset-2 hover:underline"
                                 title="Filtrar por esta direccion"
                             >{{ $evento->direccion_ip }}</button>
-                            <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+                            <span class="block text-xs text-zinc-400">
                                 {{ $evento->pais ?? 'sin pais' }}
                                 @if ($evento->usuario)
                                     · {{ $evento->usuario->name }}
@@ -110,26 +110,26 @@
                             </span>
                         </td>
                         <td class="max-w-sm px-3 py-3 sm:px-4">
-                            <span class="siem-numero text-xs font-semibold text-zinc-500 dark:text-zinc-400">{{ $evento->metodo }}</span>
+                            <span class="siem-numero text-xs font-semibold text-zinc-400">{{ $evento->metodo }}</span>
                             {{-- Ruta y mensaje son cadenas largas sin espacios escritas por
                                  quien ataca: sin break-all se salen de la pantalla. --}}
-                            <span class="break-all text-zinc-800 dark:text-zinc-200">{{ \Illuminate\Support\Str::limit($evento->ruta ?? '—', 70) }}</span>
-                            <span class="mt-0.5 block break-words text-xs text-zinc-500 dark:text-zinc-400">{{ \Illuminate\Support\Str::limit($evento->mensaje ?? '', 90) }}</span>
+                            <span class="break-all text-zinc-200">{{ \Illuminate\Support\Str::limit($evento->ruta ?? '—', 70) }}</span>
+                            <span class="mt-0.5 block break-words text-xs text-zinc-400">{{ \Illuminate\Support\Str::limit($evento->mensaje ?? '', 90) }}</span>
                         </td>
                         <td class="hidden whitespace-nowrap px-3 py-3 sm:px-4 lg:table-cell">
                             @php $reglaPrincipal = $evento->reglaPrincipal(); @endphp
                             @if ($reglaPrincipal)
-                                <span class="siem-numero font-medium">{{ $reglaPrincipal }}</span>
+                                <span class="siem-numero font-medium text-zinc-100">{{ $reglaPrincipal }}</span>
                                 @if (count($evento->identificadores_regla ?? []) > 1)
-                                    <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+                                    <span class="block text-xs text-zinc-400">
                                         +{{ count($evento->identificadores_regla) - 1 }} mas
                                     </span>
                                 @endif
                             @else
-                                <span class="text-zinc-400 dark:text-zinc-500">—</span>
+                                <span class="text-zinc-400">—</span>
                             @endif
                         </td>
-                        <td class="siem-numero hidden px-3 py-3 text-right font-medium sm:px-4 lg:table-cell">
+                        <td class="siem-numero hidden px-3 py-3 text-right font-medium text-zinc-100 sm:px-4 lg:table-cell">
                             {{ $evento->puntuacion_anomalia }}
                         </td>
                         <td class="px-3 py-3 sm:px-4">
@@ -142,19 +142,19 @@
                                     Bloqueado
                                 </span>
                             @else
-                                <span class="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                <span class="inline-flex items-center gap-1 text-xs text-zinc-400">
                                     <flux:icon.arrow-right class="size-3.5" />
                                     Permitido
                                 </span>
                             @endif
                             @if ($evento->codigo_respuesta)
-                                <span class="siem-numero block text-xs text-zinc-500 dark:text-zinc-400">HTTP {{ $evento->codigo_respuesta }}</span>
+                                <span class="siem-numero block text-xs text-zinc-400">HTTP {{ $evento->codigo_respuesta }}</span>
                             @endif
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-3 py-12 text-center text-zinc-500 sm:px-4 dark:text-zinc-400">
+                        <td colspan="8" class="px-3 py-12 text-center text-zinc-400 sm:px-4">
                             Ningun evento coincide con el filtro. Amplie la ventana o limpie los filtros.
                         </td>
                     </tr>

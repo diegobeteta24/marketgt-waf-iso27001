@@ -5,7 +5,9 @@
         </flux:text>
 
         @if (session('status') == 'verification-link-sent')
-            <flux:text class="text-center font-medium !dark:text-green-400 !text-green-600">
+            {{-- El color iba con el signo de admiración delante, sintaxis de Tailwind 3:
+                 en la 4 va al final, así que esas clases no generaban nada. --}}
+            <flux:text class="text-center font-medium text-emerald-700 dark:text-emerald-400">
                 {{ __('A new verification link has been sent to the email address you provided during registration.') }}
             </flux:text>
         @endif

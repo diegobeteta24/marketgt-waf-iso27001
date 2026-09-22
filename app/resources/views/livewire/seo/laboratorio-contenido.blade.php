@@ -45,7 +45,13 @@
                     'border-red-500/40 bg-red-500/10' => ! $analisis['publicable'],
                 ])>
                     <div class="min-w-0">
-                        <p class="text-sm font-semibold text-zinc-900 dark:text-white">
+                        {{-- El veredicto se distingue por color Y por palabra: quien no
+                             separa el rojo del verde lo lee igual en el texto. --}}
+                        <p @class([
+                            'text-sm font-semibold',
+                            'text-emerald-700 dark:text-emerald-300' => $analisis['publicable'],
+                            'text-red-700 dark:text-red-300' => ! $analisis['publicable'],
+                        ])>
                             {{ $analisis['publicable'] ? 'Se publicaría' : 'Retenido para revisión' }}
                         </p>
                         <p class="text-xs text-zinc-600 dark:text-zinc-300">
@@ -79,7 +85,7 @@
                                                 {{ $motivo['descripcion'] }}
                                                 {{-- La evidencia es contenido del atacante: puede ser una única
                                                      cadena larguísima, así que se corta por donde sea. --}}
-                                                <span class="block break-all font-mono text-[11px] text-zinc-400">{{ $motivo['evidencia'] }}</span>
+                                                <span class="block break-all font-mono text-[11px] text-zinc-600 dark:text-zinc-300">{{ $motivo['evidencia'] }}</span>
                                             </td>
                                             <td class="px-3 py-2 text-right tabular-nums text-zinc-900 dark:text-white">+{{ $motivo['puntos'] }}</td>
                                         </tr>
@@ -94,7 +100,7 @@
                     <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                         HTML reconstruido
                     </p>
-                    <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-zinc-900 p-3 text-xs leading-relaxed text-emerald-200">{{ $analisis['html'] === '' ? '(vacío: no sobrevivió nada)' : $analisis['html'] }}</pre>
+                    <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-lg border border-zinc-700 bg-zinc-950 p-3 text-xs leading-relaxed text-emerald-200">{{ $analisis['html'] === '' ? '(vacío: no sobrevivió nada)' : $analisis['html'] }}</pre>
                 </div>
 
                 <div>
@@ -157,7 +163,13 @@
                         'border-red-500/40 bg-red-500/10' => ! $v['verificado'] && $v['declara_ser_bot'],
                         'border-zinc-300 dark:border-zinc-700' => ! $v['declara_ser_bot'],
                     ])>
-                        <p class="break-words text-sm font-semibold text-zinc-900 dark:text-white">
+                        {{-- Igual que arriba: el color refuerza, la frase decide. --}}
+                        <p @class([
+                            'break-words text-sm font-semibold',
+                            'text-zinc-900 dark:text-white' => ! $v['declara_ser_bot'],
+                            'text-emerald-700 dark:text-emerald-300' => $v['declara_ser_bot'] && $v['verificado'],
+                            'text-red-700 dark:text-red-300' => $v['declara_ser_bot'] && ! $v['verificado'],
+                        ])>
                             @if (! $v['declara_ser_bot'])
                                 No dice ser un rastreador: tráfico normal, no se verifica nada.
                             @elseif ($v['verificado'])

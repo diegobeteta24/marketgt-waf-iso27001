@@ -68,7 +68,7 @@ class AuditorMapaSitio extends Component
 
     public function mount(): void
     {
-        $this->sitio = (string) config('app.url');
+        $this->sitio = app(ServicioAuditorMapaSitio::class)->direccionPorDefecto();
 
         // Las cinco marcas reales que aparecían en el panel de Search Console de la empresa
         // comprometida, escritas como aparecerían dentro del mapa del sitio: si Google

@@ -276,14 +276,16 @@ class extends Component
 <div class="space-y-6">
     <div class="min-w-0">
         <h1 class="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl dark:text-white">Finalizar compra</h1>
-        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
             Datos de envío y de pago. Todos los campos marcados son obligatorios.
         </p>
     </div>
 
     <div class="rounded-xl border border-amber-300 bg-amber-50 p-3 sm:p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
         <div class="flex gap-3">
-            <flux:icon.exclamation-triangle class="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            {{-- El ámbar 600 sobre el fondo ámbar 50 se queda en 3.1:1: el 700 llega a 4.9:1
+                 y el triángulo de aviso se ve sin buscarlo. --}}
+            <flux:icon.exclamation-triangle class="mt-0.5 size-5 shrink-0 text-amber-700 dark:text-amber-400" />
             <div class="min-w-0 text-sm text-amber-900 dark:text-amber-200">
                 <p class="font-semibold">Pago simulado &mdash; entorno de demostración académica</p>
                 <p class="mt-1 leading-relaxed">
@@ -306,7 +308,7 @@ class extends Component
     @if ($carrito === null || $carrito->estaVacio())
         <section class="rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-12 text-center sm:px-6 sm:py-16 dark:border-zinc-700 dark:bg-zinc-800">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-white">No hay nada que pagar</h2>
-            <p class="mx-auto mt-1 max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
+            <p class="mx-auto mt-1 max-w-sm text-sm text-zinc-600 dark:text-zinc-300">
                 Tu carrito está vacío. Agregá al menos un producto para continuar.
             </p>
             <div class="mt-5">
@@ -346,7 +348,9 @@ class extends Component
                 <section class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-800">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <h2 class="text-base font-semibold text-zinc-900 dark:text-white">Datos de la tarjeta</h2>
-                        <span class="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                        {{-- La pastilla pasa a ámbar para que se lea como lo que es: la misma
+                             advertencia del aviso de arriba, no una etiqueta neutra más. --}}
+                        <span class="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
                             Simulado
                         </span>
                     </div>
@@ -367,7 +371,8 @@ class extends Component
                         <flux:input wire:model="cvv" label="Código de seguridad" placeholder="123" inputmode="numeric" autocomplete="off" />
                     </div>
 
-                    <p class="text-sm leading-relaxed text-zinc-500 sm:text-xs dark:text-zinc-400">
+                    {{-- Esta nota explica la tokenización: es contenido evaluable, no relleno. --}}
+                    <p class="text-sm leading-relaxed text-zinc-600 sm:text-xs dark:text-zinc-300">
                         El código de seguridad se usa únicamente durante la verificación y no se guarda en
                         ningún momento, ni cifrado. De la tarjeta solo quedan registrados los últimos cuatro
                         dígitos y la marca.
@@ -397,11 +402,11 @@ class extends Component
 
                     <dl class="space-y-2 text-sm">
                         <div class="flex justify-between gap-3">
-                            <dt class="text-zinc-500 dark:text-zinc-400">Subtotal</dt>
+                            <dt class="text-zinc-600 dark:text-zinc-300">Subtotal</dt>
                             <dd class="shrink-0 font-medium tabular-nums">{{ \App\Models\Producto::quetzales($carrito->subtotal()) }}</dd>
                         </div>
                         <div class="flex justify-between gap-3">
-                            <dt class="text-zinc-500 dark:text-zinc-400">Envío</dt>
+                            <dt class="text-zinc-600 dark:text-zinc-300">Envío</dt>
                             <dd class="shrink-0 font-medium tabular-nums">
                                 {{ $carrito->costoEnvio() > 0 ? \App\Models\Producto::quetzales($carrito->costoEnvio()) : 'Gratis' }}
                             </dd>

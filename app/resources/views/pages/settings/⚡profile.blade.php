@@ -99,7 +99,10 @@ new #[Title('Profile settings')] class extends Component {
                         </flux:text>
 
                         @if (session('status') === 'verification-link-sent')
-                            <flux:text class="mt-2 font-medium !dark:text-green-400 !text-green-600">
+                            {{-- Aquí el color iba con el signo de admiración delante, que es
+                                 la sintaxis de Tailwind 3: en la 4 va al final, así que esas
+                                 clases no generaban nada y el aviso no salía en verde. --}}
+                            <flux:text class="mt-2 font-medium text-emerald-600 dark:text-emerald-400">
                                 {{ __('A new verification link has been sent to your email address.') }}
                             </flux:text>
                         @endif

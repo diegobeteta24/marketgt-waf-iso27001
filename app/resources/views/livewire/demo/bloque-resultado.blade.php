@@ -36,7 +36,7 @@
     <div class="min-w-0">
         <p class="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Petición enviada</p>
         <div class="demo-codigo">
-<span class="font-semibold">{{ $peticion['metodo'] ?? '?' }}</span> {{ $peticion['ruta'] ?? '' }}
+<span class="demo-clave">{{ $peticion['metodo'] ?? '?' }}</span> {{ $peticion['ruta'] ?? '' }}
 @if (! empty($peticion['consulta']))@foreach ($peticion['consulta'] as $clave => $valor)
   ?{{ $clave }} = {{ $valor }}
 @endforeach
@@ -163,7 +163,7 @@ cabeceras:
                                  caracteres codificados: break-all es lo único que la mantiene
                                  dentro del ancho de la pantalla. --}}
                             @if (! empty($regla['dato']))
-                                <span class="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">casa con: <code class="break-all">{{ \Illuminate\Support\Str::limit($regla['dato'], 120) }}</code></span>
+                                <span class="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">casa con: <code class="break-all text-zinc-700 dark:text-zinc-200">{{ \Illuminate\Support\Str::limit($regla['dato'], 120) }}</code></span>
                             @endif
                         </li>
                     @endforeach

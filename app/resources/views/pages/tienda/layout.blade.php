@@ -19,10 +19,12 @@
                 {{-- En móvil se conserva el nombre de la tienda y solo se oculta el lema: el
                      encabezado cabe igual y la marca nunca desaparece de la pantalla chica. --}}
                 <a href="{{ route('tienda.catalogo') }}" wire:navigate class="flex min-h-11 shrink-0 items-center gap-2">
-                    <span class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white">GT</span>
+                    {{-- emerald-700 y no 600: el blanco sobre el verde 600 apenas llega a 3.8:1
+                         y el distintivo de la marca se lavaba al sol. --}}
+                    <span class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-sm font-bold text-white">GT</span>
                     <span class="leading-tight">
                         <span class="block text-sm font-semibold tracking-tight sm:text-base">MarketGT</span>
-                        <span class="hidden text-[11px] text-zinc-500 sm:block dark:text-zinc-400">Artesanía y tecnología de Guatemala</span>
+                        <span class="hidden text-[11px] text-zinc-600 sm:block dark:text-zinc-300">Artesanía y tecnología de Guatemala</span>
                     </span>
                 </a>
 
@@ -79,14 +81,16 @@
             <div class="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm sm:grid-cols-3 sm:px-6">
                 <div>
                     <p class="font-semibold">MarketGT</p>
-                    <p class="mt-1 text-zinc-500 dark:text-zinc-400">
+                    <p class="mt-1 text-zinc-600 dark:text-zinc-300">
                         Tienda de demostración construida para el curso de Seguridad y Auditoría de Sistemas,
                         Universidad Mariano Gálvez de Guatemala.
                     </p>
                 </div>
                 <div>
                     <p class="font-semibold">Defensa en profundidad</p>
-                    <ul class="mt-1 space-y-0.5 text-zinc-500 dark:text-zinc-400">
+                    {{-- Las tres capas de defensa son justamente lo que se evalúa: no pueden
+                         quedar en el gris más tenue del pie de página. --}}
+                    <ul class="mt-1 space-y-0.5 text-zinc-600 dark:text-zinc-300">
                         <li>Capa 4 &middot; WAF ModSecurity con OWASP CRS</li>
                         <li>Capa 5 &middot; Consultas preparadas en la aplicación</li>
                         <li>Capa 6 &middot; Tokenización del medio de pago</li>
@@ -94,13 +98,13 @@
                 </div>
                 <div>
                     <p class="font-semibold">Pagos</p>
-                    <p class="mt-1 text-zinc-500 dark:text-zinc-400">
+                    <p class="mt-1 text-zinc-600 dark:text-zinc-300">
                         No se almacena ningún número de tarjeta. Solo se conservan los últimos cuatro dígitos,
                         la marca y un token opaco emitido por la pasarela simulada.
                     </p>
                 </div>
             </div>
-            <div class="border-t border-zinc-200 px-4 py-4 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+            <div class="border-t border-zinc-200 px-4 py-4 text-center text-xs text-zinc-600 dark:border-zinc-800 dark:text-zinc-400">
                 &copy; {{ now()->year }} MarketGT &middot; Proyecto académico sin fines comerciales
             </div>
         </footer>

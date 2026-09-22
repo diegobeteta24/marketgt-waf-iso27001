@@ -198,8 +198,10 @@ class extends Component
 
 <div class="space-y-6 sm:space-y-8">
     {{-- El relleno del encabezado se reduce en móvil: en 375 px cada píxel de ancho cuenta. --}}
-    <section class="overflow-hidden rounded-2xl bg-linear-to-br from-emerald-600 to-teal-700 px-5 py-8 text-white sm:rounded-3xl sm:px-10 sm:py-14">
-        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">Tienda en línea</p>
+    {{-- El degradado bajó un paso (700/800) porque sobre el verde 600 ni el blanco llegaba a
+         4.5:1: el rótulo y el texto de apoyo se lavaban al mirar el teléfono a plena luz. --}}
+    <section class="overflow-hidden rounded-2xl bg-linear-to-br from-emerald-700 to-teal-800 px-5 py-8 text-white sm:rounded-3xl sm:px-10 sm:py-14">
+        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-50">Tienda en línea</p>
         <h1 class="mt-3 max-w-2xl text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
             Lo mejor de Guatemala, de la mano de quien lo hace
         </h1>
@@ -246,7 +248,7 @@ class extends Component
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3">
-            <p class="min-w-0 flex-1 break-words text-sm text-zinc-500 dark:text-zinc-400">
+            <p class="min-w-0 flex-1 break-words text-sm text-zinc-600 dark:text-zinc-300">
                 {{ $this->productos->total() }}
                 {{ \Illuminate\Support\Str::plural('producto', $this->productos->total()) }}
                 @if (trim($this->busqueda) !== '')
@@ -270,10 +272,12 @@ class extends Component
     @if ($this->productos->isEmpty())
         <section class="rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-12 text-center sm:px-6 sm:py-16 dark:border-zinc-700 dark:bg-zinc-800">
             <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-700">
-                <flux:icon.magnifying-glass class="text-zinc-400" />
+                {{-- El icono no tenía variante oscura: en claro quedaba en 2.2:1 sobre el
+                     círculo gris y prácticamente no se veía. --}}
+                <flux:icon.magnifying-glass class="text-zinc-500 dark:text-zinc-300" />
             </div>
             <h2 class="mt-4 text-base font-semibold text-zinc-900 dark:text-white">Sin resultados</h2>
-            <p class="mx-auto mt-1 max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
+            <p class="mx-auto mt-1 max-w-sm text-sm text-zinc-600 dark:text-zinc-300">
                 No encontramos productos que coincidan con la búsqueda. Probá con otra palabra
                 o quitá los filtros para ver el catálogo completo.
             </p>

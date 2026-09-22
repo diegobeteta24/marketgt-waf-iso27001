@@ -56,7 +56,10 @@ new class extends Component {
             <flux:icon.lock-closed variant="outline" class="size-4"/>
             <flux:heading size="lg" level="3">{{ __('2FA recovery codes') }}</flux:heading>
         </div>
-        <flux:text variant="subtle">
+        {{-- Esta advertencia iba en la variante "subtle" de Flux, que sobre el fondo
+             oscuro se queda en blanco al 50 %. Es la instrucción de la que depende no
+             perder el acceso a la cuenta: no puede ser el texto más apagado del cuadro. --}}
+        <flux:text class="text-zinc-600 dark:text-zinc-300">
             {{ __('Recovery codes let you regain access if you lose your 2FA device. Store them in a secure password manager.') }}
         </flux:text>
     </div>
@@ -116,8 +119,13 @@ new class extends Component {
 
                 @if (filled($recoveryCodes))
                     <div
-                        {{-- Una sola columna y corte de palabra: los códigos no pueden desbordar a lo ancho. --}}
-                        class="grid grid-cols-1 gap-1 p-3 sm:p-4 font-mono text-xs sm:text-sm break-all rounded-lg bg-zinc-100 dark:bg-white/5"
+                        {{-- Una sola columna y corte de palabra: los códigos no pueden desbordar a lo ancho.
+
+                             El color del texto es explícito y al máximo de contraste: quien
+                             apunte mal un código pierde el acceso a su cuenta, así que estos
+                             caracteres son los que mejor se tienen que leer de la pantalla.
+                             Sin declararlo heredaban el color del cuerpo. --}}
+                        class="grid grid-cols-1 gap-1 p-3 sm:p-4 font-mono text-xs sm:text-sm tracking-wider break-all rounded-lg bg-zinc-100 text-zinc-900 dark:bg-white/5 dark:text-white"
                         role="list"
                         aria-label="{{ __('Recovery codes') }}"
                     >
@@ -131,7 +139,7 @@ new class extends Component {
                             </div>
                         @endforeach
                     </div>
-                    <flux:text variant="subtle" class="text-xs">
+                    <flux:text class="text-xs text-zinc-600 dark:text-zinc-400">
                         {{ __('Each recovery code can be used once to access your account and will be removed after use. If you need more, click Regenerate codes above.') }}
                     </flux:text>
                 @endif

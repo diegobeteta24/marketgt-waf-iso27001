@@ -23,9 +23,11 @@
                 />
             @else
                 {{-- Portada generada localmente: la demostración tiene que verse igual de bien
-                     aunque el salón de clase se quede sin Internet. --}}
+                     aunque el salón de clase se quede sin Internet.
+                     Las iniciales estaban en 1.9:1 sobre el tono claro: a esa relación no se
+                     ven en un proyector. Con 800/70 y white/60 pasan de 4.5:1 en ambos temas. --}}
                 <div class="flex size-full items-center justify-center">
-                    <span class="text-4xl font-black tracking-tight text-zinc-900/30 dark:text-white/40">
+                    <span class="text-4xl font-black tracking-tight text-zinc-800/70 dark:text-white/60">
                         {{ $producto->iniciales() }}
                     </span>
                 </div>
@@ -50,7 +52,9 @@
             </h3>
         </a>
 
-        <p class="line-clamp-2 break-words text-xs text-zinc-500 dark:text-zinc-400">
+        {{-- La descripción se lee a 12 px: con el gris 500 quedaba al filo de lo legible
+             en el teléfono, así que sube a 600 en claro y a 300 en oscuro. --}}
+        <p class="line-clamp-2 break-words text-xs text-zinc-600 dark:text-zinc-300">
             {{ $producto->descripcion }}
         </p>
 
@@ -61,7 +65,10 @@
                 <p class="text-lg font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
                     {{ $producto->precioFormateado() }}
                 </p>
-                <p class="text-[11px] text-zinc-500 dark:text-zinc-400">
+                {{-- «Sin existencias» ya no comparte el mismo gris que «12 disponibles»: es un
+                     estado, y debe distinguirse de un vistazo. El color no va solo, la palabra
+                     lo dice y la portada además lleva el sello «Agotado». --}}
+                <p class="text-[11px] tabular-nums {{ $producto->hayExistencias() ? 'text-zinc-600 dark:text-zinc-300' : 'font-semibold text-amber-700 dark:text-amber-400' }}">
                     {{ $producto->hayExistencias() ? $producto->existencias.' disponibles' : 'Sin existencias' }}
                 </p>
             </div>

@@ -3,7 +3,12 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-neutral-100 antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900">
+    {{--
+        El color del texto se fija aquí, en el cuerpo. Sin esta declaración todo
+        lo que no sea un componente de Flux hereda el negro por omisión del
+        navegador, y sobre el fondo oscuro no se lee.
+    --}}
+    <body class="min-h-screen bg-neutral-100 text-zinc-800 antialiased dark:bg-linear-to-b dark:from-neutral-950 dark:to-neutral-900 dark:text-zinc-100">
         {{-- Relleno progresivo: en un teléfono de 375 px no sobra el ancho. --}}
         <div class="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-4 sm:p-6 md:p-10">
             <div class="flex w-full max-w-md flex-col gap-6">
@@ -16,7 +21,7 @@
                 </a>
 
                 <div class="flex flex-col gap-6">
-                    <div class="rounded-xl border bg-white dark:bg-stone-950 dark:border-stone-800 text-stone-800 shadow-xs">
+                    <div class="rounded-xl border bg-white text-stone-800 shadow-xs dark:border-stone-800 dark:bg-stone-950 dark:text-zinc-100">
                         {{-- 40 px de relleno lateral fijos dejaban el formulario sin sitio en móvil. --}}
                         <div class="px-5 py-6 sm:px-10 sm:py-8">{{ $slot }}</div>
                     </div>
