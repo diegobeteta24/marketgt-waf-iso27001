@@ -153,4 +153,18 @@
             display: inline;
         }
     }
+
+    /*
+        Paginacion de la tabla de eventos. La dibuja Livewire con su propia plantilla, de
+        modo que no se puede corregir con clases desde la vista: sus botones miden 38
+        pixeles de alto y en un telefono eso se falla con el dedo. Aqui suben a 44 solo por
+        debajo de sm; desde ese ancho se recupera el tamano compacto original. El hermano
+        deshabilitado no necesita regla propia: la fila es flex y se estira con el boton.
+    */
+    @media (max-width: 639px) {
+        .panel-siem .siem-paginacion button,
+        .panel-siem .siem-paginacion a {
+            min-height: 2.75rem;
+        }
+    }
 </style>

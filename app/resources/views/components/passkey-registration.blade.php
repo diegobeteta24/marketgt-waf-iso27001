@@ -74,6 +74,7 @@
             <flux:button
                 variant="primary"
                 icon="plus"
+                class="w-full sm:w-auto"
                 x-on:click="showForm = true"
             >
                 {{ __('Add passkey') }}
@@ -82,7 +83,7 @@
     </template>
 
     <template x-if="supported && showForm">
-        <div class="space-y-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
+        <div class="space-y-4 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-3 sm:p-4">
             <flux:input
                 label="{{ __('Passkey name') }}"
                 x-model="name"
@@ -95,7 +96,8 @@
 
             <p x-show="error" x-text="error" x-cloak class="text-sm text-red-600 dark:text-red-400"></p>
 
-            <div class="flex gap-2">
+            {{-- Botones apilados a ancho completo en móvil, en línea desde sm. --}}
+            <div class="flex flex-col gap-2 sm:flex-row">
                 <flux:button
                     variant="primary"
                     x-on:click="register()"

@@ -27,7 +27,7 @@
 @endphp
 
 <x-layouts::app :title="__('Inicio')">
-    <div class="flex h-full w-full flex-1 flex-col gap-6 rounded-xl">
+    <div class="flex h-full w-full min-w-0 flex-1 flex-col gap-4 rounded-xl sm:gap-6">
 
         {{-- Encabezado --}}
         <div>
@@ -42,10 +42,10 @@
              con privilegios sin segundo factor es el hallazgo más caro que
              puede dejar una revisión sobre este proyecto. --}}
         @unless ($segundoFactorActivo)
-            <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-700/60 dark:bg-amber-950/30">
-                <div class="flex items-start gap-3">
+            <div class="rounded-xl border border-amber-300 bg-amber-50 p-3 sm:p-4 dark:border-amber-700/60 dark:bg-amber-950/30">
+                <div class="flex items-start gap-2 sm:gap-3">
                     <flux:icon.shield-exclamation class="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-500" />
-                    <div class="flex-1">
+                    <div class="min-w-0 flex-1">
                         <flux:heading size="sm" class="text-amber-900 dark:text-amber-200">
                             Esta cuenta no tiene segundo factor activo
                         </flux:heading>
@@ -53,7 +53,9 @@
                             La contraseña es hoy la única barrera de acceso. Activá una contraseña
                             de un solo uso o registrá una passkey.
                         </flux:text>
-                        <flux:button :href="route('security.edit')" variant="primary" size="sm" class="mt-3" wire:navigate>
+                        {{-- A ancho completo en el teléfono para que no se salga del aviso,
+                             y con 44 px de alto para poder pulsarlo con el dedo. --}}
+                        <flux:button :href="route('security.edit')" variant="primary" size="sm" class="mt-3 min-h-11 w-full sm:w-auto" wire:navigate>
                             Configurar ahora
                         </flux:button>
                     </div>
@@ -61,31 +63,33 @@
             </div>
         @endunless
 
-        {{-- Contadores --}}
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+        {{-- Contadores. En el teléfono van a dos columnas cuando hay cuatro contadores
+             (operador) y a una cuando solo hay uno, para que no quede una tarjeta suelta a
+             media pantalla. Desde sm manda siempre la rejilla. --}}
+        <div class="grid gap-3 {{ $operador ? 'grid-cols-2' : 'grid-cols-1' }} sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+            <div class="rounded-xl border border-neutral-200 p-3 sm:p-4 dark:border-neutral-700">
                 <flux:text size="sm" class="text-neutral-500">Productos publicados</flux:text>
-                <div class="mt-1 text-3xl font-semibold tabular-nums">{{ number_format($productos) }}</div>
+                <div class="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl">{{ number_format($productos) }}</div>
             </div>
 
             @if ($operador)
-                <div class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                <div class="rounded-xl border border-neutral-200 p-3 sm:p-4 dark:border-neutral-700">
                     <flux:text size="sm" class="text-neutral-500">Eventos · últimas 24 h</flux:text>
-                    <div class="mt-1 text-3xl font-semibold tabular-nums">
+                    <div class="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl">
                         {{ is_null($eventos24h) ? '—' : number_format($eventos24h) }}
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                <div class="rounded-xl border border-neutral-200 p-3 sm:p-4 dark:border-neutral-700">
                     <flux:text size="sm" class="text-neutral-500">Bloqueados por el WAF</flux:text>
-                    <div class="mt-1 text-3xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                    <div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-600 sm:text-3xl dark:text-emerald-400">
                         {{ is_null($bloqueados) ? '—' : number_format($bloqueados) }}
                     </div>
                 </div>
 
-                <div class="rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                <div class="rounded-xl border border-neutral-200 p-3 sm:p-4 dark:border-neutral-700">
                     <flux:text size="sm" class="text-neutral-500">Alertas abiertas</flux:text>
-                    <div class="mt-1 text-3xl font-semibold tabular-nums {{ $abiertas ? 'text-amber-600 dark:text-amber-400' : '' }}">
+                    <div class="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl {{ $abiertas ? 'text-amber-600 dark:text-amber-400' : '' }}">
                         {{ is_null($abiertas) ? '—' : number_format($abiertas) }}
                     </div>
                 </div>
@@ -166,7 +170,7 @@
         </div>
 
         {{-- Aviso de entorno --}}
-        <div class="mt-auto rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+        <div class="mt-auto rounded-xl border border-neutral-200 p-3 sm:p-4 dark:border-neutral-700">
             <flux:text size="sm" class="text-neutral-500">
                 Entorno de demostración académica. No se procesan pagos reales ni se almacenan
                 números de tarjeta: los medios de pago se tokenizan y solo se conservan los

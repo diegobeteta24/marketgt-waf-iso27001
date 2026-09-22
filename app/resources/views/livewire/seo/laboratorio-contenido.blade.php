@@ -7,7 +7,7 @@
     {{-- 1. Sanitización de contenido de usuario                            --}}
     {{-- ------------------------------------------------------------------ --}}
     <div class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-        <div class="border-b border-zinc-200 p-4 dark:border-zinc-700">
+        <div class="border-b border-zinc-200 p-3 dark:border-zinc-700 sm:p-4">
             <flux:heading size="lg">1 · Sanitización de reseñas</flux:heading>
             <flux:subheading>
                 El WAF corta lo que entra; la aplicación decide qué se publica. Escriba aquí la carga de
@@ -16,32 +16,35 @@
             </flux:subheading>
         </div>
 
-        <div class="grid gap-4 p-4 lg:grid-cols-2">
-            <div class="space-y-3">
+        <div class="grid gap-4 p-3 sm:p-4 lg:grid-cols-2">
+            <div class="min-w-0 space-y-3">
+                {{-- El campo donde se pega la carga de ataque: en móvil se deja el tamaño
+                     que trae Flux (16 px), porque Safari de iOS amplía la página sola al
+                     enfocar letra menor y la deja desplazada. Desde sm baja a text-xs. --}}
                 <flux:textarea
                     wire:model.live.debounce.400ms="contenido"
                     label="Contenido enviado por el usuario"
                     rows="12"
-                    class="font-mono text-xs"
+                    class="font-mono sm:text-xs"
                 />
 
-                <div class="flex flex-wrap items-center gap-3">
-                    <flux:button size="sm" variant="primary" wire:click="intentarPublicar" icon="paper-airplane">
+                <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                    <flux:button size="sm" variant="primary" class="w-full min-h-11 sm:w-auto sm:min-h-0" wire:click="intentarPublicar" icon="paper-airplane">
                         Intentar publicar
                     </flux:button>
-                    <span class="text-xs text-zinc-500 dark:text-zinc-400">
+                    <span class="text-sm text-zinc-500 dark:text-zinc-400 sm:text-xs">
                         Publicar sí registra incidente; teclear, no.
                     </span>
                 </div>
             </div>
 
-            <div class="space-y-3">
+            <div class="min-w-0 space-y-3">
                 <div @class([
-                    'flex items-center justify-between rounded-lg border p-3',
+                    'flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3',
                     'border-emerald-500/40 bg-emerald-500/10' => $analisis['publicable'],
                     'border-red-500/40 bg-red-500/10' => ! $analisis['publicable'],
                 ])>
-                    <div>
+                    <div class="min-w-0">
                         <p class="text-sm font-semibold text-zinc-900 dark:text-white">
                             {{ $analisis['publicable'] ? 'Se publicaría' : 'Retenido para revisión' }}
                         </p>
@@ -55,28 +58,35 @@
                 </div>
 
                 @if ($analisis['motivos'] !== [])
+                    {{-- El contenedor redondeado recorta; el desplazamiento va en un envoltorio
+                         interior, porque overflow-hidden a secas escondía la evidencia larga
+                         en lugar de dejar desplazarla. --}}
                     <div class="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-                        <table class="w-full text-xs">
-                            <thead class="bg-zinc-50 text-left uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                                <tr>
-                                    <th class="px-3 py-2 font-medium">Regla</th>
-                                    <th class="px-3 py-2 font-medium">Qué detecta</th>
-                                    <th class="px-3 py-2 text-right font-medium">Puntos</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                @foreach ($analisis['motivos'] as $motivo)
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead class="bg-zinc-50 text-left uppercase tracking-wide text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                                     <tr>
-                                        <td class="px-3 py-2 font-mono text-zinc-700 dark:text-zinc-200">{{ $motivo['regla'] }}</td>
-                                        <td class="px-3 py-2 text-zinc-600 dark:text-zinc-300">
-                                            {{ $motivo['descripcion'] }}
-                                            <span class="block font-mono text-[11px] text-zinc-400">{{ $motivo['evidencia'] }}</span>
-                                        </td>
-                                        <td class="px-3 py-2 text-right tabular-nums text-zinc-900 dark:text-white">+{{ $motivo['puntos'] }}</td>
+                                        <th class="px-3 py-2 font-medium">Regla</th>
+                                        <th class="px-3 py-2 font-medium">Qué detecta</th>
+                                        <th class="px-3 py-2 text-right font-medium">Puntos</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                    @foreach ($analisis['motivos'] as $motivo)
+                                        <tr>
+                                            <td class="break-all px-3 py-2 font-mono text-zinc-700 dark:text-zinc-200">{{ $motivo['regla'] }}</td>
+                                            <td class="break-words px-3 py-2 text-zinc-600 dark:text-zinc-300">
+                                                {{ $motivo['descripcion'] }}
+                                                {{-- La evidencia es contenido del atacante: puede ser una única
+                                                     cadena larguísima, así que se corta por donde sea. --}}
+                                                <span class="block break-all font-mono text-[11px] text-zinc-400">{{ $motivo['evidencia'] }}</span>
+                                            </td>
+                                            <td class="px-3 py-2 text-right tabular-nums text-zinc-900 dark:text-white">+{{ $motivo['puntos'] }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 @endif
 
@@ -84,7 +94,7 @@
                     <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                         HTML reconstruido
                     </p>
-                    <pre class="overflow-x-auto rounded-lg bg-zinc-900 p-3 text-[11px] leading-relaxed text-emerald-200">{{ $analisis['html'] === '' ? '(vacío: no sobrevivió nada)' : $analisis['html'] }}</pre>
+                    <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-zinc-900 p-3 text-xs leading-relaxed text-emerald-200">{{ $analisis['html'] === '' ? '(vacío: no sobrevivió nada)' : $analisis['html'] }}</pre>
                 </div>
 
                 <div>
@@ -95,7 +105,9 @@
                          reconstruida etiqueta por etiqueta desde la lista blanca. Ver que el <script>
                          desapareció y que los enlaces llevan rel="nofollow ugc" es justo lo que hay
                          que demostrar. El contenido crudo del atacante nunca se imprime así. --}}
-                    <div class="prose prose-sm max-w-none rounded-lg border border-zinc-200 p-3 text-sm text-zinc-800 dark:border-zinc-700 dark:text-zinc-100">
+                    {{-- break-words: el contenido saneado puede traer una URL larga que, sin
+                         cortar, desbordaría la tarjeta en móvil. --}}
+                    <div class="prose prose-sm max-w-none overflow-x-auto break-words rounded-lg border border-zinc-200 p-3 text-sm text-zinc-800 dark:border-zinc-700 dark:text-zinc-100">
                         {!! $analisis['html'] !!}
                     </div>
                 </div>
@@ -107,7 +119,7 @@
     {{-- 2. Verificación inversa del rastreador                             --}}
     {{-- ------------------------------------------------------------------ --}}
     <div class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-        <div class="border-b border-zinc-200 p-4 dark:border-zinc-700">
+        <div class="border-b border-zinc-200 p-3 dark:border-zinc-700 sm:p-4">
             <flux:heading size="lg">2 · Verificación inversa del rastreador (FCrDNS)</flux:heading>
             <flux:subheading>
                 Lo único que ModSecurity no puede hacer: consultar DNS dentro de una regla. Dos pasos,
@@ -115,34 +127,37 @@
             </flux:subheading>
         </div>
 
-        <div class="grid gap-4 p-4 lg:grid-cols-2">
-            <div class="space-y-3">
-                <flux:input wire:model="ipRastreador" label="Dirección IP" placeholder="66.249.66.1" />
-                <flux:input wire:model="agenteRastreador" label="Cabecera User-Agent" class="font-mono text-xs" />
+        <div class="grid gap-4 p-3 sm:p-4 lg:grid-cols-2">
+            <div class="min-w-0 space-y-3">
+                {{-- class:input y no class: en flux:input la clase suelta se queda en el div
+                     envoltorio y nunca llega al campo. Los 44 px de alto y el tamaño de letra
+                     tienen que ir sobre el propio <input> para que surtan efecto. --}}
+                <flux:input wire:model="ipRastreador" label="Dirección IP" placeholder="66.249.66.1" class:input="min-h-11 sm:min-h-0" />
+                <flux:input wire:model="agenteRastreador" label="Cabecera User-Agent" class:input="font-mono min-h-11 sm:min-h-0 sm:text-xs" />
 
-                <flux:button size="sm" variant="primary" wire:click="verificarRastreador" icon="magnifying-glass">
+                <flux:button size="sm" variant="primary" class="w-full min-h-11 sm:w-auto sm:min-h-0" wire:click="verificarRastreador" icon="magnifying-glass">
                     Verificar
                 </flux:button>
 
-                <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                <p class="break-words text-sm text-zinc-500 dark:text-zinc-400 sm:text-xs">
                     Pruebe con <span class="font-mono">66.249.66.1</span> (Googlebot real) y con la dirección
                     desde la que navega ahora mismo. La segunda dice ser Googlebot y no lo es.
                 </p>
             </div>
 
-            <div>
+            <div class="min-w-0">
                 @if ($this->veredictoRastreador === null)
                     <p class="text-sm text-zinc-500 dark:text-zinc-400">Sin consulta todavía.</p>
                 @else
                     @php $v = $this->veredictoRastreador; @endphp
 
                     <div @class([
-                        'rounded-lg border p-4 space-y-2',
+                        'rounded-lg border p-3 sm:p-4 space-y-2',
                         'border-emerald-500/40 bg-emerald-500/10' => $v['verificado'],
                         'border-red-500/40 bg-red-500/10' => ! $v['verificado'] && $v['declara_ser_bot'],
                         'border-zinc-300 dark:border-zinc-700' => ! $v['declara_ser_bot'],
                     ])>
-                        <p class="text-sm font-semibold text-zinc-900 dark:text-white">
+                        <p class="break-words text-sm font-semibold text-zinc-900 dark:text-white">
                             @if (! $v['declara_ser_bot'])
                                 No dice ser un rastreador: tráfico normal, no se verifica nada.
                             @elseif ($v['verificado'])
@@ -152,15 +167,20 @@
                             @endif
                         </p>
 
-                        <dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-xs text-zinc-700 dark:text-zinc-200">
+                        {{-- Una sola columna en móvil: la etiqueta encima del valor. Con la
+                             columna fija de 9 rem no quedaba sitio para el nombre del PTR
+                             (crawl-66-249-66-1.googlebot.com y parecidos) y se salía de la
+                             tarjeta. Desde sm vuelve la rejilla de dos columnas, ya con
+                             minmax(0,1fr) para que la segunda pueda encoger. --}}
+                        <dl class="grid grid-cols-1 gap-y-1 text-xs text-zinc-700 dark:text-zinc-200 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-x-3">
                             <dt class="text-zinc-500 dark:text-zinc-400">Dirección</dt>
-                            <dd class="font-mono">{{ $v['ip'] }}</dd>
+                            <dd class="break-all font-mono">{{ $v['ip'] }}</dd>
 
-                            <dt class="text-zinc-500 dark:text-zinc-400">Paso 1 · PTR</dt>
-                            <dd class="font-mono">{{ $v['ptr'] ?? 'sin registro PTR' }}</dd>
+                            <dt class="mt-1 text-zinc-500 dark:text-zinc-400 sm:mt-0">Paso 1 · PTR</dt>
+                            <dd class="break-all font-mono">{{ $v['ptr'] ?? 'sin registro PTR' }}</dd>
 
-                            <dt class="text-zinc-500 dark:text-zinc-400">Paso 2 · directo</dt>
-                            <dd>
+                            <dt class="mt-1 text-zinc-500 dark:text-zinc-400 sm:mt-0">Paso 2 · directo</dt>
+                            <dd class="break-words">
                                 @if ($v['verificado'])
                                     el nombre resuelve de vuelta a la misma dirección
                                 @elseif ($v['motivo'] === 'dns_directo_no_confirma')
@@ -170,8 +190,8 @@
                                 @endif
                             </dd>
 
-                            <dt class="text-zinc-500 dark:text-zinc-400">Motivo</dt>
-                            <dd class="font-mono">{{ $v['motivo'] }}</dd>
+                            <dt class="mt-1 text-zinc-500 dark:text-zinc-400 sm:mt-0">Motivo</dt>
+                            <dd class="break-all font-mono">{{ $v['motivo'] }}</dd>
                         </dl>
                     </div>
                 @endif
@@ -183,7 +203,7 @@
     {{-- 3. Lista blanca de redirección                                     --}}
     {{-- ------------------------------------------------------------------ --}}
     <div class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-        <div class="border-b border-zinc-200 p-4 dark:border-zinc-700">
+        <div class="border-b border-zinc-200 p-3 dark:border-zinc-700 sm:p-4">
             <flux:heading size="lg">3 · Lista blanca de redirección</flux:heading>
             <flux:subheading>
                 <code>/ir?destino=</code> no acepta direcciones: acepta claves de un mapa cerrado. Escriba
@@ -191,15 +211,16 @@
             </flux:subheading>
         </div>
 
-        <div class="grid gap-4 p-4 lg:grid-cols-2">
-            <div class="space-y-3">
+        <div class="grid gap-4 p-3 sm:p-4 lg:grid-cols-2">
+            <div class="min-w-0 space-y-3">
                 <flux:input
                     wire:model="claveRedireccion"
                     label="Valor del parámetro destino"
                     placeholder="sat   ·   https://sitio-del-atacante.tld"
+                    class:input="min-h-11 sm:min-h-0"
                 />
 
-                <flux:button size="sm" variant="primary" wire:click="probarRedireccion" icon="arrow-top-right-on-square">
+                <flux:button size="sm" variant="primary" class="w-full min-h-11 sm:w-auto sm:min-h-0" wire:click="probarRedireccion" icon="arrow-top-right-on-square">
                     Resolver destino
                 </flux:button>
 
@@ -211,15 +232,15 @@
                 @endif
             </div>
 
-            <div>
+            <div class="min-w-0">
                 <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     Mapa cerrado de destinos
                 </p>
                 <ul class="divide-y divide-zinc-100 rounded-lg border border-zinc-200 text-sm dark:divide-zinc-800 dark:border-zinc-700">
                     @foreach ($this->destinosPermitidos as $clave => $destino)
                         <li class="flex flex-wrap items-baseline justify-between gap-2 px-3 py-2">
-                            <span class="font-mono text-zinc-900 dark:text-white">{{ $clave }}</span>
-                            <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ $destino['descripcion'] }}</span>
+                            <span class="break-all font-mono text-zinc-900 dark:text-white">{{ $clave }}</span>
+                            <span class="break-words text-xs text-zinc-500 dark:text-zinc-400">{{ $destino['descripcion'] }}</span>
                         </li>
                     @endforeach
                 </ul>

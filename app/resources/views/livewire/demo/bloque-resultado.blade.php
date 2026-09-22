@@ -20,9 +20,9 @@
     };
 @endphp
 
-<div class="space-y-4">
+<div class="min-w-0 space-y-4">
     @isset($etiquetaModo)
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <flux:badge size="sm">{{ $etiquetaModo }}</flux:badge>
             @if (($peticion['modo'] ?? null) === 'deteccion')
                 <span class="text-xs text-zinc-500 dark:text-zinc-400">motor en solo detección (cabecera secreta)</span>
@@ -33,7 +33,7 @@
     @endisset
 
     {{-- Columna 1: la petición que se envió --}}
-    <div>
+    <div class="min-w-0">
         <p class="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Petición enviada</p>
         <div class="demo-codigo">
 <span class="font-semibold">{{ $peticion['metodo'] ?? '?' }}</span> {{ $peticion['ruta'] ?? '' }}
@@ -55,10 +55,10 @@ cabeceras:
     </div>
 
     {{-- Columna 2: la respuesta del borde --}}
-    <div>
+    <div class="min-w-0">
         <p class="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Respuesta</p>
         @if (($respuesta['ok'] ?? false) === false)
-            <p class="text-sm" style="color: var(--demo-peligro)">
+            <p class="text-sm wrap-break-word" style="color: var(--demo-peligro)">
                 {{ $respuesta['error'] ?? 'No se pudo enviar la petición.' }}
             </p>
         @else
@@ -69,7 +69,7 @@ cabeceras:
                     @endif
                     HTTP {{ $codigo }}
                 </span>
-                <span class="text-sm text-zinc-600 dark:text-zinc-300">
+                <span class="min-w-0 text-sm wrap-break-word text-zinc-600 dark:text-zinc-300">
                     @if ($codigo === 403)
                         Bloqueado en el borde: el WAF cortó la petición.
                     @elseif ($codigo === 405)
@@ -82,7 +82,10 @@ cabeceras:
 
             @if (! empty($respuesta['cuerpo']))
                 <details class="mt-2">
-                    <summary class="cursor-pointer text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
+                    {{-- py-3 sobre una línea de 20 px da los 44 px de alto que necesita un
+                         control para poder pulsarse con el dedo. No se toca el display del
+                         summary: cambiarlo le quitaría el triángulo que anuncia que se abre. --}}
+                    <summary class="cursor-pointer py-3 text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200">
                         Ver cuerpo de la respuesta
                     </summary>
                     <div class="demo-codigo mt-2">{{ $respuesta['cuerpo'] }}@if ($respuesta['cuerpo_recortado'] ?? false)
@@ -94,19 +97,20 @@ cabeceras:
     </div>
 
     {{-- Columna 3: el evento correlacionado del registro de auditoría del WAF --}}
-    <div>
+    <div class="min-w-0">
         <p class="mb-1 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             Evento del registro de auditoría del WAF
         </p>
 
         @if (($evento['disponible'] ?? false) === false)
-            <div class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+            {{-- text-sm y no text-xs: es texto que hay que leer, no un dato tabular. --}}
+            <div class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm wrap-break-word text-amber-700 dark:text-amber-300">
                 No se pudo leer el registro de auditoría en
-                <code>{{ $evento['ruta'] ?? 'ruta no configurada' }}</code>.
+                <code class="break-all">{{ $evento['ruta'] ?? 'ruta no configurada' }}</code>.
                 Verifique que el volumen del WAF está montado en el contenedor de la aplicación.
             </div>
         @elseif (($evento['encontrado'] ?? false) === false)
-            <p class="text-xs text-zinc-500 dark:text-zinc-400">
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">
                 El asiento aún no aparece en el registro. Puede tardar un instante en escribirse;
                 use «Reintentar lectura» o vuelva a lanzar.
             </p>
@@ -114,11 +118,13 @@ cabeceras:
             <dl class="space-y-1.5 text-sm">
                 <div class="flex flex-wrap gap-x-2">
                     <dt class="text-zinc-500 dark:text-zinc-400">Transacción</dt>
-                    <dd class="demo-numero font-medium text-zinc-900 dark:text-white">{{ $evento['id_transaccion'] ?? 'sin dato' }}</dd>
+                    {{-- El identificador de transacción es una cadena larga sin espacios: si no
+                         se le permite cortarse, desborda el ancho del teléfono. --}}
+                    <dd class="demo-numero min-w-0 font-medium break-all text-zinc-900 dark:text-white">{{ $evento['id_transaccion'] ?? 'sin dato' }}</dd>
                 </div>
                 <div class="flex flex-wrap items-center gap-x-2">
                     <dt class="text-zinc-500 dark:text-zinc-400">Interrumpido</dt>
-                    <dd class="font-medium">
+                    <dd class="min-w-0 font-medium wrap-break-word">
                         @if ($evento['interrumpido'])
                             <span style="color: var(--demo-bloqueado)">sí — el motor cortó la transacción</span>
                         @else
@@ -128,7 +134,7 @@ cabeceras:
                 </div>
                 <div class="flex flex-wrap items-center gap-x-2">
                     <dt class="text-zinc-500 dark:text-zinc-400">Puntuación de anomalía</dt>
-                    <dd class="demo-numero font-medium text-zinc-900 dark:text-white">
+                    <dd class="demo-numero min-w-0 font-medium wrap-break-word text-zinc-900 dark:text-white">
                         @if (! is_null($evento['puntuacion']))
                             {{ $evento['puntuacion'] }} / umbral 5
                         @else
@@ -148,13 +154,16 @@ cabeceras:
                 <ul class="space-y-2">
                     @foreach ($evento['reglas'] as $regla)
                         @php $idRegla = (int) ($regla['id'] ?? 0); $propia = $idRegla >= 15000 && $idRegla < 16000; @endphp
-                        <li class="text-sm">
+                        <li class="min-w-0 text-sm">
                             <span class="demo-regla {{ $propia ? 'demo-regla-propia' : '' }}">
                                 {{ $regla['id'] ?: '—' }}@if ($propia) · propia @endif
                             </span>
-                            <span class="ms-1 text-zinc-700 dark:text-zinc-300">{{ $regla['mensaje'] }}</span>
+                            <span class="ms-1 wrap-break-word text-zinc-700 dark:text-zinc-300">{{ $regla['mensaje'] }}</span>
+                            {{-- La carga útil que casó con la regla es una cadena larga con
+                                 caracteres codificados: break-all es lo único que la mantiene
+                                 dentro del ancho de la pantalla. --}}
                             @if (! empty($regla['dato']))
-                                <span class="block text-xs text-zinc-500 dark:text-zinc-400">casa con: <code>{{ \Illuminate\Support\Str::limit($regla['dato'], 120) }}</code></span>
+                                <span class="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">casa con: <code class="break-all">{{ \Illuminate\Support\Str::limit($regla['dato'], 120) }}</code></span>
                             @endif
                         </li>
                     @endforeach

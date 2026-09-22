@@ -200,8 +200,9 @@ new #[Title('Security settings')] class extends Component {
                 viewable
             />
 
-            <div class="flex items-center gap-4">
-                <flux:button variant="primary" type="submit" data-test="update-password-button">
+            {{-- En móvil el botón ocupa todo el ancho; desde sm vuelve a su tamaño natural. --}}
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                <flux:button variant="primary" type="submit" class="w-full sm:w-auto" data-test="update-password-button">
                     {{ __('Save') }}
                 </flux:button>
             </div>
@@ -222,6 +223,7 @@ new #[Title('Security settings')] class extends Component {
                             <div class="flex justify-start">
                                 <flux:button
                                     variant="danger"
+                                    class="w-full sm:w-auto"
                                     wire:click="disable"
                                 >
                                     {{ __('Disable 2FA') }}
@@ -239,6 +241,7 @@ new #[Title('Security settings')] class extends Component {
                             <flux:modal.trigger name="two-factor-setup-modal">
                                 <flux:button
                                     variant="primary"
+                                    class="w-full sm:w-auto"
                                     wire:click="$dispatch('start-two-factor-setup')"
                                 >
                                     {{ __('Enable 2FA') }}
@@ -260,14 +263,19 @@ new #[Title('Security settings')] class extends Component {
                 <div class="mt-6 flex flex-col w-full mx-auto space-y-6 text-sm" wire:cloak>
                     <div class="border rounded-lg border-zinc-200 dark:border-zinc-700 overflow-hidden">
                         @forelse ($passkeys as $passkey)
-                            <div class="flex items-center justify-between p-4 {{ ! $loop->last ? 'border-b border-zinc-200 dark:border-zinc-700' : '' }}">
-                                <div class="flex items-center gap-4">
+                            {{--
+                                El nombre de la llave lo escribe la persona, así que puede
+                                ser largo: min-w-0 y break-words evitan que empuje la fila
+                                y desborde a lo ancho en un teléfono.
+                            --}}
+                            <div class="flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4 {{ ! $loop->last ? 'border-b border-zinc-200 dark:border-zinc-700' : '' }}">
+                                <div class="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
                                     <div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800">
                                         <flux:icon.key class="size-5 text-zinc-500 dark:text-zinc-400" />
                                     </div>
-                                    <div class="space-y-1">
-                                        <div class="flex items-center gap-2.5">
-                                            <p class="font-medium tracking-tight">{{ $passkey['name'] }}</p>
+                                    <div class="min-w-0 space-y-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <p class="font-medium tracking-tight break-words">{{ $passkey['name'] }}</p>
                                             @if ($passkey['authenticator'])
                                                 <flux:badge size="sm">{{ $passkey['authenticator'] }}</flux:badge>
                                             @endif
@@ -282,17 +290,18 @@ new #[Title('Security settings')] class extends Component {
                                     </div>
                                 </div>
 
+                                {{-- En móvil el icono de borrar crece a 44 px para poder pulsarlo con el dedo. --}}
                                 <flux:button
                                     variant="ghost"
                                     size="sm"
                                     icon="trash"
                                     icon:variant="outline"
                                     wire:click="confirmDelete({{ $passkey['id'] }})"
-                                    class="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                                    class="shrink-0 max-sm:size-11! text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
                                 />
                             </div>
                         @empty
-                            <div class="p-8 text-center">
+                            <div class="p-6 text-center sm:p-8">
                                 <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">
                                     <flux:icon.key class="size-7 text-zinc-400 dark:text-zinc-500" />
                                 </div>
@@ -322,7 +331,8 @@ new #[Title('Security settings')] class extends Component {
                 </flux:text>
             </div>
 
-            <div class="flex gap-3 justify-end">
+            {{-- Botones apilados y a ancho completo en móvil, en línea desde sm. --}}
+            <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <flux:button
                     variant="outline"
                     wire:click="closeDeleteModal"

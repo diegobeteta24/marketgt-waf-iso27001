@@ -212,7 +212,9 @@ class extends Component
     <section class="space-y-4">
         {{-- Filtros: una columna a ancho completo en el teléfono, buscador entero y los dos
              desplegables a la par desde sm, y la fila de doce columnas desde lg. --}}
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+        {{-- Los controles de Flux miden 40 px de alto; aquí se elevan a los 44 px reales
+             que necesita el dedo, sin tocar el marcado del proveedor. --}}
+        <div class="grid gap-3 [&_input]:min-h-11 [&_select]:min-h-11 sm:grid-cols-2 lg:grid-cols-12">
             <div class="sm:col-span-2 lg:col-span-6">
                 <flux:input
                     wire:model.live.debounce.400ms="busqueda"
@@ -291,8 +293,11 @@ class extends Component
         </section>
 
         {{-- El paginador de Flux puede ser más ancho que la pantalla cuando hay muchas
-             páginas: el contenedor absorbe el desplazamiento para que no lo haga la página. --}}
-        <div class="overflow-x-auto">
+             páginas: el contenedor absorbe el desplazamiento para que no lo haga la página.
+             Además sus flechas miden 32 px, por debajo de los 44 px que
+             necesita el dedo: se agrandan solo por debajo de md para no alterar el
+             paginador de escritorio, que es marcado del proveedor y no se toca. --}}
+        <div class="overflow-x-auto max-md:[&_button]:min-h-11 max-md:[&_button]:min-w-11">
             <flux:pagination :paginator="$this->productos" />
         </div>
     @endif

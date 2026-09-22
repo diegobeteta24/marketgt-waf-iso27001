@@ -63,11 +63,13 @@ new #[Title('Guion de demostración')] class extends Component {
     titulo="Guion de demostración"
     descripcion="Tres minutos, cuatro ataques lanzados contra nuestro propio sitio y la detección en pantalla."
 >
-    <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+    <div class="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900 sm:p-4">
         <flux:heading size="lg">Antes de empezar</flux:heading>
         <flux:subheading>Tres comprobaciones que evitan el ridículo en vivo.</flux:subheading>
 
-        <ol class="mt-3 list-decimal space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-200">
+        {{-- pl-5 en móvil y pl-6 desde sm: la sangría de la lista no puede comerse
+             el ancho que hace falta para los comandos en línea. --}}
+        <ol class="mt-3 list-decimal space-y-2 break-words pl-5 text-sm leading-relaxed text-zinc-700 dark:text-zinc-200 sm:space-y-1 sm:pl-6">
             <li>
                 Las migraciones aplicadas y la línea base sellada:
                 <code class="rounded bg-zinc-100 px-1 dark:bg-zinc-800">php artisan migrate</code> y después
@@ -87,24 +89,27 @@ new #[Title('Guion de demostración')] class extends Component {
     <div class="space-y-4">
         @foreach ($actos as $acto)
             <div class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-                <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
+                <div class="flex flex-wrap items-baseline justify-between gap-2 border-b border-zinc-200 px-3 py-3 dark:border-zinc-700 sm:px-4">
                     <flux:heading size="lg">{{ $acto['titulo'] }}</flux:heading>
                     <span class="rounded bg-zinc-100 px-2 py-0.5 font-mono text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                         {{ $acto['minuto'] }}
                     </span>
                 </div>
 
-                <div class="space-y-3 p-4">
+                <div class="space-y-3 p-3 sm:p-4">
+                    {{-- Los comandos NO se envuelven a propósito: una orden partida por la mitad
+                         se copia mal y se lee peor. Se desplazan de lado dentro de su propio
+                         contenedor, que es lo único que puede ser más ancho que la pantalla. --}}
                     <pre class="overflow-x-auto rounded-lg bg-zinc-900 p-3 text-xs leading-relaxed text-zinc-100">{{ $acto['comando'] }}</pre>
 
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <div>
+                    <div class="grid gap-4 sm:grid-cols-2 sm:gap-3">
+                        <div class="min-w-0">
                             <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Qué se ve</p>
-                            <p class="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{{ $acto['esperado'] }}</p>
+                            <p class="mt-1 break-words text-sm leading-relaxed text-zinc-700 dark:text-zinc-200">{{ $acto['esperado'] }}</p>
                         </div>
-                        <div>
+                        <div class="min-w-0">
                             <p class="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Qué se dice</p>
-                            <p class="mt-1 text-sm text-zinc-700 dark:text-zinc-200">{{ $acto['porque'] }}</p>
+                            <p class="mt-1 break-words text-sm leading-relaxed text-zinc-700 dark:text-zinc-200">{{ $acto['porque'] }}</p>
                         </div>
                     </div>
                 </div>
@@ -112,9 +117,9 @@ new #[Title('Guion de demostración')] class extends Component {
         @endforeach
     </div>
 
-    <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4">
+    <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 sm:p-4">
         <flux:heading size="lg">Si algo falla en vivo</flux:heading>
-        <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-200">
+        <ul class="mt-2 list-disc space-y-2 break-words pl-5 text-sm leading-relaxed text-zinc-700 dark:text-zinc-200 sm:space-y-1 sm:pl-6">
             <li>
                 El ataque 1 responde 200 en vez de 403: el middleware
                 <code class="rounded bg-zinc-100 px-1 dark:bg-zinc-800">DetectarCloaking</code>

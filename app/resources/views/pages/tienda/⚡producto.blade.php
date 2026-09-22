@@ -215,7 +215,7 @@ class extends Component
                 </div>
             @endif
 
-            <div class="rounded-xl bg-zinc-100 p-3 text-xs leading-relaxed text-zinc-600 sm:p-4 dark:bg-zinc-800 dark:text-zinc-300">
+            <div class="rounded-xl bg-zinc-100 p-3 text-sm leading-relaxed text-zinc-600 sm:p-4 sm:text-xs dark:bg-zinc-800 dark:text-zinc-300">
                 <p class="font-semibold text-zinc-800 dark:text-zinc-100">Envíos y pagos</p>
                 <p class="mt-1">
                     Envío a toda la República de Guatemala por Q35.00, gratis en compras mayores a Q500.00.

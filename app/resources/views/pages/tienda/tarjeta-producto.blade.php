@@ -13,7 +13,7 @@
     <a href="{{ route('tienda.producto', $producto->slug) }}" wire:navigate class="block">
         {{-- En el teléfono la tarjeta ocupa el ancho completo, así que la portada se recorta
              a 4:3 para no gastar media pantalla por producto; desde sm vuelve a ser cuadrada. --}}
-        <div class="relative aspect-4/3 w-full overflow-hidden bg-linear-to-br sm:aspect-square {{ $producto->tonoPortada() }}">
+        <div class="relative aspect-[4/3] w-full overflow-hidden bg-linear-to-br sm:aspect-square {{ $producto->tonoPortada() }}">
             @if (filled($producto->imagen_url))
                 <img
                     src="{{ $producto->imagen_url }}"

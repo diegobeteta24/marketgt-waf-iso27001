@@ -107,8 +107,9 @@ new #[Title('Profile settings')] class extends Component {
                 @endif
             </div>
 
+            {{-- En móvil el botón ocupa todo el ancho; desde sm recupera su tamaño natural. --}}
             <div class="flex items-center gap-4">
-                <div class="flex items-center justify-end">
+                <div class="flex w-full items-center justify-end sm:w-auto">
                     <flux:button variant="primary" type="submit" class="w-full" data-test="update-profile-button">
                         {{ __('Save') }}
                     </flux:button>

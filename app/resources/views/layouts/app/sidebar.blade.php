@@ -87,12 +87,18 @@
                 </flux:sidebar.item>
             </flux:sidebar.nav>
 
-            <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
+            {{--
+                max-lg:hidden en lugar de "hidden lg:block": así en escritorio se
+                respeta la presentación propia del desplegable de Flux y en móvil
+                sólo se oculta, porque allí ya está el menú del encabezado.
+            --}}
+            <x-desktop-user-menu class="max-lg:hidden" :name="auth()->user()->name" />
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
         <flux:header class="lg:hidden">
-            <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+            {{-- El botón que abre el menú necesita 44 px reales para poder pulsarse con el dedo. --}}
+            <flux:sidebar.toggle class="lg:hidden size-11!" icon="bars-2" inset="left" />
 
             <flux:spacer />
 
@@ -102,7 +108,12 @@
                     icon-trailing="chevron-down"
                 />
 
-                <flux:menu>
+                {{--
+                    El desplegable se ancla al borde derecho: se le pone un ancho
+                    máximo relativo a la pantalla para que en un móvil estrecho no
+                    se salga por ese borde.
+                --}}
+                <flux:menu class="max-w-[calc(100vw-2rem)]">
                     <flux:menu.radio.group>
                         <div class="p-0 text-sm font-normal">
                             <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
@@ -111,7 +122,8 @@
                                     :initials="auth()->user()->initials()"
                                 />
 
-                                <div class="grid flex-1 text-start text-sm leading-tight">
+                                {{-- min-w-0 permite que truncate recorte el nombre y el correo largos. --}}
+                                <div class="grid min-w-0 flex-1 text-start text-sm leading-tight">
                                     <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
                                     <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
                                 </div>

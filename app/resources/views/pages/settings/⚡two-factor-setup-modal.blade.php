@@ -224,16 +224,25 @@ new class extends Component {
                     <flux:callout variant="danger" icon="x-circle" heading="{{ $message }}"/>
                 @enderror
 
+                {{--
+                    El código QR se adapta al ancho disponible con un máximo de 16rem,
+                    para que en un teléfono estrecho no se salga del cuadro de diálogo.
+                --}}
                 <div class="flex justify-center">
-                    <div class="relative w-64 overflow-hidden border rounded-lg border-stone-200 dark:border-stone-700 aspect-square">
+                    <div class="relative w-full max-w-64 overflow-hidden border rounded-lg border-stone-200 dark:border-stone-700 aspect-square">
                         @empty($qrCodeSvg)
                             <div class="absolute inset-0 flex items-center justify-center bg-white dark:bg-stone-700 animate-pulse">
                                 <flux:icon.loading/>
                             </div>
                         @else
                             <div x-data class="flex items-center justify-center h-full p-4">
+                                {{--
+                                    El SVG del QR trae ancho y alto en píxeles, pero también
+                                    viewBox: forzándolo a w-full/h-auto se encoge sin deformarse
+                                    y sigue siendo legible en una pantalla pequeña.
+                                --}}
                                 <div
-                                    class="bg-white p-3 rounded"
+                                    class="bg-white p-3 rounded w-full [&>svg]:h-auto [&>svg]:w-full"
                                     :style="($flux.appearance === 'dark' || ($flux.appearance === 'system' && $flux.dark)) ? 'filter: invert(1) brightness(1.5)' : ''"
                                 >
                                     {!! $qrCodeSvg !!}
@@ -277,7 +286,8 @@ new class extends Component {
                             }
                         }"
                     >
-                        <div class="flex items-stretch w-full border rounded-xl dark:border-stone-700">
+                        {{-- min-w-0 en el campo: si no, su ancho intrínseco empuja al botón fuera del cuadro. --}}
+                        <div class="flex items-stretch w-full min-w-0 border rounded-xl dark:border-stone-700">
                             @empty($manualSetupKey)
                                 <div class="flex items-center justify-center w-full p-3 bg-stone-100 dark:bg-stone-700">
                                     <flux:icon.loading variant="mini"/>
@@ -287,7 +297,7 @@ new class extends Component {
                                     type="text"
                                     readonly
                                     value="{{ $manualSetupKey }}"
-                                    class="w-full p-3 bg-transparent outline-none text-stone-900 dark:text-stone-100"
+                                    class="w-full min-w-0 p-3 bg-transparent outline-none text-stone-900 dark:text-stone-100"
                                 />
 
                                 <button

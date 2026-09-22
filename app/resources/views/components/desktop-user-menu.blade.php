@@ -1,4 +1,13 @@
-<flux:dropdown position="bottom" align="start">
+{{--
+    Se declara "name" como propiedad para que no acabe como atributo suelto en
+    el desplegable, y se reenvían el resto de atributos (por ejemplo la clase
+    que oculta este menú en móvil, donde ya existe el del encabezado).
+--}}
+@props([
+    'name' => null,
+])
+
+<flux:dropdown position="bottom" align="start" {{ $attributes }}>
     <flux:sidebar.profile
         :name="auth()->user()->name"
         :initials="auth()->user()->initials()"
@@ -6,13 +15,15 @@
         data-test="sidebar-menu-button"
     />
 
-    <flux:menu>
+    {{-- El menú nunca debe ser más ancho que la pantalla ni salirse por el borde. --}}
+    <flux:menu class="max-w-[calc(100vw-2rem)]">
         <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
             <flux:avatar
                 :name="auth()->user()->name"
                 :initials="auth()->user()->initials()"
             />
-            <div class="grid flex-1 text-start text-sm leading-tight">
+            {{-- min-w-0 es lo que permite que truncate recorte de verdad el correo largo. --}}
+            <div class="grid min-w-0 flex-1 text-start text-sm leading-tight">
                 <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
                 <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
             </div>

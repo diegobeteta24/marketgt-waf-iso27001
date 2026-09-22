@@ -6,11 +6,11 @@
 
 <div wire:poll.30s class="space-y-6">
     @unless ($this->tablasListas)
-        <div class="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+        <div class="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 sm:p-4">
             <flux:icon.exclamation-triangle class="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div class="text-sm">
+            <div class="min-w-0 text-sm">
                 <p class="font-semibold text-amber-700 dark:text-amber-300">Faltan las tablas del componente</p>
-                <p class="mt-1 text-zinc-600 dark:text-zinc-400">
+                <p class="mt-1 break-words text-zinc-600 dark:text-zinc-400">
                     Ejecute <code class="rounded bg-zinc-200 px-1 dark:bg-zinc-800">php artisan migrate</code>
                     para crear <code class="rounded bg-zinc-200 px-1 dark:bg-zinc-800">incidentes_seo</code> y
                     <code class="rounded bg-zinc-200 px-1 dark:bg-zinc-800">lineas_base_seo</code>.
@@ -50,26 +50,26 @@
             @endphp
 
             @foreach ($tarjetas as $tarjeta)
-                <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                <div class="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900 sm:p-4">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="min-w-0 break-words text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                             {{ $tarjeta['titulo'] }}
                         </p>
                         @switch ($tarjeta['icono'])
                             @case('shield-exclamation')
-                                <flux:icon.shield-exclamation class="size-4 text-zinc-400 dark:text-zinc-500" />
+                                <flux:icon.shield-exclamation class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                             @break
 
                             @case('bug-ant')
-                                <flux:icon.bug-ant class="size-4 text-zinc-400 dark:text-zinc-500" />
+                                <flux:icon.bug-ant class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                             @break
 
                             @case('chat-bubble-left-ellipsis')
-                                <flux:icon.chat-bubble-left-ellipsis class="size-4 text-zinc-400 dark:text-zinc-500" />
+                                <flux:icon.chat-bubble-left-ellipsis class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                             @break
 
                             @default
-                                <flux:icon.document-magnifying-glass class="size-4 text-zinc-400 dark:text-zinc-500" />
+                                <flux:icon.document-magnifying-glass class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                         @endswitch
                     </div>
                     <p class="mt-2 text-3xl font-semibold tabular-nums text-zinc-900 dark:text-white">
@@ -82,8 +82,8 @@
 
         {{-- Línea base de los artefactos de indexación --}}
         <div class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-            <div class="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-200 p-4 dark:border-zinc-700">
-                <div>
+            <div class="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-200 p-3 dark:border-zinc-700 sm:p-4">
+                <div class="min-w-0">
                     <flux:heading size="lg">Línea base de indexación</flux:heading>
                     <flux:subheading>
                         Estado autorizado de robots.txt, del sitemap y de la superficie indexable de las
@@ -92,13 +92,13 @@
                     </flux:subheading>
                 </div>
 
-                <div class="flex flex-wrap gap-2">
-                    <flux:button size="sm" variant="primary" icon="arrow-path" wire:click="ejecutarVigilancia" wire:loading.attr="disabled">
+                <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">
+                    <flux:button size="sm" variant="primary" icon="arrow-path" class="w-full min-h-11 sm:w-auto sm:min-h-0" wire:click="ejecutarVigilancia" wire:loading.attr="disabled">
                         Verificar ahora
                     </flux:button>
 
                     @if (auth()->user()?->esAdministrador())
-                        <flux:button size="sm" variant="ghost" icon="lock-closed" wire:click="sellarLineaBase" wire:confirm="Sellar declara que el estado ACTUAL es el autorizado. Si hay un cambio no revisado, quedará legitimado. ¿Continuar?">
+                        <flux:button size="sm" variant="ghost" icon="lock-closed" class="w-full min-h-11 sm:w-auto sm:min-h-0" wire:click="sellarLineaBase" wire:confirm="Sellar declara que el estado ACTUAL es el autorizado. Si hay un cambio no revisado, quedará legitimado. ¿Continuar?">
                             Sellar línea base
                         </flux:button>
                     @endif
@@ -106,32 +106,35 @@
             </div>
 
             <div class="overflow-x-auto">
-                <table class="w-full min-w-[44rem] text-sm">
+                {{-- El ancho mínimo va en la tabla, no en el contenedor que desplaza, y crece por
+                     tramos. En móvil quedan artefacto, huella y fecha de sellado; el firmante y
+                     la nota aparecen cuando hay anchura para leerlos. --}}
+                <table class="w-full text-sm sm:min-w-[30rem] md:min-w-[38rem] lg:min-w-[44rem]">
                     <thead>
                         <tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                            <th class="px-4 py-3 font-medium">Artefacto</th>
-                            <th class="px-4 py-3 font-medium">Huella (sha256)</th>
-                            <th class="px-4 py-3 font-medium">Sellada</th>
-                            <th class="px-4 py-3 font-medium">Firmada por</th>
-                            <th class="px-4 py-3 font-medium">Nota</th>
+                            <th class="px-3 py-3 font-medium sm:px-4">Artefacto</th>
+                            <th class="px-3 py-3 font-medium sm:px-4">Huella (sha256)</th>
+                            <th class="px-3 py-3 font-medium sm:px-4">Sellada</th>
+                            <th class="hidden px-3 py-3 font-medium md:table-cell sm:px-4">Firmada por</th>
+                            <th class="hidden px-3 py-3 font-medium lg:table-cell sm:px-4">Nota</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
                         @forelse ($lineas as $linea)
                             <tr class="align-top">
-                                <td class="px-4 py-3 font-medium text-zinc-900 dark:text-white">{{ $linea->etiqueta() }}</td>
-                                <td class="px-4 py-3 font-mono text-xs text-zinc-600 dark:text-zinc-300">{{ $linea->huellaCorta() }}…</td>
-                                <td class="whitespace-nowrap px-4 py-3 text-zinc-600 dark:text-zinc-300">
+                                <td class="break-words px-3 py-3 font-medium text-zinc-900 dark:text-white sm:px-4">{{ $linea->etiqueta() }}</td>
+                                <td class="break-all px-3 py-3 font-mono text-xs text-zinc-600 dark:text-zinc-300 sm:px-4">{{ $linea->huellaCorta() }}…</td>
+                                <td class="px-3 py-3 text-zinc-600 dark:text-zinc-300 sm:whitespace-nowrap sm:px-4">
                                     {{ $linea->sellada_en->format('d/m/Y H:i') }}
                                 </td>
-                                <td class="px-4 py-3 text-zinc-600 dark:text-zinc-300">
+                                <td class="hidden break-words px-3 py-3 text-zinc-600 md:table-cell dark:text-zinc-300 sm:px-4">
                                     {{ $linea->firmante?->name ?? 'sin firmar (consola)' }}
                                 </td>
-                                <td class="px-4 py-3 text-zinc-500 dark:text-zinc-400">{{ $linea->notas }}</td>
+                                <td class="hidden break-words px-3 py-3 text-zinc-500 lg:table-cell dark:text-zinc-400 sm:px-4">{{ $linea->notas }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">
+                                <td colspan="5" class="px-3 py-8 text-center text-zinc-500 dark:text-zinc-400 sm:px-4">
                                     Todavía no hay línea base. Pulse «Verificar ahora»: la primera ejecución sella
                                     el estado actual y a partir de ahí cualquier cambio salta como incidente.
                                 </td>
@@ -141,7 +144,7 @@
                 </table>
             </div>
 
-            <div class="border-t border-zinc-200 px-4 py-3 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+            <div class="border-t border-zinc-200 px-3 py-3 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400 sm:px-4 sm:text-xs">
                 @if ($ultima)
                     Última comprobación: {{ $ultima->format('d/m/Y H:i:s') }} ({{ $ultima->diffForHumans() }}).
                     @if ($ultima->lessThan(now()->subHours(6)))
@@ -157,34 +160,35 @@
 
         @if ($this->salidaVigilancia !== '')
             <div @class([
-                'rounded-xl border p-4',
+                'rounded-xl border p-3 sm:p-4',
                 'border-emerald-500/40 bg-emerald-500/10' => $this->vigilanciaCorrecta,
                 'border-red-500/40 bg-red-500/10' => ! $this->vigilanciaCorrecta,
             ])>
-                <p class="mb-2 text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                <p class="mb-2 break-words text-sm font-semibold text-zinc-800 dark:text-zinc-100">
                     Salida de <code>php artisan seo:vigilar</code>
                 </p>
-                <pre class="overflow-x-auto whitespace-pre-wrap text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">{{ $this->salidaVigilancia }}</pre>
+                <pre class="overflow-x-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-zinc-700 dark:text-zinc-200">{{ $this->salidaVigilancia }}</pre>
             </div>
         @endif
 
         {{-- Últimos hallazgos, con enlace al triaje --}}
         <div class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-            <div class="flex items-end justify-between gap-3 border-b border-zinc-200 p-4 dark:border-zinc-700">
-                <div>
+            {{-- Sin flex-wrap el botón «Ver todos» se salía de la pantalla en móvil. --}}
+            <div class="flex flex-wrap items-end justify-between gap-3 border-b border-zinc-200 p-3 dark:border-zinc-700 sm:p-4">
+                <div class="min-w-0">
                     <flux:heading size="lg">Últimos hallazgos</flux:heading>
                     <flux:subheading>Los seis más recientes. El detalle completo y el triaje están en la pestaña de incidentes.</flux:subheading>
                 </div>
 
-                <flux:button size="sm" variant="ghost" :href="route('seo.incidentes')" wire:navigate icon="arrow-right">
+                <flux:button size="sm" variant="ghost" class="w-full min-h-11 sm:w-auto sm:min-h-0" :href="route('seo.incidentes')" wire:navigate icon="arrow-right">
                     Ver todos
                 </flux:button>
             </div>
 
             <ul class="divide-y divide-zinc-100 dark:divide-zinc-800">
                 @forelse ($this->ultimosIncidentes as $incidente)
-                    <li class="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-                        <div class="min-w-0">
+                    <li class="flex flex-wrap items-start justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-4">
+                        <div class="min-w-0 flex-1">
                             <div class="flex flex-wrap items-center gap-2">
                                 <flux:badge size="sm" :color="match ($incidente->severidad) {
                                     'critica' => 'red',
@@ -196,7 +200,7 @@
                                 <span class="text-sm font-medium text-zinc-900 dark:text-white">{{ $incidente->etiquetaTipo() }}</span>
 
                                 @if ($incidente->regla)
-                                    <span class="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                                    <span class="break-all rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                                         {{ $incidente->regla }}
                                     </span>
                                 @endif
@@ -205,16 +209,19 @@
                                     <flux:badge size="sm" color="red">campaña activa</flux:badge>
                                 @endif
                             </div>
-                            <p class="mt-1 truncate text-sm text-zinc-600 dark:text-zinc-300">{{ $incidente->resumen }}</p>
+                            {{-- En móvil se leen dos líneas del resumen en vez de cortarlo a una:
+                                 con 375 px una sola línea no dice casi nada. --}}
+                            <p class="mt-1 line-clamp-2 text-sm text-zinc-600 dark:text-zinc-300 sm:line-clamp-1">{{ $incidente->resumen }}</p>
                         </div>
 
-                        <div class="whitespace-nowrap text-right text-xs text-zinc-500 dark:text-zinc-400">
+                        {{-- Debajo y alineado a la izquierda en móvil; a la derecha y en una línea desde sm. --}}
+                        <div class="w-full text-left text-xs text-zinc-500 dark:text-zinc-400 sm:w-auto sm:whitespace-nowrap sm:text-right">
                             <p>{{ $incidente->ultima_vez_en->format('d/m H:i:s') }}</p>
-                            <p>{{ $incidente->direccion_ip ?? 'sin dirección' }} · ×{{ number_format($incidente->repeticiones) }}</p>
+                            <p><span class="break-all">{{ $incidente->direccion_ip ?? 'sin dirección' }}</span> · ×{{ number_format($incidente->repeticiones) }}</p>
                         </div>
                     </li>
                 @empty
-                    <li class="px-4 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                    <li class="px-3 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400 sm:px-4">
                         Ningún incidente registrado. Lance un ataque desde el laboratorio para comprobar que
                         la detección funciona: un control que nunca ha disparado no está probado.
                     </li>

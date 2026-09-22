@@ -28,17 +28,45 @@
         --demo-fondo-codigo: #0a0a0a;
     }
 
+    /*
+        Las cargas útiles son cadenas largas con caracteres codificados y sin espacios.
+        `overflow-wrap: anywhere` permite cortarlas en cualquier punto, y el
+        `overflow-x: auto` queda de red de seguridad para lo que aun así no quepa: el
+        desplazamiento lateral se encierra en este bloque y nunca llega a la página.
+        `max-width: 100%` y `min-width: 0` evitan que el bloque estire a su padre cuando
+        está dentro de una rejilla o de un contenedor flexible.
+    */
     .panel-demo .demo-codigo {
         font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
         font-size: 0.8rem;
         line-height: 1.5;
         white-space: pre-wrap;
         word-break: break-word;
+        overflow-wrap: anywhere;
         background: var(--demo-fondo-codigo);
         border: 1px solid var(--demo-borde-codigo);
         border-radius: 0.5rem;
         padding: 0.75rem 0.9rem;
         overflow-x: auto;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    /* Todo `code` suelto de la consola —rutas, dominios, nombres de variable— puede
+       cortarse: son los candidatos habituales a desbordar un teléfono. */
+    .panel-demo code {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    /* En pantallas estrechas se recorta el relleno del bloque de código y se baja un punto
+       el tamaño: son datos tabulares, no texto corrido, y cada carácter ganado por línea
+       evita una línea partida más. */
+    @media (max-width: 639px) {
+        .panel-demo .demo-codigo {
+            font-size: 0.75rem;
+            padding: 0.6rem 0.7rem;
+        }
     }
 
     .panel-demo .demo-numero {
@@ -49,6 +77,7 @@
     .panel-demo .demo-http {
         display: inline-flex;
         align-items: center;
+        max-width: 100%;
         gap: 0.4rem;
         border-radius: 0.5rem;
         padding: 0.15rem 0.6rem;
@@ -64,6 +93,7 @@
     .panel-demo .demo-regla {
         display: inline-flex;
         align-items: center;
+        max-width: 100%;
         gap: 0.35rem;
         border-radius: 9999px;
         padding: 0.05rem 0.55rem;

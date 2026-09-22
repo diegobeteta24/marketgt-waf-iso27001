@@ -316,7 +316,9 @@ class extends Component
             </div>
         </section>
     @else
-        <form wire:submit="confirmar" class="grid gap-6 lg:grid-cols-3">
+        {{-- Los campos de Flux miden 40 px de alto; en el formulario entero se elevan a los
+             44 px reales que necesita el dedo, sin tocar el marcado del proveedor. --}}
+        <form wire:submit="confirmar" class="grid gap-6 [&_input]:min-h-11 [&_select]:min-h-11 lg:grid-cols-3">
             <div class="min-w-0 space-y-6 lg:col-span-2">
                 <section class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-800">
                     <h2 class="text-base font-semibold text-zinc-900 dark:text-white">Datos de envío</h2>
@@ -365,7 +367,7 @@ class extends Component
                         <flux:input wire:model="cvv" label="Código de seguridad" placeholder="123" inputmode="numeric" autocomplete="off" />
                     </div>
 
-                    <p class="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    <p class="text-sm leading-relaxed text-zinc-500 sm:text-xs dark:text-zinc-400">
                         El código de seguridad se usa únicamente durante la verificación y no se guarda en
                         ningún momento, ni cifrado. De la tarjeta solo quedan registrados los últimos cuatro
                         dígitos y la marca.

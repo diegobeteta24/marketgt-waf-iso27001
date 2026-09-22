@@ -126,7 +126,7 @@
                     </span>
                 </div>
 
-                <div class="flex items-center gap-1">
+                <div class="flex flex-wrap items-center gap-1">
                     @foreach (\App\Livewire\Siem\TableroPrincipal::VENTANAS as $ventana)
                         <button
                             type="button"
@@ -238,7 +238,7 @@
             <flux:subheading>Core Rule Set 4.29 y reglas propias del proyecto (15000-15099).</flux:subheading>
 
             @if ($reglas['truncado'])
-                <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                <p class="mt-2 text-sm text-amber-600 sm:text-xs dark:text-amber-400">
                     El conteo se calculo sobre las filas mas recientes: el volumen de la ventana supera el techo de lectura.
                 </p>
             @endif
@@ -310,13 +310,16 @@
                     <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
                         @forelse ($this->direcciones as $direccion)
                             <tr>
-                                <td class="siem-numero py-2 font-medium text-zinc-900 dark:text-white">{{ $direccion->direccion_ip }}</td>
-                                <td class="py-2 text-zinc-500 dark:text-zinc-400">{{ $direccion->pais ?? 'sin dato' }}</td>
+                                <td class="py-2 pr-2">
+                                    <span class="siem-numero block break-all font-medium text-zinc-900 dark:text-white">{{ $direccion->direccion_ip }}</span>
+                                    <span class="block text-xs text-zinc-500 sm:hidden dark:text-zinc-400">{{ $direccion->pais ?? 'sin dato' }}</span>
+                                </td>
+                                <td class="hidden py-2 text-zinc-500 sm:table-cell dark:text-zinc-400">{{ $direccion->pais ?? 'sin dato' }}</td>
                                 <td class="siem-numero py-2 text-right">{{ number_format((int) $direccion->total) }}</td>
                                 <td class="siem-numero py-2 text-right" style="color: var(--siem-serie-bloqueados)">
                                     {{ number_format((int) $direccion->bloqueados) }}
                                 </td>
-                                <td class="siem-numero py-2 text-right">{{ (int) $direccion->puntuacion_maxima }}</td>
+                                <td class="siem-numero hidden py-2 text-right sm:table-cell">{{ (int) $direccion->puntuacion_maxima }}</td>
                             </tr>
                         @empty
                             <tr>
@@ -329,7 +332,7 @@
                 </table>
             </div>
 
-            <p class="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+            <p class="mt-3 text-sm text-zinc-500 sm:text-xs dark:text-zinc-400">
                 El pais proviene del encabezado CF-IPCountry que anade Cloudflare en la capa 1. Cuando la
                 peticion no pasa por el perimetro se muestra "sin dato" en vez de suponerlo.
             </p>
@@ -339,7 +342,7 @@
     {{-- Reparto de severidad: una franja, no una grafica de pastel. --}}
     @php $totalReparto = array_sum($this->reparto); @endphp
     @if ($totalReparto > 0)
-        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+        <div class="rounded-xl border border-zinc-200 bg-white p-3 sm:p-4 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:heading size="lg">Reparto por severidad</flux:heading>
             <flux:subheading>Sobre {{ number_format($totalReparto) }} eventos de las ultimas {{ $this->horas }} horas.</flux:subheading>
 
