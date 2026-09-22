@@ -70,3 +70,8 @@ backups/
 # Secretos de DNS dinamico (nunca versionados)
 infra/secrets/
 dns.env
+
+# ─── Archivos de bloqueo de Office ────────────────────────────
+# Word y PowerPoint los crean mientras el documento esta abierto. Son basura
+# temporal, y ademas llevan el nombre de usuario de quien lo tiene abierto.
+~$*
