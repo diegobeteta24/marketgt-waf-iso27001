@@ -68,6 +68,7 @@ new class extends Component {
                 icon="eye"
                 icon:variant="outline"
                 variant="primary"
+                class="min-h-11"
                 @click="showRecoveryCodes = true;"
                 aria-expanded="false"
                 aria-controls="recovery-codes-section"
@@ -80,6 +81,7 @@ new class extends Component {
                 icon="eye-slash"
                 icon:variant="outline"
                 variant="primary"
+                class="min-h-11"
                 @click="showRecoveryCodes = false"
                 aria-expanded="true"
                 aria-controls="recovery-codes-section"
@@ -92,6 +94,7 @@ new class extends Component {
                     x-show="showRecoveryCodes"
                     icon="arrow-path"
                     variant="filled"
+                    class="min-h-11"
                     wire:click="regenerateRecoveryCodes"
                 >
                     {{ __('Regenerate codes') }}

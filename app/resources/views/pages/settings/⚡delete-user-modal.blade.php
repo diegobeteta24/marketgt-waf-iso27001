@@ -40,10 +40,10 @@ new class extends Component {
         {{-- Apilados y a ancho completo en móvil; en línea y a la derecha desde sm. --}}
         <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <flux:modal.close class="w-full sm:w-auto">
-                <flux:button variant="filled" class="w-full">{{ __('Cancel') }}</flux:button>
+                <flux:button variant="filled" class="min-h-11 w-full">{{ __('Cancel') }}</flux:button>
             </flux:modal.close>
 
-            <flux:button variant="danger" type="submit" data-test="confirm-delete-user-button">
+            <flux:button variant="danger" type="submit" class="min-h-11" data-test="confirm-delete-user-button">
                 {{ __('Delete account') }}
             </flux:button>
         </div>

@@ -4,10 +4,16 @@
         @include('partials.head')
     </head>
     <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+        {{--
+            Por debajo de lg el menú lateral es el cajón del teléfono y sus
+            enlaces miden 40 px: se suben a 44 para que se puedan pulsar con el
+            dedo. En escritorio se deja la altura compacta de Flux.
+        --}}
+        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 max-lg:[&_[data-flux-sidebar-item]]:h-11!">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
-                <flux:sidebar.collapse class="lg:hidden" />
+                {{-- El botón de cerrar el cajón también necesita 44 px reales. --}}
+                <flux:sidebar.collapse class="lg:hidden size-11! [&_button]:size-11!" />
             </flux:sidebar.header>
 
             {{--

@@ -202,7 +202,7 @@ new #[Title('Security settings')] class extends Component {
 
             {{-- En móvil el botón ocupa todo el ancho; desde sm vuelve a su tamaño natural. --}}
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                <flux:button variant="primary" type="submit" class="w-full sm:w-auto" data-test="update-password-button">
+                <flux:button variant="primary" type="submit" class="min-h-11 w-full sm:w-auto" data-test="update-password-button">
                     {{ __('Save') }}
                 </flux:button>
             </div>
@@ -223,7 +223,7 @@ new #[Title('Security settings')] class extends Component {
                             <div class="flex justify-start">
                                 <flux:button
                                     variant="danger"
-                                    class="w-full sm:w-auto"
+                                    class="min-h-11 w-full sm:w-auto"
                                     wire:click="disable"
                                 >
                                     {{ __('Disable 2FA') }}
@@ -241,7 +241,7 @@ new #[Title('Security settings')] class extends Component {
                             <flux:modal.trigger name="two-factor-setup-modal">
                                 <flux:button
                                     variant="primary"
-                                    class="w-full sm:w-auto"
+                                    class="min-h-11 w-full sm:w-auto"
                                     wire:click="$dispatch('start-two-factor-setup')"
                                 >
                                     {{ __('Enable 2FA') }}
@@ -335,12 +335,14 @@ new #[Title('Security settings')] class extends Component {
             <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <flux:button
                     variant="outline"
+                    class="min-h-11"
                     wire:click="closeDeleteModal"
                 >
                     {{ __('Cancel') }}
                 </flux:button>
                 <flux:button
                     variant="danger"
+                    class="min-h-11"
                     wire:click="deletePasskey"
                 >
                     {{ __('Remove passkey') }}

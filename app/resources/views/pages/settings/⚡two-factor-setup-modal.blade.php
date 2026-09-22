@@ -203,7 +203,7 @@ new class extends Component {
                     <div class="flex items-center space-x-3">
                         <flux:button
                             variant="outline"
-                            class="flex-1"
+                            class="min-h-11 flex-1"
                             wire:click="resetVerification"
                         >
                             {{ __('Back') }}
@@ -211,7 +211,7 @@ new class extends Component {
 
                         <flux:button
                             variant="primary"
-                            class="flex-1"
+                            class="min-h-11 flex-1"
                             wire:click="confirmTwoFactor"
                             x-bind:disabled="$wire.code.length < 6"
                         >
@@ -256,7 +256,7 @@ new class extends Component {
                     <flux:button
                         :disabled="$errors->has('setupData')"
                         variant="primary"
-                        class="w-full"
+                        class="min-h-11 w-full"
                         wire:click="showVerificationIfNecessary"
                     >
                         {{ $this->modalConfig['buttonText'] }}
@@ -302,7 +302,7 @@ new class extends Component {
 
                                 <button
                                     @click="copy()"
-                                    class="px-3 transition-colors border-l cursor-pointer border-stone-200 dark:border-stone-600"
+                                    class="flex min-h-11 min-w-11 items-center justify-center px-3 transition-colors border-l cursor-pointer border-stone-200 dark:border-stone-600"
                                 >
                                     <flux:icon.document-duplicate x-show="!copied" variant="outline"></flux:icon>
                                     <flux:icon.check

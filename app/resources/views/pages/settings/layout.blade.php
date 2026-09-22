@@ -5,7 +5,11 @@
         desde md hacia arriba, donde ya hay sitio para las dos columnas.
     --}}
     <div class="w-full pb-4 md:me-10 md:w-[220px] md:shrink-0">
-        <flux:navlist aria-label="{{ __('Settings') }}">
+        {{--
+            Por debajo de lg los enlaces de Flux miden 40 px; se suben a 44 para
+            que se puedan pulsar con el dedo sin acertar de milagro.
+        --}}
+        <flux:navlist aria-label="{{ __('Settings') }}" class="max-lg:[&_[data-flux-navlist-item]]:h-11!">
             <flux:navlist.item :href="route('profile.edit')" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
             <flux:navlist.item :href="route('security.edit')" wire:navigate>{{ __('Security') }}</flux:navlist.item>
             <flux:navlist.item :href="route('appearance.edit')" wire:navigate>{{ __('Appearance') }}</flux:navlist.item>

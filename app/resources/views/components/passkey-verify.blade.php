@@ -47,10 +47,11 @@
     <template x-if="supported">
         <div>
             <div class="grid gap-2">
+                {{-- 44 px de alto reales: es el primer botón táctil de la pantalla de acceso. --}}
                 <flux:button
                     variant="outline"
                     icon="finger-print"
-                    class="w-full"
+                    class="min-h-11 w-full"
                     x-on:click="verify()"
                     x-bind:disabled="loading"
                 >
