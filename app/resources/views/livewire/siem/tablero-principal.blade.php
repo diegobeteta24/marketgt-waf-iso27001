@@ -159,13 +159,13 @@
             >
                 @foreach ($grafica['rejilla'] as $linea)
                     <line
-                        class="siem-rejilla"
+                        class="siem-rejilla" style="stroke: rgba(255,255,255,0.22)"
                         x1="{{ $grafica['margen_izquierdo'] }}"
                         x2="{{ $grafica['ancho'] - 12 }}"
                         y1="{{ $linea['y'] }}"
                         y2="{{ $linea['y'] }}"
                     />
-                    <text class="siem-eje" x="{{ $grafica['margen_izquierdo'] - 8 }}" y="{{ $linea['y'] + 4 }}" text-anchor="end">
+                    <text class="siem-eje" style="fill: #d4d4d4; font-size: 11px" x="{{ $grafica['margen_izquierdo'] - 8 }}" y="{{ $linea['y'] + 4 }}" text-anchor="end">
                         {{ number_format($linea['valor']) }}
                     </text>
                 @endforeach
@@ -176,7 +176,7 @@
 
                         @if ($barra['permitidos']['alto'] > 0)
                             <rect
-                                class="siem-barra-permitidos"
+                                class="siem-barra-permitidos" style="fill: #94a3b8; stroke: #171717; stroke-width: 0.5"
                                 x="{{ $barra['x'] }}"
                                 y="{{ $barra['permitidos']['y'] }}"
                                 width="{{ $barra['ancho'] }}"
@@ -187,7 +187,7 @@
 
                         @if ($barra['bloqueados']['alto'] > 0)
                             <rect
-                                class="siem-barra-bloqueados"
+                                class="siem-barra-bloqueados" style="fill: #34d399; stroke: #171717; stroke-width: 0.5"
                                 x="{{ $barra['x'] }}"
                                 y="{{ $barra['bloqueados']['y'] }}"
                                 width="{{ $barra['ancho'] }}"
@@ -199,7 +199,7 @@
                         @if ($barra['indice'] === $grafica['indice_maximo'] && $barra['total'] > 0)
                             {{-- Solo se etiqueta el pico: un numero sobre cada barra convierte la grafica en una tabla mala. --}}
                             <text
-                                class="siem-etiqueta-directa"
+                                class="siem-etiqueta-directa" style="fill: #ffffff; font-weight: 700"
                                 x="{{ $barra['centro'] }}"
                                 y="{{ max($barra['permitidos']['alto'] > 0 ? $barra['permitidos']['y'] : $barra['bloqueados']['y'], 14) - 6 }}"
                                 text-anchor="middle"
@@ -207,11 +207,16 @@
                         @endif
 
                         @if ($barra['mostrar_etiqueta'])
+                            {{-- El color va en línea, no en la clase: las horas del eje salían
+                                 en negro sobre el fondo oscuro cuando la hoja del panel no
+                                 llegaba al documento. La clase se conserva porque aporta el
+                                 tamaño y el control de visibilidad en pantalla estrecha. --}}
                             <text
                                 @class([
                                     'siem-eje',
                                     'siem-solo-ancho' => ! in_array($barra['indice'], $etiquetasEnMovil, true),
                                 ])
+                                style="fill: #d4d4d4; font-size: 11px"
                                 x="{{ $barra['centro'] }}"
                                 y="{{ $grafica['linea_base'] + 18 }}"
                                 text-anchor="middle"
@@ -221,7 +226,7 @@
                 @endforeach
 
                 <line
-                    class="siem-rejilla"
+                    class="siem-rejilla" style="stroke: rgba(255,255,255,0.22)"
                     x1="{{ $grafica['margen_izquierdo'] }}"
                     x2="{{ $grafica['ancho'] - 12 }}"
                     y1="{{ $grafica['linea_base'] }}"
