@@ -29,6 +29,39 @@ DOCKER_DIR="${REPO_ROOT}/infra/docker"
 ENV_FILE="${DOCKER_DIR}/.env"
 
 log "Desplegando MarketGT en ${DOMINIO}"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Traer los cambios antes de construir
+#
+# El código viaja DENTRO de la imagen: el Dockerfile lo copia al construir y el
+# contenedor no lee nada del disco del servidor. Por eso, si se despliega sin
+# haber traído los cambios, la construcción encuentra el mismo contexto de
+# siempre, reutiliza la imagen anterior en unos milisegundos, y el despliegue
+# informa éxito sin haber cambiado absolutamente nada.
+#
+# Esa confusión costó varias horas: el sitio seguía mostrando la versión
+# anterior mientras el servidor ya tenía los archivos nuevos en el disco, y
+# ninguna de las dos cosas parecía contradictoria por separado.
+#
+# Pista para reconocerlo: una construcción legítima de esta imagen tarda
+# minutos. Si termina en menos de un segundo, no se construyó nada.
+# ─────────────────────────────────────────────────────────────────────────────
+if [ "${SIN_ACTUALIZAR:-0}" != "1" ] && [ -d "${REPO_ROOT}/.git" ]; then
+  log "Trayendo los cambios del repositorio"
+  ANTES="$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo '?')"
+
+  if git -C "${REPO_ROOT}" pull --ff-only 2>&1 | tail -3; then
+    DESPUES="$(git -C "${REPO_ROOT}" rev-parse --short HEAD 2>/dev/null || echo '?')"
+    if [ "${ANTES}" = "${DESPUES}" ]; then
+      ok "Ya estaba al día (${DESPUES})"
+    else
+      ok "Actualizado de ${ANTES} a ${DESPUES}"
+    fi
+  else
+    warn "No se pudieron traer los cambios. Se despliega lo que hay en el disco."
+    warn "Si esperabas cambios nuevos, resolvelo antes de continuar."
+  fi
+fi
 log "Repositorio: ${REPO_ROOT}"
 
 # ─────────────────────────────────────────────────────────────────────────────
