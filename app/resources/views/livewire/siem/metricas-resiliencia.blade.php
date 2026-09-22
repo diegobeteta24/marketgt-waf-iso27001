@@ -148,6 +148,19 @@
                 }
             @endphp
 
+            {{--
+                OJO CON LA PRIORIDAD DE LOS COLORES EN SVG. Aquí el color iba en el atributo
+                `fill`, y los atributos de presentación son lo ÚLTIMO que gana en la cascada:
+                cualquier regla de hoja de estilos los pisa. La clase `siem-eje` fija el relleno
+                de los textos de los ejes, de modo que las etiquetas salían en el gris apagado de
+                las gráficas por mucho que aquí se pidiera blanco. Por eso el color va ahora
+                dentro de `style`, que sí tiene prioridad sobre una regla de clase.
+
+                Los tonos también se suben. Las variables de contorno y rejilla están calibradas
+                para las líneas de fondo de una gráfica de barras, donde deben pasar
+                desapercibidas; aquí son la figura principal y necesitan sostenerse solas,
+                además en un proyector que lava los colores.
+            --}}
             <svg viewBox="0 0 300 250"
                  class="mx-auto h-auto w-full max-w-[20rem] shrink-0 sm:mx-0 sm:w-72"
                  role="img"
@@ -156,53 +169,50 @@
                 {{-- Equilibrio esperado --}}
                 <polygon points="{{ implode(' ', $ideal) }}"
                          fill="none"
-                         stroke="var(--siem-contorno)"
-                         stroke-width="1.5"
-                         stroke-dasharray="5 4" />
+                         stroke="rgba(255,255,255,0.60)"
+                         stroke-width="1.75"
+                         stroke-dasharray="6 5" />
 
                 {{-- Radios: dejan ver cuánto se quedó corto cada vértice --}}
                 @foreach ($datos as $d)
                     <line x1="{{ $cx }}" y1="{{ $cy }}" x2="{{ $d['x'] }}" y2="{{ $d['y'] }}"
-                          stroke="var(--siem-rejilla)" stroke-width="1" />
+                          stroke="rgba(255,255,255,0.32)" stroke-width="1" />
                 @endforeach
 
-                {{-- Estado medido --}}
+                {{-- Estado medido. El relleno sube a 0,35 y el trazo se engrosa: es la figura
+                     que carga el mensaje y tiene que verse antes que ninguna otra. --}}
                 <polygon points="{{ implode(' ', $real) }}"
-                         fill="var(--siem-critica)"
-                         fill-opacity="0.22"
-                         stroke="var(--siem-critica)"
-                         stroke-width="2"
+                         fill="#f87171"
+                         fill-opacity="0.35"
+                         stroke="#fca5a5"
+                         stroke-width="2.5"
                          stroke-linejoin="round" />
 
                 {{-- Vértices y etiquetas --}}
                 @foreach ($datos as $clave => $d)
-                    <circle cx="{{ $d['x'] }}" cy="{{ $d['y'] }}" r="6"
-                            fill="{{ $colorEstado[$d['estado']] }}"
-                            stroke="var(--siem-superficie)" stroke-width="2" />
+                    <circle cx="{{ $d['x'] }}" cy="{{ $d['y'] }}" r="6.5"
+                            style="fill: {{ $colorEstado[$d['estado']] }}"
+                            stroke="#171717" stroke-width="2" />
 
-                    <text class="siem-eje"
-                          x="{{ $d['ex'] }}" y="{{ $d['ey'] + $d['dy'] }}"
+                    <text x="{{ $d['ex'] }}" y="{{ $d['ey'] + $d['dy'] }}"
                           text-anchor="{{ $d['anclaje'] }}"
-                          style="font-weight: 700; font-size: 13px"
-                          fill="var(--siem-destacado)">{{ $vertices[$clave]['nombre'] }}</text>
+                          style="fill: #ffffff; font-weight: 700; font-size: 13px">{{ $vertices[$clave]['nombre'] }}</text>
 
-                    <text class="siem-eje"
-                          x="{{ $d['ex'] }}" y="{{ $d['ey'] + $d['dy'] + 14 }}"
+                    <text x="{{ $d['ex'] }}" y="{{ $d['ey'] + $d['dy'] + 15 }}"
                           text-anchor="{{ $d['anclaje'] }}"
-                          style="font-size: 11px"
-                          fill="{{ $colorEstado[$d['estado']] }}">{{ $textoEstado[$d['estado']] }} · {{ $d['porcentaje'] }} %</text>
+                          style="fill: {{ $colorEstado[$d['estado']] }}; font-size: 11.5px; font-weight: 600">{{ $textoEstado[$d['estado']] }} · {{ $d['porcentaje'] }} %</text>
                 @endforeach
 
                 {{-- Leyenda. Sin ella la figura discontinua se lee como un adorno. --}}
-                <g transform="translate(14, 238)">
-                    <line x1="0" y1="-4" x2="16" y2="-4"
-                          stroke="var(--siem-contorno)" stroke-width="1.5" stroke-dasharray="5 4" />
-                    <text class="siem-eje" x="21" y="0" style="font-size: 10px">equilibrio esperado</text>
+                <g transform="translate(12, 240)">
+                    <line x1="0" y1="-4" x2="18" y2="-4"
+                          stroke="rgba(255,255,255,0.60)" stroke-width="1.75" stroke-dasharray="6 5" />
+                    <text x="24" y="0" style="fill: #d4d4d4; font-size: 10.5px">equilibrio esperado</text>
 
-                    <rect x="132" y="-9" width="14" height="10"
-                          fill="var(--siem-critica)" fill-opacity="0.22"
-                          stroke="var(--siem-critica)" stroke-width="1.5" />
-                    <text class="siem-eje" x="151" y="0" style="font-size: 10px">estado medido</text>
+                    <rect x="136" y="-10" width="16" height="12"
+                          fill="#f87171" fill-opacity="0.35"
+                          stroke="#fca5a5" stroke-width="1.75" />
+                    <text x="158" y="0" style="fill: #d4d4d4; font-size: 10.5px">estado medido</text>
                 </g>
             </svg>
         </div>
