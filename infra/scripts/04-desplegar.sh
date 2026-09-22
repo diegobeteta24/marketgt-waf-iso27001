@@ -224,6 +224,35 @@ ${EJECUTAR} storage:link  >/dev/null 2>&1 || true
 ok "Configuración, rutas y vistas en caché"
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Reinicio de la aplicación · NO ES OPCIONAL
+#
+# El acelerador de código de PHP guarda en memoria la versión compilada de cada
+# archivo. En producción no revalida las marcas de tiempo, de modo que sigue
+# sirviendo la versión anterior aunque el archivo haya cambiado en el disco.
+#
+# El efecto es desconcertante y costó horas descubrirlo: el despliegue informa
+# éxito, los archivos nuevos están en el servidor, la caché de vistas se limpia
+# sin errores, y el sitio sigue mostrando exactamente lo de antes. Uno acaba
+# dudando de sus propios cambios en vez de sospechar de la memoria del
+# intérprete.
+#
+# Reiniciar el contenedor vacía esa memoria. Cuesta unos segundos y evita que
+# un despliegue correcto parezca no haber ocurrido.
+# ─────────────────────────────────────────────────────────────────────────────
+log "Reiniciando la aplicación para vaciar el acelerador de código"
+docker compose -f "${DOCKER_DIR}/docker-compose.yml" restart app programador >/dev/null 2>&1 || \
+  docker compose -f "${DOCKER_DIR}/docker-compose.yml" restart app >/dev/null 2>&1 || true
+
+for intento in $(seq 1 20); do
+  ESTADO="$(docker compose -f "${DOCKER_DIR}/docker-compose.yml" ps app --format '{{.Status}}' 2>/dev/null || echo '')"
+  case "${ESTADO}" in
+    *healthy*) ok "Aplicación reiniciada y sana"; break ;;
+  esac
+  [ "${intento}" -eq 20 ] && warn "La aplicación tarda en volver; revisá: docker compose ps"
+  sleep 3
+done
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 7. Renovación automática del certificado
 # ─────────────────────────────────────────────────────────────────────────────
 log "Programando la renovación del certificado"
