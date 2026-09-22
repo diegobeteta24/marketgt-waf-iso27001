@@ -5,6 +5,7 @@ namespace App\Livewire\Siem;
 use App\Models\PruebaRestauracion;
 use App\Services\Siem\CalculadoraMetricas;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Livewire\Attributes\Computed;
@@ -42,11 +43,18 @@ class PanelContinuidad extends Component
     #[Computed]
     public function pruebas(): Collection
     {
-        return PruebaRestauracion::query()
-            ->with('operador')
-            ->orderByDesc('iniciada_en')
-            ->limit(max(1, min($this->limite, 50)))
-            ->get();
+        // Si la migracion todavia no corrio, el panel se queda vacio en lugar de tumbar la
+        // pagina entera. El motivo exacto lo publica la procedencia de las dos metricas, de
+        // modo que el hueco no se disfraza: se explica.
+        try {
+            return PruebaRestauracion::query()
+                ->with('operador')
+                ->orderByDesc('iniciada_en')
+                ->limit(max(1, min($this->limite, 50)))
+                ->get();
+        } catch (QueryException) {
+            return collect();
+        }
     }
 
     /**
@@ -66,8 +74,13 @@ class PanelContinuidad extends Component
     #[Computed]
     public function resumen(): array
     {
-        $total = PruebaRestauracion::query()->count();
-        $satisfactorias = PruebaRestauracion::query()->satisfactorias()->count();
+        try {
+            $total = PruebaRestauracion::query()->count();
+            $satisfactorias = PruebaRestauracion::query()->satisfactorias()->count();
+        } catch (QueryException) {
+            $total = 0;
+            $satisfactorias = 0;
+        }
 
         return [
             'total' => $total,

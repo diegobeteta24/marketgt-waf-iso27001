@@ -7,6 +7,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\QueryException;
 
 /**
  * Acta de una prueba de restauracion ejecutada de verdad.
@@ -349,29 +350,27 @@ class PruebaRestauracion extends Model
     public static function medicionRecuperacion(?CarbonInterface $ahora = null): array
     {
         $ahora = $ahora?->copy() ?? CarbonImmutable::now();
-        $prueba = self::ultimaSatisfactoria();
+
+        try {
+            $prueba = self::ultimaSatisfactoria();
+            $intentos = $prueba === null ? self::query()->count() : 0;
+        } catch (QueryException) {
+            // Si la tabla todavia no existe, la metrica se declara sin datos y DICE por que.
+            // Ni se cae el triangulo entero ni se finge que no pasa nada: un panel que
+            // enmascara su propio fallo de despliegue es peor que uno que se rompe.
+            return self::sinMedicion(
+                'No se puede leer el registro de pruebas de restauracion: la tabla pruebas_restauracion '
+                    .'no existe todavia. Ejecute "php artisan migrate".'
+            );
+        }
 
         if ($prueba === null) {
-            $intentos = self::query()->count();
-
-            $motivo = $intentos === 0
+            return self::sinMedicion($intentos === 0
                 ? 'No hay ninguna prueba de restauracion registrada. Ejecute '
                     .'"php artisan siem:probar-restauracion" o infra/scripts/probar-restauracion.sh: '
                     .'el objetivo se mide restaurando, no leyendo la configuracion del respaldo.'
                 : 'Las '.$intentos.' pruebas registradas terminaron sin verificacion satisfactoria, '
-                    .'de modo que ninguna demuestra un tiempo de recuperacion. Revise el historial de continuidad.';
-
-            return [
-                'prueba' => null,
-                'rto_horas' => null,
-                'rto_muestra' => 0,
-                'rto_origen' => $motivo,
-                'rpo_horas' => null,
-                'rpo_origen' => $motivo,
-                'dias_desde_prueba' => null,
-                'vencida' => true,
-                'advertencia' => null,
-            ];
+                    .'de modo que ninguna demuestra un tiempo de recuperacion. Revise el historial de continuidad.');
         }
 
         $dias = $prueba->diasDesdeLaPrueba($ahora);
@@ -390,9 +389,13 @@ class PruebaRestauracion extends Model
                 .'procedimiento funciona, pero con ese volumen el tiempo medido no representa al de produccion.';
         }
 
+        // La cifra exacta va en la procedencia porque el panel del triangulo redondea a
+        // minutos: una recuperacion de tres segundos se mostraria como "0 min" y parecería
+        // que no se midio, cuando lo que pasa es que tardo menos de lo que la unidad resuelve.
         $rtoOrigen = sprintf(
-            'Duracion medida de la recuperacion (descifrado + restauracion + verificacion) en la prueba del %s, '
+            'Duracion medida de la recuperacion (descifrado + restauracion + verificacion): %s, en la prueba del %s '
                 .'ejecutada por %s sobre la base de prueba %s. Se verificaron %d tablas y %s filas.',
+            self::duracionLegible($prueba->segundos_recuperacion),
             $prueba->iniciada_en->format('d/m/Y H:i'),
             $prueba->responsable(),
             $prueba->base_prueba,
@@ -406,8 +409,8 @@ class PruebaRestauracion extends Model
                 .'. Sin un respaldo que fechar no hay punto de recuperacion que medir.';
         } else {
             $rpoOrigen = sprintf(
-                'Antiguedad del respaldo mas reciente (%s) medida al iniciar la prueba del %s, antes de volcar nada. '
-                    .'Se encontraron %d respaldos en %s.',
+                'Antiguedad del respaldo mas reciente, fechado el %s, medida al iniciar la prueba del %s y antes de '
+                    .'volcar nada. Se encontraron %d respaldos en %s.',
                 $prueba->respaldo_mas_reciente_en?->format('d/m/Y H:i') ?? 'sin fecha',
                 $prueba->iniciada_en->format('d/m/Y H:i'),
                 $prueba->respaldos_encontrados,
@@ -425,6 +428,37 @@ class PruebaRestauracion extends Model
             'dias_desde_prueba' => $dias,
             'vencida' => $vencida,
             'advertencia' => $avisos === [] ? null : implode(' ', $avisos),
+        ];
+    }
+
+    /**
+     * Forma canonica del "todavia no se puede medir". Existe para que el motivo viaje con el
+     * hueco: una metrica sin datos que no explica cual es el dato que falta no se puede cerrar.
+     *
+     * @return array{
+     *     prueba: self|null,
+     *     rto_horas: float|null,
+     *     rto_muestra: int,
+     *     rto_origen: string,
+     *     rpo_horas: float|null,
+     *     rpo_origen: string,
+     *     dias_desde_prueba: int|null,
+     *     vencida: bool,
+     *     advertencia: string|null,
+     * }
+     */
+    private static function sinMedicion(string $motivo): array
+    {
+        return [
+            'prueba' => null,
+            'rto_horas' => null,
+            'rto_muestra' => 0,
+            'rto_origen' => $motivo,
+            'rpo_horas' => null,
+            'rpo_origen' => $motivo,
+            'dias_desde_prueba' => null,
+            'vencida' => true,
+            'advertencia' => null,
         ];
     }
 }
