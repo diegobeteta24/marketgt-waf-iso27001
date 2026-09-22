@@ -274,17 +274,17 @@ class extends Component
 }; ?>
 
 <div class="space-y-6">
-    <div>
-        <h1 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Finalizar compra</h1>
+    <div class="min-w-0">
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl dark:text-white">Finalizar compra</h1>
         <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             Datos de envío y de pago. Todos los campos marcados son obligatorios.
         </p>
     </div>
 
-    <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+    <div class="rounded-xl border border-amber-300 bg-amber-50 p-3 sm:p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
         <div class="flex gap-3">
             <flux:icon.exclamation-triangle class="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div class="text-sm text-amber-900 dark:text-amber-200">
+            <div class="min-w-0 text-sm text-amber-900 dark:text-amber-200">
                 <p class="font-semibold">Pago simulado &mdash; entorno de demostración académica</p>
                 <p class="mt-1 leading-relaxed">
                     Esta pasarela no cobra nada y no se conecta con ningún banco. El número de tarjeta se
@@ -293,7 +293,7 @@ class extends Component
                     tarjeta real.
                 </p>
                 <div class="mt-3">
-                    <flux:button size="sm" variant="filled" icon="beaker" wire:click="llenarDatosDePrueba">
+                    <flux:button size="sm" variant="filled" icon="beaker" class="min-h-11 w-full sm:w-auto" wire:click="llenarDatosDePrueba">
                         Llenar con datos de prueba
                     </flux:button>
                 </div>
@@ -304,21 +304,21 @@ class extends Component
     @php($carrito = $this->carrito)
 
     @if ($carrito === null || $carrito->estaVacio())
-        <section class="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-16 text-center dark:border-zinc-700 dark:bg-zinc-800">
+        <section class="rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-12 text-center sm:px-6 sm:py-16 dark:border-zinc-700 dark:bg-zinc-800">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-white">No hay nada que pagar</h2>
             <p class="mx-auto mt-1 max-w-sm text-sm text-zinc-500 dark:text-zinc-400">
                 Tu carrito está vacío. Agregá al menos un producto para continuar.
             </p>
             <div class="mt-5">
-                <flux:button variant="primary" icon="squares-2x2" :href="route('tienda.catalogo')" wire:navigate>
+                <flux:button variant="primary" icon="squares-2x2" class="min-h-11 w-full sm:w-auto" :href="route('tienda.catalogo')" wire:navigate>
                     Ir al catálogo
                 </flux:button>
             </div>
         </section>
     @else
         <form wire:submit="confirmar" class="grid gap-6 lg:grid-cols-3">
-            <div class="space-y-6 lg:col-span-2">
-                <section class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-800">
+            <div class="min-w-0 space-y-6 lg:col-span-2">
+                <section class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-800">
                     <h2 class="text-base font-semibold text-zinc-900 dark:text-white">Datos de envío</h2>
 
                     <div class="grid gap-4 sm:grid-cols-2">
@@ -341,10 +341,10 @@ class extends Component
                     </div>
                 </section>
 
-                <section class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-800">
-                    <div class="flex items-center justify-between gap-2">
+                <section class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-800">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
                         <h2 class="text-base font-semibold text-zinc-900 dark:text-white">Datos de la tarjeta</h2>
-                        <span class="rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+                        <span class="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
                             Simulado
                         </span>
                     </div>
@@ -373,14 +373,16 @@ class extends Component
                 </section>
             </div>
 
-            <aside class="lg:col-span-1">
-                <div class="sticky top-24 space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-800">
+            <aside class="min-w-0 lg:col-span-1">
+                {{-- sticky solo desde lg: apilado en el teléfono no tiene sentido pegar la
+                     tarjeta y, si el resumen es alto, estorbaría el desplazamiento. --}}
+                <div class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 lg:sticky lg:top-24 dark:border-zinc-700 dark:bg-zinc-800">
                     <h2 class="text-base font-semibold text-zinc-900 dark:text-white">Tu pedido</h2>
 
                     <ul class="space-y-3 text-sm">
                         @foreach ($carrito->lineas as $linea)
                             <li wire:key="resumen-{{ $linea->id }}" class="flex items-start justify-between gap-3">
-                                <span class="min-w-0 text-zinc-600 dark:text-zinc-300">
+                                <span class="min-w-0 break-words text-zinc-600 dark:text-zinc-300">
                                     <span class="font-medium text-zinc-900 dark:text-white">{{ $linea->cantidad }} &times;</span>
                                     {{ $linea->producto->nombre }}
                                 </span>
@@ -392,13 +394,13 @@ class extends Component
                     <flux:separator />
 
                     <dl class="space-y-2 text-sm">
-                        <div class="flex justify-between">
+                        <div class="flex justify-between gap-3">
                             <dt class="text-zinc-500 dark:text-zinc-400">Subtotal</dt>
-                            <dd class="font-medium tabular-nums">{{ \App\Models\Producto::quetzales($carrito->subtotal()) }}</dd>
+                            <dd class="shrink-0 font-medium tabular-nums">{{ \App\Models\Producto::quetzales($carrito->subtotal()) }}</dd>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between gap-3">
                             <dt class="text-zinc-500 dark:text-zinc-400">Envío</dt>
-                            <dd class="font-medium tabular-nums">
+                            <dd class="shrink-0 font-medium tabular-nums">
                                 {{ $carrito->costoEnvio() > 0 ? \App\Models\Producto::quetzales($carrito->costoEnvio()) : 'Gratis' }}
                             </dd>
                         </div>
@@ -406,7 +408,7 @@ class extends Component
 
                     <flux:separator />
 
-                    <div class="flex items-baseline justify-between">
+                    <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                         <span class="text-sm font-medium text-zinc-600 dark:text-zinc-300">Total a pagar</span>
                         <span class="text-2xl font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
                             {{ \App\Models\Producto::quetzales($carrito->total()) }}
@@ -416,7 +418,7 @@ class extends Component
                     <flux:button
                         type="submit"
                         variant="primary"
-                        class="w-full"
+                        class="min-h-11 w-full"
                         icon="lock-closed"
                         wire:loading.attr="disabled"
                         wire:target="confirmar"
@@ -425,7 +427,7 @@ class extends Component
                         <span wire:loading wire:target="confirmar">Procesando...</span>
                     </flux:button>
 
-                    <flux:button variant="ghost" class="w-full" :href="route('tienda.carrito')" wire:navigate>
+                    <flux:button variant="ghost" class="min-h-11 w-full" :href="route('tienda.carrito')" wire:navigate>
                         Volver al carrito
                     </flux:button>
                 </div>

@@ -109,4 +109,48 @@
     .panel-siem .siem-numero {
         font-variant-numeric: tabular-nums;
     }
+
+    /*
+        Adaptacion a pantallas pequenas del SVG del tablero.
+
+        La grafica se dibuja sobre un lienzo de 760 unidades. En un telefono ese lienzo se
+        escala a poco mas de 300 pixeles reales, de modo que una tipografia fijada en 11
+        unidades acaba midiendo cuatro: ilegible. Como el tamano va en unidades del propio
+        lienzo, aqui se agranda para que al encogerse el SVG recupere un cuerpo legible. Se
+        permite ademas que la etiqueta del eje vertical sobresalga del recuadro en vez de
+        recortarse: el relleno de la tarjeta le deja sitio.
+
+        La regla se limita a .siem-grafica a proposito: el triangulo de ciberresiliencia usa
+        el mismo .siem-eje pero sobre un lienzo mucho mas pequeno, y ahi agrandar la letra
+        la haria chocar consigo misma.
+    */
+    @media (max-width: 639px) {
+        .panel-siem .siem-grafica {
+            overflow: visible;
+        }
+
+        .panel-siem .siem-grafica .siem-eje {
+            font-size: 21px;
+        }
+
+        .panel-siem .siem-grafica .siem-etiqueta-directa {
+            font-size: 22px;
+        }
+    }
+
+    /*
+        Etiquetas del eje horizontal que solo caben en pantalla ancha. El componente ya
+        reparte un maximo de doce; en un telefono esas doce se amontonan, asi que la vista
+        marca la mitad con esta clase y aqui se ocultan. Es una decision de presentacion:
+        el dato sigue estando en el titulo accesible de cada barra.
+    */
+    .panel-siem .siem-solo-ancho {
+        display: none;
+    }
+
+    @media (min-width: 640px) {
+        .panel-siem .siem-solo-ancho {
+            display: inline;
+        }
+    }
 </style>

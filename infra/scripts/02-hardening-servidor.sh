@@ -178,7 +178,7 @@ AllowUsers ${ADMIN_USER}
 # acaba forzando a abrir otra vía de acceso para recuperar el control. Los
 # cifrados en modo contador siguen siendo aceptables; lo que se excluye de
 # verdad son los algoritmos obsoletos como CBC, 3DES, RC4 y Arcfour.
-KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group14-sha256,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256
 Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
 MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
 EOF

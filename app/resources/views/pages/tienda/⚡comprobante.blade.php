@@ -46,26 +46,28 @@ class extends Component
 }; ?>
 
 <div class="mx-auto max-w-3xl space-y-6">
-    <section class="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-center dark:border-emerald-500/30 dark:bg-emerald-500/10">
+    <section class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center sm:rounded-3xl sm:p-6 dark:border-emerald-500/30 dark:bg-emerald-500/10">
         <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-emerald-600">
             <flux:icon.check class="text-white" />
         </div>
-        <h1 class="mt-4 text-2xl font-bold tracking-tight text-emerald-900 dark:text-emerald-100">
+        <h1 class="mt-4 text-xl font-bold tracking-tight text-emerald-900 sm:text-2xl dark:text-emerald-100">
             ¡Pedido confirmado!
         </h1>
-        <p class="mt-1 text-sm text-emerald-800 dark:text-emerald-200">
+        {{-- break-words: un correo largo no tiene espacios donde cortar y, sin esto,
+             empujaba la tarjeta fuera de la pantalla del teléfono. --}}
+        <p class="mt-1 break-words text-sm text-emerald-800 dark:text-emerald-200">
             Gracias por tu compra, {{ $pedido->nombre_cliente }}. Enviamos el detalle a
             {{ $pedido->correo_cliente }}.
         </p>
-        <p class="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-1.5 text-sm font-semibold tracking-wide text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
+        <p class="mt-4 inline-flex max-w-full items-center gap-2 break-all rounded-full bg-white px-4 py-1.5 text-sm font-semibold tracking-wide text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">
             Pedido {{ $pedido->numero }}
         </p>
     </section>
 
-    <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-800">
+    <section class="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-800">
         <div class="flex flex-wrap items-center justify-between gap-2">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-white">Detalle del pedido</h2>
-            <span class="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+            <span class="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
                 {{ $pedido->estadoLegible() }}
             </span>
         </div>
@@ -74,7 +76,7 @@ class extends Component
             @foreach ($pedido->lineas as $linea)
                 <div wire:key="linea-pedido-{{ $linea->id }}" class="flex items-start justify-between gap-3 text-sm">
                     <div class="min-w-0">
-                        <p class="font-medium text-zinc-900 dark:text-white">{{ $linea->nombre_producto }}</p>
+                        <p class="break-words font-medium text-zinc-900 dark:text-white">{{ $linea->nombre_producto }}</p>
                         <p class="text-xs text-zinc-500 dark:text-zinc-400">
                             {{ $linea->cantidad }} &times; {{ $linea->precioFormateado() }}
                         </p>
@@ -89,17 +91,17 @@ class extends Component
         <flux:separator class="my-4" />
 
         <dl class="space-y-2 text-sm">
-            <div class="flex justify-between">
+            <div class="flex justify-between gap-3">
                 <dt class="text-zinc-500 dark:text-zinc-400">Subtotal</dt>
-                <dd class="font-medium tabular-nums">{{ $pedido->subtotalFormateado() }}</dd>
+                <dd class="shrink-0 font-medium tabular-nums">{{ $pedido->subtotalFormateado() }}</dd>
             </div>
-            <div class="flex justify-between">
+            <div class="flex justify-between gap-3">
                 <dt class="text-zinc-500 dark:text-zinc-400">Envío</dt>
-                <dd class="font-medium tabular-nums">
+                <dd class="shrink-0 font-medium tabular-nums">
                     {{ (float) $pedido->envio > 0 ? $pedido->envioFormateado() : 'Gratis' }}
                 </dd>
             </div>
-            <div class="flex items-baseline justify-between pt-2">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 pt-2">
                 <dt class="text-sm font-medium text-zinc-600 dark:text-zinc-300">Total</dt>
                 <dd class="text-2xl font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
                     {{ $pedido->totalFormateado() }}
@@ -109,9 +111,11 @@ class extends Component
     </section>
 
     <div class="grid gap-4 sm:grid-cols-2">
-        <section class="rounded-2xl border border-zinc-200 bg-white p-5 text-sm dark:border-zinc-700 dark:bg-zinc-800">
+        <section class="rounded-2xl border border-zinc-200 bg-white p-4 text-sm sm:p-5 dark:border-zinc-700 dark:bg-zinc-800">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-white">Envío</h2>
-            <address class="mt-3 not-italic leading-relaxed text-zinc-600 dark:text-zinc-300">
+            {{-- La dirección de envío es texto libre y puede traer cadenas largas: se parte
+                 por palabras para que no se salga de la tarjeta en pantalla chica. --}}
+            <address class="mt-3 break-words not-italic leading-relaxed text-zinc-600 dark:text-zinc-300">
                 {{ $pedido->nombre_cliente }}<br />
                 {{ $pedido->direccion_envio }}<br />
                 {{ $pedido->municipio_envio }}, {{ $pedido->departamento_envio }}<br />

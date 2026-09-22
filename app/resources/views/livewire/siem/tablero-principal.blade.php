@@ -2,12 +2,27 @@
     $contadores = $this->contadores;
     $grafica = $this->grafica;
     $reglas = $this->reglas;
+
+    // Decision de presentacion, no de datos: el componente reparte hasta doce etiquetas en el
+    // eje horizontal, que es lo que cabe en pantalla ancha. En un telefono el lienzo se escala
+    // a menos de la mitad y esas doce se amontonan, asi que aqui se eligen las que si caben y
+    // el resto se marca con siem-solo-ancho para que la hoja de estilos las oculte en movil.
+    $indicesConEtiqueta = array_keys(array_filter(
+        $grafica['barras'],
+        static fn (array $barra): bool => $barra['mostrar_etiqueta'],
+    ));
+
+    $etiquetasEnMovil = array_values(array_filter(
+        $indicesConEtiqueta,
+        static fn (int $posicion): bool => $posicion % 2 === 0,
+        ARRAY_FILTER_USE_KEY,
+    ));
 @endphp
 
 {{-- El panel se refresca solo: un centro de monitoreo que hay que recargar a mano no monitorea. --}}
 <div wire:poll.15s class="space-y-6">
     @if ($this->ingestaDetenida)
-        <div class="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+        <div class="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 sm:p-4">
             <flux:icon.exclamation-triangle class="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
             <div class="text-sm">
                 <p class="font-semibold text-amber-700 dark:text-amber-300">La ingesta parece detenida</p>
@@ -25,8 +40,10 @@
         </div>
     @endif
 
-    {{-- Contadores. Cifras sueltas y grandes, sin grafica: el trabajo aqui es leerse de lejos. --}}
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    {{-- Contadores. Cifras sueltas y grandes, sin grafica: el trabajo aqui es leerse de lejos.
+         Dos columnas ya en el telefono: cuatro tarjetas apiladas obligarian a desplazarse
+         antes de haber visto el primer dato. Cuatro en linea desde lg. --}}
+    <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         @php
             $tarjetas = [
                 [
@@ -59,29 +76,29 @@
         @endphp
 
         @foreach ($tarjetas as $tarjeta)
-            <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-                <div class="flex items-center justify-between">
+            <div class="rounded-xl border border-zinc-200 bg-white p-3 sm:p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="flex items-start justify-between gap-2">
                     <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                         {{ $tarjeta['titulo'] }}
                     </p>
                     @switch ($tarjeta['icono'])
                         @case('signal')
-                            <flux:icon.signal class="size-4 text-zinc-400 dark:text-zinc-500" />
+                            <flux:icon.signal class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                         @break
 
                         @case('shield-exclamation')
-                            <flux:icon.shield-exclamation class="size-4 text-zinc-400 dark:text-zinc-500" />
+                            <flux:icon.shield-exclamation class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                         @break
 
                         @case('bell-alert')
-                            <flux:icon.bell-alert class="size-4 text-zinc-400 dark:text-zinc-500" />
+                            <flux:icon.bell-alert class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                         @break
 
                         @default
-                            <flux:icon.globe-americas class="size-4 text-zinc-400 dark:text-zinc-500" />
+                            <flux:icon.globe-americas class="size-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
                     @endswitch
                 </div>
-                <p class="siem-numero mt-2 text-3xl font-semibold text-zinc-900 dark:text-white">
+                <p class="siem-numero mt-2 text-2xl font-semibold text-zinc-900 sm:text-3xl dark:text-white">
                     {{ number_format($tarjeta['valor']) }}
                 </p>
                 <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{{ $tarjeta['pie'] }}</p>
@@ -90,14 +107,14 @@
     </div>
 
     {{-- Grafica temporal. SVG dibujado en el servidor, sin ninguna libreria externa. --}}
-    <figure class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+    <figure class="rounded-xl border border-zinc-200 bg-white p-3 sm:p-4 dark:border-zinc-700 dark:bg-zinc-900">
         <figcaption class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
+            <div class="min-w-0">
                 <flux:heading size="lg">Eventos por hora</flux:heading>
                 <flux:subheading>Ultimas {{ $this->horas }} horas, separando lo que el WAF corto de lo que dejo pasar.</flux:subheading>
             </div>
 
-            <div class="flex flex-wrap items-center gap-4">
+            <div class="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-start sm:gap-4">
                 <div class="flex items-center gap-4 text-xs text-zinc-600 dark:text-zinc-300">
                     <span class="flex items-center gap-1.5">
                         <span class="siem-muestra" style="background: var(--siem-serie-bloqueados)"></span>
@@ -115,7 +132,7 @@
                             type="button"
                             wire:click="cambiarVentana({{ $ventana }})"
                             @class([
-                                'rounded-md px-2 py-1 text-xs font-medium transition',
+                                'inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 text-xs font-medium transition sm:min-h-0 sm:min-w-0 sm:py-1',
                                 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900' => $this->horas === $ventana,
                                 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800' => $this->horas !== $ventana,
                             ])
@@ -130,10 +147,13 @@
                 No hay eventos en esta ventana. Ejecute el semillero de demostracion o la ingesta del WAF.
             </p>
         @else
+            {{-- El lienzo es proporcional: viewBox mas ancho al cien por cien, nunca un ancho
+                 en pixeles. La clase siem-grafica es la que le da a la hoja de estilos el
+                 asidero para agrandar la tipografia del eje cuando el SVG se encoge. --}}
             <svg
                 viewBox="0 0 {{ $grafica['ancho'] }} {{ $grafica['alto'] }}"
                 preserveAspectRatio="xMidYMid meet"
-                class="h-auto w-full"
+                class="siem-grafica h-auto w-full"
                 role="img"
                 aria-label="Eventos por hora, bloqueados y permitidos, en las ultimas {{ $this->horas }} horas"
             >
@@ -187,9 +207,15 @@
                         @endif
 
                         @if ($barra['mostrar_etiqueta'])
-                            <text class="siem-eje" x="{{ $barra['centro'] }}" y="{{ $grafica['linea_base'] + 18 }}" text-anchor="middle">
-                                {{ $barra['etiqueta'] }}
-                            </text>
+                            <text
+                                @class([
+                                    'siem-eje',
+                                    'siem-solo-ancho' => ! in_array($barra['indice'], $etiquetasEnMovil, true),
+                                ])
+                                x="{{ $barra['centro'] }}"
+                                y="{{ $grafica['linea_base'] + 18 }}"
+                                text-anchor="middle"
+                            >{{ $barra['etiqueta'] }}</text>
                         @endif
                     </g>
                 @endforeach
@@ -207,7 +233,7 @@
 
     <div class="grid gap-4 lg:grid-cols-2">
         {{-- Reglas mas activadas: donde esta apuntando el atacante y donde hay que afinar el WAF. --}}
-        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+        <div class="rounded-xl border border-zinc-200 bg-white p-3 sm:p-4 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:heading size="lg">Reglas mas activadas</flux:heading>
             <flux:subheading>Core Rule Set 4.29 y reglas propias del proyecto (15000-15099).</flux:subheading>
 
@@ -224,7 +250,9 @@
                             <th class="pb-2 font-medium">Regla</th>
                             <th class="pb-2 text-right font-medium">Activaciones</th>
                             <th class="pb-2 text-right font-medium">Bloqueos</th>
-                            <th class="pb-2 pl-3 font-medium">Peso</th>
+                            {{-- La barra de peso repite en forma lo que ya dice la columna de
+                                 activaciones: es lo primero que sobra en un telefono. --}}
+                            <th class="hidden pb-2 pl-3 font-medium sm:table-cell">Peso</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -239,7 +267,7 @@
                                 </td>
                                 <td class="siem-numero py-2 text-right">{{ number_format($regla['total']) }}</td>
                                 <td class="siem-numero py-2 text-right text-zinc-500 dark:text-zinc-400">{{ number_format($regla['bloqueados']) }}</td>
-                                <td class="w-28 py-2 pl-3">
+                                <td class="hidden w-28 py-2 pl-3 sm:table-cell">
                                     <div class="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
                                         <div
                                             class="h-2 rounded-full"
@@ -261,7 +289,7 @@
         </div>
 
         {{-- Direcciones mas agresivas, ordenadas por bloqueos y no por volumen. --}}
-        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+        <div class="rounded-xl border border-zinc-200 bg-white p-3 sm:p-4 dark:border-zinc-700 dark:bg-zinc-900">
             <flux:heading size="lg">Direcciones mas agresivas</flux:heading>
             <flux:subheading>Ordenadas por eventos bloqueados: el volumen solo suele delatar rastreadores legitimos.</flux:subheading>
 
@@ -270,10 +298,13 @@
                     <thead>
                         <tr class="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
                             <th class="pb-2 font-medium">Direccion</th>
-                            <th class="pb-2 font-medium">Pais</th>
+                            {{-- Cinco columnas no caben en un telefono. El pais no desaparece:
+                                 se muestra bajo la direccion, y la puntuacion maxima cede el
+                                 sitio porque la severidad ya se lee en el reparto de abajo. --}}
+                            <th class="hidden pb-2 font-medium sm:table-cell">Pais</th>
                             <th class="pb-2 text-right font-medium">Eventos</th>
                             <th class="pb-2 text-right font-medium">Bloqueos</th>
-                            <th class="pb-2 text-right font-medium">Puntuacion</th>
+                            <th class="hidden pb-2 text-right font-medium sm:table-cell">Puntuacion</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">

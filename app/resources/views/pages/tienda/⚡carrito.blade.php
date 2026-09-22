@@ -166,11 +166,13 @@ class extends Component
                                         {{ $linea->producto->categoria?->nombre }}
                                     </p>
                                     <a href="{{ route('tienda.producto', $linea->producto->slug) }}" wire:navigate>
-                                        <h2 class="truncate text-sm font-semibold text-zinc-900 dark:text-white">
+                                        {{-- line-clamp en vez de truncate: en el teléfono el nombre
+                                             completo cabe en dos renglones y ya no se corta. --}}
+                                        <h2 class="line-clamp-2 break-words text-sm font-semibold text-zinc-900 dark:text-white">
                                             {{ $linea->producto->nombre }}
                                         </h2>
                                     </a>
-                                    <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                                    <p class="mt-0.5 text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                                         {{ $linea->precioFormateado() }} c/u
                                     </p>
                                 </div>
@@ -179,18 +181,22 @@ class extends Component
                                     size="sm"
                                     variant="subtle"
                                     icon="trash"
+                                    class="min-h-11 min-w-11 shrink-0"
                                     wire:click="quitar({{ $linea->id }})"
                                     wire:confirm="¿Quitar «{{ $linea->producto->nombre }}» del carrito?"
                                     aria-label="Quitar del carrito"
                                 />
                             </div>
 
-                            <div class="mt-auto flex flex-wrap items-center justify-between gap-2">
-                                <div class="flex items-center rounded-xl border border-zinc-200 dark:border-zinc-600">
+                            {{-- Cantidad y subtotal: la fila envuelve y cada control mide 44 px,
+                                 que es el punto donde esta pantalla se desbordaba en el móvil. --}}
+                            <div class="mt-auto flex flex-wrap items-center justify-between gap-x-2 gap-y-3">
+                                <div class="flex shrink-0 items-center rounded-xl border border-zinc-200 dark:border-zinc-600">
                                     <flux:button
                                         size="sm"
                                         variant="subtle"
                                         icon="minus"
+                                        class="min-h-11 min-w-11"
                                         wire:click="disminuir({{ $linea->id }})"
                                         aria-label="Disminuir cantidad"
                                     />
@@ -199,12 +205,13 @@ class extends Component
                                         size="sm"
                                         variant="subtle"
                                         icon="plus"
+                                        class="min-h-11 min-w-11"
                                         wire:click="aumentar({{ $linea->id }})"
                                         aria-label="Aumentar cantidad"
                                     />
                                 </div>
 
-                                <p class="text-base font-bold tracking-tight text-zinc-900 dark:text-white">
+                                <p class="shrink-0 text-base font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
                                     {{ $linea->subtotalFormateado() }}
                                 </p>
                             </div>
@@ -217,6 +224,7 @@ class extends Component
                         size="sm"
                         variant="ghost"
                         icon="x-mark"
+                        class="min-h-11 w-full sm:w-auto"
                         wire:click="vaciar"
                         wire:confirm="¿Vaciar todo el carrito?"
                     >
@@ -226,19 +234,19 @@ class extends Component
             </section>
 
             <aside class="lg:col-span-1">
-                <div class="sticky top-24 space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-800">
+                <div class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5 lg:sticky lg:top-24 dark:border-zinc-700 dark:bg-zinc-800">
                     <h2 class="text-base font-semibold text-zinc-900 dark:text-white">Resumen del pedido</h2>
 
                     <dl class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <dt class="text-zinc-500 dark:text-zinc-400">
+                        <div class="flex justify-between gap-3">
+                            <dt class="min-w-0 text-zinc-500 dark:text-zinc-400">
                                 Subtotal ({{ $carrito->totalArticulos() }} {{ \Illuminate\Support\Str::plural('artículo', $carrito->totalArticulos()) }})
                             </dt>
-                            <dd class="font-medium tabular-nums">{{ \App\Models\Producto::quetzales($carrito->subtotal()) }}</dd>
+                            <dd class="shrink-0 font-medium tabular-nums">{{ \App\Models\Producto::quetzales($carrito->subtotal()) }}</dd>
                         </div>
-                        <div class="flex justify-between">
+                        <div class="flex justify-between gap-3">
                             <dt class="text-zinc-500 dark:text-zinc-400">Envío</dt>
-                            <dd class="font-medium tabular-nums">
+                            <dd class="shrink-0 font-medium tabular-nums">
                                 @if ($carrito->costoEnvio() > 0)
                                     {{ \App\Models\Producto::quetzales($carrito->costoEnvio()) }}
                                 @else
@@ -256,14 +264,14 @@ class extends Component
 
                     <flux:separator />
 
-                    <div class="flex items-baseline justify-between">
+                    <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                         <span class="text-sm font-medium text-zinc-600 dark:text-zinc-300">Total</span>
                         <span class="text-2xl font-bold tracking-tight text-zinc-900 tabular-nums dark:text-white">
                             {{ \App\Models\Producto::quetzales($carrito->total()) }}
                         </span>
                     </div>
 
-                    <flux:button variant="primary" class="w-full" icon="credit-card" :href="route('tienda.pago')" wire:navigate>
+                    <flux:button variant="primary" class="min-h-11 w-full" icon="credit-card" :href="route('tienda.pago')" wire:navigate>
                         Continuar al pago
                     </flux:button>
 
