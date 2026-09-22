@@ -79,22 +79,22 @@
         --siem-informativa: #a3a3a3;
         --siem-cumple: #34d399;
 
-        color: var(--siem-texto);
+        color: var(--siem-texto, #f5f5f5);
     }
 
     .panel-siem .siem-rejilla {
-        stroke: var(--siem-rejilla);
+        stroke: var(--siem-rejilla, rgba(255, 255, 255, 0.20));
         stroke-width: 1;
     }
 
     .panel-siem .siem-eje {
-        fill: var(--siem-eje);
+        fill: var(--siem-eje, #a3a3a3);
         font-size: 11px;
         font-variant-numeric: tabular-nums;
     }
 
     .panel-siem .siem-etiqueta-directa {
-        fill: var(--siem-destacado);
+        fill: var(--siem-destacado, #f5f5f5);
         font-size: 11px;
         font-weight: 600;
         font-variant-numeric: tabular-nums;
@@ -112,16 +112,16 @@
     */
     .panel-siem .siem-barra-permitidos,
     .panel-siem .siem-barra-bloqueados {
-        stroke: var(--siem-superficie);
+        stroke: var(--siem-superficie, #171717);
         stroke-width: 0.5;
     }
 
     .panel-siem .siem-barra-permitidos {
-        fill: var(--siem-serie-permitidos);
+        fill: var(--siem-serie-permitidos, #94a3b8);
     }
 
     .panel-siem .siem-barra-bloqueados {
-        fill: var(--siem-serie-bloqueados);
+        fill: var(--siem-serie-bloqueados, #34d399);
     }
 
     .panel-siem .siem-grupo-barra:hover .siem-barra-permitidos,
@@ -166,11 +166,11 @@
         background: currentColor;
     }
 
-    .panel-siem .siem-sev-critica { color: var(--siem-critica); }
-    .panel-siem .siem-sev-alta { color: var(--siem-alta); }
-    .panel-siem .siem-sev-media { color: var(--siem-media); }
-    .panel-siem .siem-sev-baja { color: var(--siem-baja); }
-    .panel-siem .siem-sev-informativa { color: var(--siem-informativa); }
+    .panel-siem .siem-sev-critica { color: var(--siem-critica, #f87171); }
+    .panel-siem .siem-sev-alta { color: var(--siem-alta, #fb923c); }
+    .panel-siem .siem-sev-media { color: var(--siem-media, #fbbf24); }
+    .panel-siem .siem-sev-baja { color: var(--siem-baja, #38bdf8); }
+    .panel-siem .siem-sev-informativa { color: var(--siem-informativa, #a3a3a3); }
 
     /*
         La misma insignia sin pastilla, para el reparto por severidad: ahi el color ya lo

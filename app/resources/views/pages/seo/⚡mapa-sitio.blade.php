@@ -1,7 +1,7 @@
 <?php
 
-use LivewireAttributesTitle;
-use LivewireComponent;
+use Livewire\Attributes\Title;
+use Livewire\Component;
 
 new #[Title("Auditoría del mapa del sitio")] class extends Component {
     //

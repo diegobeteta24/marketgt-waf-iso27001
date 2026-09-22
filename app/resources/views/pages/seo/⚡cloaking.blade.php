@@ -1,7 +1,7 @@
 <?php
 
-use LivewireAttributesTitle;
-use LivewireComponent;
+use Livewire\Attributes\Title;
+use Livewire\Component;
 
 new #[Title("Detección de contenido diferenciado")] class extends Component {
     //

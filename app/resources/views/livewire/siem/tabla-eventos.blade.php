@@ -137,7 +137,7 @@
                         </td>
                         <td class="whitespace-nowrap px-3 py-3 sm:px-4">
                             @if ($evento->fue_bloqueado)
-                                <span class="inline-flex items-center gap-1 text-xs font-semibold" style="color: var(--siem-serie-bloqueados)">
+                                <span class="inline-flex items-center gap-1 text-xs font-semibold" style="color: var(--siem-serie-bloqueados, #34d399)">
                                     <flux:icon.no-symbol class="size-3.5" />
                                     Bloqueado
                                 </span>

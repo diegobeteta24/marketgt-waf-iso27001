@@ -1,7 +1,7 @@
 <?php
 
-use LivewireAttributesTitle;
-use LivewireComponent;
+use Livewire\Attributes\Title;
+use Livewire\Component;
 
 new #[Title("Análisis de consultas de búsqueda")] class extends Component {
     //

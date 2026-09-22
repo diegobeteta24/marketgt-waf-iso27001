@@ -25,9 +25,9 @@
     };
 
     $colorEstado = [
-        CalculadoraMetricas::CUMPLE => 'var(--siem-cumple)',
-        CalculadoraMetricas::INCUMPLE => 'var(--siem-critica)',
-        CalculadoraMetricas::SIN_DATOS => 'var(--siem-informativa)',
+        CalculadoraMetricas::CUMPLE => 'var(--siem-cumple, #34d399)',
+        CalculadoraMetricas::INCUMPLE => 'var(--siem-critica, #f87171)',
+        CalculadoraMetricas::SIN_DATOS => 'var(--siem-informativa, #a3a3a3)',
     ];
 
     // La misma palabra que ya rotula cada vertice dentro del triangulo. Se reutiliza aqui
@@ -251,11 +251,11 @@
 
                                 {{-- Icono mas texto: el estado nunca se comunica solo con color. --}}
                                 @if ($metrica['estado'] === CalculadoraMetricas::CUMPLE)
-                                    <span class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold" style="color: var(--siem-cumple)">
+                                    <span class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold" style="color: var(--siem-cumple, #34d399)">
                                         <flux:icon.check-circle class="size-4" /> Cumple
                                     </span>
                                 @elseif ($metrica['estado'] === CalculadoraMetricas::INCUMPLE)
-                                    <span class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold" style="color: var(--siem-critica)">
+                                    <span class="inline-flex shrink-0 items-center gap-1 text-xs font-semibold" style="color: var(--siem-critica, #f87171)">
                                         <flux:icon.x-circle class="size-4" /> No cumple
                                     </span>
                                 @else

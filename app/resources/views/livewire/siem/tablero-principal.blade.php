@@ -117,11 +117,11 @@
             <div class="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-start sm:gap-4">
                 <div class="flex items-center gap-4 text-xs text-zinc-300">
                     <span class="flex items-center gap-1.5">
-                        <span class="siem-muestra" style="background: var(--siem-serie-bloqueados)"></span>
+                        <span class="siem-muestra" style="background: var(--siem-serie-bloqueados, #34d399)"></span>
                         Bloqueados
                     </span>
                     <span class="flex items-center gap-1.5">
-                        <span class="siem-muestra" style="background: var(--siem-serie-permitidos)"></span>
+                        <span class="siem-muestra" style="background: var(--siem-serie-permitidos, #94a3b8)"></span>
                         Permitidos
                     </span>
                 </div>
@@ -269,12 +269,12 @@
                                      texto principal. Los bloqueos ademas en el verde de la serie,
                                      porque que el WAF corte es el resultado que se busca. --}}
                                 <td class="siem-numero py-2 text-right font-medium text-zinc-100">{{ number_format($regla['total']) }}</td>
-                                <td class="siem-numero py-2 text-right font-medium" style="color: var(--siem-serie-bloqueados)">{{ number_format($regla['bloqueados']) }}</td>
+                                <td class="siem-numero py-2 text-right font-medium" style="color: var(--siem-serie-bloqueados, #34d399)">{{ number_format($regla['bloqueados']) }}</td>
                                 <td class="hidden w-28 py-2 pl-3 sm:table-cell">
                                     <div class="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
                                         <div
                                             class="h-2 rounded-full"
-                                            style="width: {{ max(3, round($regla['total'] * 100 / $maximoRegla)) }}%; background: var(--siem-serie-bloqueados)"
+                                            style="width: {{ max(3, round($regla['total'] * 100 / $maximoRegla)) }}%; background: var(--siem-serie-bloqueados, #34d399)"
                                         ></div>
                                     </div>
                                 </td>
@@ -319,7 +319,7 @@
                                 </td>
                                 <td class="hidden py-2 text-zinc-400 sm:table-cell">{{ $direccion->pais ?? 'sin dato' }}</td>
                                 <td class="siem-numero py-2 text-right font-medium text-zinc-100">{{ number_format((int) $direccion->total) }}</td>
-                                <td class="siem-numero py-2 text-right font-medium" style="color: var(--siem-serie-bloqueados)">
+                                <td class="siem-numero py-2 text-right font-medium" style="color: var(--siem-serie-bloqueados, #34d399)">
                                     {{ number_format((int) $direccion->bloqueados) }}
                                 </td>
                                 <td class="siem-numero hidden py-2 text-right font-medium text-zinc-100 sm:table-cell">{{ (int) $direccion->puntuacion_maxima }}</td>

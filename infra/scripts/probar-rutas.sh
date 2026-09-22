@@ -71,6 +71,10 @@ RUTAS=(
   "/seo/incidentes|200"
   "/seo/integridad|200"
   "/seo/laboratorio|200"
+  "/seo/consultas|200"
+  "/seo/mapa-sitio|200"
+  "/seo/cloaking|200"
+  "/demo-waf/consola|200"
   "/settings/security|302"
 )
 
