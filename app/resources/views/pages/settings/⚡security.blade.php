@@ -285,7 +285,12 @@ new #[Title('Security settings')] class extends Component {
                                         <p class="text-zinc-500 dark:text-zinc-400 text-xs">
                                             {{ __('Added :time', ['time' => $passkey['created_at_diff']]) }}
                                             @if ($passkey['last_used_at_diff'])
-                                                <span class="opacity-50 mx-1">/</span>
+                                                {{-- El separador iba con opacity-50 sobre el color del
+                                                     párrafo: 2,6 a 1 en oscuro y 2,0 a 1 en claro, por
+                                                     debajo incluso del mínimo de los elementos que no
+                                                     son texto. Hereda el color de la línea, que ya es
+                                                     el tono terciario. --}}
+                                                <span class="mx-1">/</span>
                                                 {{ __('Last used :time', ['time' => $passkey['last_used_at_diff']]) }}
                                             @endif
                                         </p>

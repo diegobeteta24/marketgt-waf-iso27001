@@ -54,8 +54,11 @@
         <!-- Mobile Menu -->
         {{-- Enlaces del cajón a 44 px para poder pulsarlos con el dedo, y los
              encabezados de grupo aclarados: Flux los pinta en zinc-400 fijo y
-             sobre el fondo oscuro quedan más apagados que los propios enlaces. --}}
-        <flux:sidebar collapsible="mobile" sticky class="lg:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 [&_[data-flux-sidebar-item]]:h-11! [&_[data-flux-sidebar-group]>div:first-child]:uppercase [&_[data-flux-sidebar-group]>div:first-child]:tracking-wide [&_[data-flux-sidebar-group]>div:first-child]:text-zinc-500! dark:[&_[data-flux-sidebar-group]>div:first-child]:text-zinc-300!">
+             sobre el fondo oscuro quedan más apagados que los propios enlaces.
+             La clase base va en zinc-600 y no en zinc-500 porque el sitio también
+             se muestra en tema claro —@fluxAppearance quita la clase "dark" cuando
+             el sistema está en claro—: 7,49 a 1 en vez de 4,54 a 1 sobre zinc-50. --}}
+        <flux:sidebar collapsible="mobile" sticky class="lg:hidden border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 [&_[data-flux-sidebar-item]]:h-11! [&_[data-flux-sidebar-group]>div:first-child]:uppercase [&_[data-flux-sidebar-group]>div:first-child]:tracking-wide [&_[data-flux-sidebar-group]>div:first-child]:text-zinc-600! dark:[&_[data-flux-sidebar-group]>div:first-child]:text-zinc-300!">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 <flux:sidebar.collapse class="size-11! [&_button]:size-11! in-data-flux-sidebar-on-desktop:not-in-data-flux-sidebar-collapsed-desktop:-mr-2" />

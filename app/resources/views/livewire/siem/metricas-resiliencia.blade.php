@@ -60,43 +60,150 @@
                 </p>
             </div>
 
-            {{-- El triangulo no es adorno: muestra de un vistazo que vertice esta sin instrumentar.
-                 En el telefono baja a su propia linea y ocupa el ancho disponible en vez de
-                 quedarse en una miniatura: el lienzo es proporcional, asi que al ensancharse
-                 tambien crecen sus etiquetas. Desde sm recupera su alto fijo. --}}
-            <svg viewBox="0 0 260 180" class="mx-auto h-auto w-full max-w-[17rem] sm:mx-0 sm:h-40 sm:w-auto" role="img" aria-label="Estado de los tres vertices de la ciberresiliencia">
-                <polygon
-                    points="130,22 238,158 22,158"
-                    fill="none"
-                    stroke="var(--siem-contorno)"
-                    stroke-width="2"
-                />
+            {{--
+                EL TRIÁNGULO NO ES UN ADORNO, Y ESTE DIBUJO TAMPOCO.
 
-                @php
-                    $posiciones = [
-                        'proteccion' => ['x' => 130, 'y' => 22, 'anclaje' => 'middle', 'dy' => -12],
-                        'respuesta' => ['x' => 238, 'y' => 158, 'anclaje' => 'end', 'dy' => 22],
-                        'deteccion' => ['x' => 22, 'y' => 158, 'anclaje' => 'start', 'dy' => 22],
+                El modelo del anexo no sostiene que haya que tener los tres vértices, sino que
+                haya que tenerlos EQUILIBRADOS: concentrar toda la inversión en uno no da más
+                seguridad, desplaza el riesgo hacia los desatendidos. Por eso la evaluación
+                pertinente no es si cada vértice existe, sino cuánto se aleja la figura de un
+                triángulo equilátero.
+
+                El dibujo anterior sólo pintaba tres puntos de color sobre un contorno fijo: no
+                transmitía nada de eso. Éste superpone dos figuras. La discontinua es el
+                equilibrio esperado —los tres vértices al máximo— y la rellena es el estado
+                medido. Cuanto más escaleno sale el relleno, más desequilibrado está el sistema,
+                y eso se lee de un vistazo desde el fondo del aula.
+
+                La madurez de cada vértice es la proporción de métricas que cumplen sobre el
+                total declarado, NO sobre las calculables. La distinción importa: un vértice con
+                una sola métrica medible que cumple no está al cien por cien, está sin
+                instrumentar. Contar sólo lo medible premiaría precisamente a quien no mide.
+            --}}
+            @php
+                $madurez = function (array $vertice): float {
+                    $total = count($vertice['metricas']);
+
+                    if ($total === 0) {
+                        return 0.0;
+                    }
+
+                    $cumplen = count(array_filter(
+                        $vertice['metricas'],
+                        static fn (array $m): bool => $m['estado'] === CalculadoraMetricas::CUMPLE,
+                    ));
+
+                    return $cumplen / $total;
+                };
+
+                // Geometría del lienzo. El triángulo apunta hacia arriba, con protección en el
+                // vértice superior, que es como lo representa el anexo del proyecto.
+                $cx = 150;   // centro horizontal
+                $cy = 132;   // centro vertical
+                $r  = 86;    // distancia del centro a cada vértice en el estado ideal
+
+                // Ángulos en grados, medidos desde arriba y en sentido horario.
+                $angulos = ['proteccion' => -90, 'respuesta' => 30, 'deteccion' => 150];
+
+                // Un vértice sin nada medido se dibuja igualmente separado del centro: un punto
+                // exactamente en el origen desaparecería y parecería un fallo del dibujo en vez
+                // de un vértice sin instrumentar.
+                $minimo = 0.16;
+
+                $punto = function (float $grados, float $distancia) use ($cx, $cy): array {
+                    $rad = deg2rad($grados);
+
+                    return [
+                        round($cx + $distancia * cos($rad), 1),
+                        round($cy + $distancia * sin($rad), 1),
                     ];
-                @endphp
+                };
 
-                @foreach ($posiciones as $clave => $posicion)
-                    @php $estado = $estadoVertice($vertices[$clave]); @endphp
-                    <circle cx="{{ $posicion['x'] }}" cy="{{ $posicion['y'] }}" r="8" fill="{{ $colorEstado[$estado] }}" />
-                    <text
-                        class="siem-eje"
-                        x="{{ $posicion['x'] }}"
-                        y="{{ $posicion['y'] + $posicion['dy'] }}"
-                        text-anchor="{{ $posicion['anclaje'] }}"
-                        style="font-weight: 600"
-                    >{{ $vertices[$clave]['nombre'] }}</text>
-                    <text
-                        class="siem-eje"
-                        x="{{ $posicion['x'] }}"
-                        y="{{ $posicion['y'] + $posicion['dy'] + 13 }}"
-                        text-anchor="{{ $posicion['anclaje'] }}"
-                    >{{ $estado === CalculadoraMetricas::SIN_DATOS ? 'sin instrumentar' : ($estado === CalculadoraMetricas::CUMPLE ? 'cumple' : 'incumple') }}</text>
+                $ideal = [];
+                $real  = [];
+                $datos = [];
+
+                foreach ($angulos as $clave => $grados) {
+                    $m = $madurez($vertices[$clave]);
+                    $d = $r * max($minimo, $m);
+
+                    [$ix, $iy] = $punto((float) $grados, (float) $r);
+                    [$rx, $ry] = $punto((float) $grados, (float) $d);
+                    [$ex, $ey] = $punto((float) $grados, (float) ($r + 20));
+
+                    $ideal[] = $ix . ',' . $iy;
+                    $real[]  = $rx . ',' . $ry;
+
+                    $datos[$clave] = [
+                        'x' => $rx, 'y' => $ry,
+                        'ex' => $ex, 'ey' => $ey,
+                        'estado' => $estadoVertice($vertices[$clave]),
+                        'porcentaje' => (int) round($m * 100),
+                        // El anclaje sigue al vértice: centrado arriba, a la izquierda del de la
+                        // derecha y a la derecha del de la izquierda, para que ninguna etiqueta
+                        // invada la figura.
+                        'anclaje' => $grados === -90 ? 'middle' : ($grados === 30 ? 'end' : 'start'),
+                        'dy' => $grados === -90 ? -6 : 14,
+                    ];
+                }
+            @endphp
+
+            <svg viewBox="0 0 300 250"
+                 class="mx-auto h-auto w-full max-w-[20rem] shrink-0 sm:mx-0 sm:w-72"
+                 role="img"
+                 aria-label="Equilibrio entre los tres vertices de la ciberresiliencia">
+
+                {{-- Equilibrio esperado --}}
+                <polygon points="{{ implode(' ', $ideal) }}"
+                         fill="none"
+                         stroke="var(--siem-contorno)"
+                         stroke-width="1.5"
+                         stroke-dasharray="5 4" />
+
+                {{-- Radios: dejan ver cuánto se quedó corto cada vértice --}}
+                @foreach ($datos as $d)
+                    <line x1="{{ $cx }}" y1="{{ $cy }}" x2="{{ $d['x'] }}" y2="{{ $d['y'] }}"
+                          stroke="var(--siem-rejilla)" stroke-width="1" />
                 @endforeach
+
+                {{-- Estado medido --}}
+                <polygon points="{{ implode(' ', $real) }}"
+                         fill="var(--siem-critica)"
+                         fill-opacity="0.22"
+                         stroke="var(--siem-critica)"
+                         stroke-width="2"
+                         stroke-linejoin="round" />
+
+                {{-- Vértices y etiquetas --}}
+                @foreach ($datos as $clave => $d)
+                    <circle cx="{{ $d['x'] }}" cy="{{ $d['y'] }}" r="6"
+                            fill="{{ $colorEstado[$d['estado']] }}"
+                            stroke="var(--siem-superficie)" stroke-width="2" />
+
+                    <text class="siem-eje"
+                          x="{{ $d['ex'] }}" y="{{ $d['ey'] + $d['dy'] }}"
+                          text-anchor="{{ $d['anclaje'] }}"
+                          style="font-weight: 700; font-size: 13px"
+                          fill="var(--siem-destacado)">{{ $vertices[$clave]['nombre'] }}</text>
+
+                    <text class="siem-eje"
+                          x="{{ $d['ex'] }}" y="{{ $d['ey'] + $d['dy'] + 14 }}"
+                          text-anchor="{{ $d['anclaje'] }}"
+                          style="font-size: 11px"
+                          fill="{{ $colorEstado[$d['estado']] }}">{{ $textoEstado[$d['estado']] }} · {{ $d['porcentaje'] }} %</text>
+                @endforeach
+
+                {{-- Leyenda. Sin ella la figura discontinua se lee como un adorno. --}}
+                <g transform="translate(14, 238)">
+                    <line x1="0" y1="-4" x2="16" y2="-4"
+                          stroke="var(--siem-contorno)" stroke-width="1.5" stroke-dasharray="5 4" />
+                    <text class="siem-eje" x="21" y="0" style="font-size: 10px">equilibrio esperado</text>
+
+                    <rect x="132" y="-9" width="14" height="10"
+                          fill="var(--siem-critica)" fill-opacity="0.22"
+                          stroke="var(--siem-critica)" stroke-width="1.5" />
+                    <text class="siem-eje" x="151" y="0" style="font-size: 10px">estado medido</text>
+                </g>
             </svg>
         </div>
     </div>

@@ -19,8 +19,14 @@
             quedan más apagados que los propios enlaces, que van en blanco al 80 %.
             Se aclaran y se marcan como encabezados con versalitas, de modo que la
             jerarquía no dependa de que estén más tenues que lo que encabezan.
+
+            Ojo con la clase base, que NO es código muerto: @fluxAppearance quita la
+            clase "dark" del elemento raíz cuando el sistema está en tema claro, así
+            que el sitio sí se muestra en claro. Sobre el fondo zinc-50 del menú,
+            zinc-500 daba 4,54 a 1 —pasa por un pelo, y esto es texto pequeño en
+            versalitas, lo primero que borra un proyector—; zinc-600 sube a 7,49 a 1.
         --}}
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 max-lg:[&_[data-flux-sidebar-item]]:h-11! [&_[data-flux-sidebar-group]>div:first-child]:uppercase [&_[data-flux-sidebar-group]>div:first-child]:tracking-wide [&_[data-flux-sidebar-group]>div:first-child]:text-zinc-500! dark:[&_[data-flux-sidebar-group]>div:first-child]:text-zinc-300!">
+        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 max-lg:[&_[data-flux-sidebar-item]]:h-11! [&_[data-flux-sidebar-group]>div:first-child]:uppercase [&_[data-flux-sidebar-group]>div:first-child]:tracking-wide [&_[data-flux-sidebar-group]>div:first-child]:text-zinc-600! dark:[&_[data-flux-sidebar-group]>div:first-child]:text-zinc-300!">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('dashboard') }}" wire:navigate />
                 {{-- El botón de cerrar el cajón también necesita 44 px reales. --}}
