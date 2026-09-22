@@ -117,8 +117,8 @@ class extends Component
     }
 }; ?>
 
-<div class="space-y-10">
-    <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+<div class="space-y-8 sm:space-y-10">
+    <nav aria-label="Ruta de navegación" class="flex flex-wrap items-center gap-1.5 break-words text-xs text-zinc-500 dark:text-zinc-400">
         <a href="{{ route('tienda.catalogo') }}" wire:navigate class="hover:text-zinc-900 dark:hover:text-white">Catálogo</a>
         <span>/</span>
         <a
@@ -129,11 +129,12 @@ class extends Component
             {{ $producto->categoria?->nombre }}
         </a>
         <span>/</span>
-        <span class="text-zinc-700 dark:text-zinc-200">{{ $producto->nombre }}</span>
+        <span class="min-w-0 break-words text-zinc-700 dark:text-zinc-200">{{ $producto->nombre }}</span>
     </nav>
 
-    <div class="grid gap-8 lg:grid-cols-2">
-        <div class="overflow-hidden rounded-3xl border border-zinc-200 bg-linear-to-br {{ $producto->tonoPortada() }} dark:border-zinc-700">
+    {{-- Imagen y ficha en una sola columna en el teléfono; dos columnas desde md. --}}
+    <div class="grid gap-6 md:grid-cols-2 lg:gap-8">
+        <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-linear-to-br sm:rounded-3xl {{ $producto->tonoPortada() }} dark:border-zinc-700">
             <div class="aspect-square w-full">
                 @if (filled($producto->imagen_url))
                     <img src="{{ $producto->imagen_url }}" alt="{{ $producto->nombre }}" class="size-full object-cover" />
@@ -147,21 +148,21 @@ class extends Component
             </div>
         </div>
 
-        <div class="flex flex-col gap-5">
-            <div>
+        <div class="flex min-w-0 flex-col gap-4 sm:gap-5">
+            <div class="min-w-0">
                 <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
                     {{ $producto->categoria?->nombre }}
                 </p>
-                <h1 class="mt-2 text-2xl font-bold leading-tight tracking-tight text-zinc-900 sm:text-3xl dark:text-white">
+                <h1 class="mt-2 break-words text-2xl font-bold leading-tight tracking-tight text-zinc-900 sm:text-3xl dark:text-white">
                     {{ $producto->nombre }}
                 </h1>
             </div>
 
-            <p class="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+            <p class="text-3xl font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
                 {{ $producto->precioFormateado() }}
             </p>
 
-            <div class="flex items-center gap-2 text-sm">
+            <div class="flex flex-wrap items-center gap-2 text-sm">
                 @if ($producto->existencias > 5)
                     <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
                         <span class="size-1.5 rounded-full bg-emerald-500"></span>
@@ -187,23 +188,25 @@ class extends Component
             <flux:separator />
 
             @if ($producto->hayExistencias())
-                <div class="flex flex-wrap items-center gap-3">
-                    <div class="flex items-center rounded-xl border border-zinc-200 dark:border-zinc-700">
-                        <flux:button size="sm" variant="subtle" icon="minus" wire:click="disminuir" aria-label="Disminuir cantidad" />
+                {{-- En móvil los controles se apilan a ancho completo: en una sola fila el
+                     selector de cantidad y los dos botones no caben en 375 px. --}}
+                <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                    <div class="flex min-h-11 w-full items-center justify-between rounded-xl border border-zinc-200 sm:w-auto sm:justify-start dark:border-zinc-700">
+                        <flux:button size="sm" variant="subtle" icon="minus" class="min-h-11 min-w-11" wire:click="disminuir" aria-label="Disminuir cantidad" />
                         <span class="w-10 text-center text-sm font-semibold tabular-nums">{{ $cantidad }}</span>
-                        <flux:button size="sm" variant="subtle" icon="plus" wire:click="aumentar" aria-label="Aumentar cantidad" />
+                        <flux:button size="sm" variant="subtle" icon="plus" class="min-h-11 min-w-11" wire:click="aumentar" aria-label="Aumentar cantidad" />
                     </div>
 
-                    <flux:button variant="primary" icon="shopping-bag" wire:click="agregar" wire:loading.attr="disabled">
+                    <flux:button variant="primary" icon="shopping-bag" class="min-h-11 w-full sm:w-auto" wire:click="agregar" wire:loading.attr="disabled">
                         Agregar al carrito
                     </flux:button>
 
-                    <flux:button variant="ghost" :href="route('tienda.carrito')" wire:navigate>
+                    <flux:button variant="ghost" class="min-h-11 w-full sm:w-auto" :href="route('tienda.carrito')" wire:navigate>
                         Ver carrito
                     </flux:button>
                 </div>
             @else
-                <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                <div class="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 sm:p-4 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                     <p class="font-semibold">Producto agotado</p>
                     <p class="mt-1">
                         Este artículo no tiene existencias en este momento. Revisá el resto del catálogo
@@ -212,7 +215,7 @@ class extends Component
                 </div>
             @endif
 
-            <div class="rounded-xl bg-zinc-100 p-4 text-xs leading-relaxed text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            <div class="rounded-xl bg-zinc-100 p-3 text-xs leading-relaxed text-zinc-600 sm:p-4 dark:bg-zinc-800 dark:text-zinc-300">
                 <p class="font-semibold text-zinc-800 dark:text-zinc-100">Envíos y pagos</p>
                 <p class="mt-1">
                     Envío a toda la República de Guatemala por Q35.00, gratis en compras mayores a Q500.00.
@@ -224,11 +227,12 @@ class extends Component
 
     @if ($this->relacionados->isNotEmpty())
         <section class="space-y-4">
-            <h2 class="text-lg font-semibold tracking-tight text-zinc-900 dark:text-white">
+            <h2 class="break-words text-lg font-semibold tracking-tight text-zinc-900 dark:text-white">
                 También de {{ $producto->categoria?->nombre }}
             </h2>
 
-            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {{-- Mismos puntos de ruptura que el catálogo: una columna en el teléfono. --}}
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                 @foreach ($this->relacionados as $relacionado)
                     <x-pages::tienda.tarjeta-producto :producto="$relacionado" />
                 @endforeach

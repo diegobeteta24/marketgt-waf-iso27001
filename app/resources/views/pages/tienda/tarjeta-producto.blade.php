@@ -11,7 +11,9 @@
     class="group flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition hover:shadow-md dark:border-zinc-700 dark:bg-zinc-800"
 >
     <a href="{{ route('tienda.producto', $producto->slug) }}" wire:navigate class="block">
-        <div class="relative aspect-square w-full overflow-hidden bg-linear-to-br {{ $producto->tonoPortada() }}">
+        {{-- En el teléfono la tarjeta ocupa el ancho completo, así que la portada se recorta
+             a 4:3 para no gastar media pantalla por producto; desde sm vuelve a ser cuadrada. --}}
+        <div class="relative aspect-4/3 w-full overflow-hidden bg-linear-to-br sm:aspect-square {{ $producto->tonoPortada() }}">
             @if (filled($producto->imagen_url))
                 <img
                     src="{{ $producto->imagen_url }}"
@@ -37,24 +39,26 @@
         </div>
     </a>
 
-    <div class="flex flex-1 flex-col gap-2 p-4">
-        <p class="text-[11px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+    <div class="flex min-w-0 flex-1 flex-col gap-2 p-3 sm:p-4">
+        <p class="truncate text-[11px] font-medium uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
             {{ $producto->categoria?->nombre }}
         </p>
 
         <a href="{{ route('tienda.producto', $producto->slug) }}" wire:navigate class="block">
-            <h3 class="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900 dark:text-white">
+            <h3 class="line-clamp-2 break-words text-sm font-semibold leading-snug text-zinc-900 dark:text-white">
                 {{ $producto->nombre }}
             </h3>
         </a>
 
-        <p class="line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <p class="line-clamp-2 break-words text-xs text-zinc-500 dark:text-zinc-400">
             {{ $producto->descripcion }}
         </p>
 
-        <div class="mt-auto flex items-end justify-between gap-2 pt-2">
-            <div>
-                <p class="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">
+        {{-- Precio y botón se apilan en el teléfono: puestos en una sola fila no caben dentro
+             de la tarjeta y empujaban el contenido fuera de la pantalla. --}}
+        <div class="mt-auto flex flex-col gap-2 pt-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+            <div class="min-w-0">
+                <p class="text-lg font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
                     {{ $producto->precioFormateado() }}
                 </p>
                 <p class="text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -66,6 +70,7 @@
                 size="sm"
                 variant="primary"
                 icon="plus"
+                class="min-h-11 w-full shrink-0 sm:w-auto"
                 :disabled="! $producto->hayExistencias()"
                 wire:click="agregar({{ $producto->id }})"
                 wire:loading.attr="disabled"

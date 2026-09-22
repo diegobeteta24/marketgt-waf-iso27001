@@ -108,14 +108,14 @@ class extends Component
 
 <div class="space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-            <h1 class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">Carrito de compras</h1>
+        <div class="min-w-0">
+            <h1 class="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl dark:text-white">Carrito de compras</h1>
             <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                 Revisá las cantidades antes de continuar al pago.
             </p>
         </div>
 
-        <flux:button variant="ghost" icon="arrow-left" :href="route('tienda.catalogo')" wire:navigate>
+        <flux:button variant="ghost" icon="arrow-left" class="min-h-11 w-full shrink-0 sm:w-auto" :href="route('tienda.catalogo')" wire:navigate>
             Seguir comprando
         </flux:button>
     </div>
@@ -123,7 +123,7 @@ class extends Component
     @php($carrito = $this->carrito)
 
     @if ($carrito === null || $carrito->estaVacio())
-        <section class="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-16 text-center dark:border-zinc-700 dark:bg-zinc-800">
+        <section class="rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-12 text-center sm:px-6 sm:py-16 dark:border-zinc-700 dark:bg-zinc-800">
             <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-700">
                 <flux:icon.shopping-bag class="text-zinc-400" />
             </div>
@@ -132,7 +132,7 @@ class extends Component
                 Todavía no agregaste productos. Empezá por el café de Antigua o por los textiles del altiplano.
             </p>
             <div class="mt-5">
-                <flux:button variant="primary" icon="squares-2x2" :href="route('tienda.catalogo')" wire:navigate>
+                <flux:button variant="primary" icon="squares-2x2" class="min-h-11 w-full sm:w-auto" :href="route('tienda.catalogo')" wire:navigate>
                     Ir al catálogo
                 </flux:button>
             </div>

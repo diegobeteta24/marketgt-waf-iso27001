@@ -16,11 +16,13 @@
 
         <header class="sticky top-0 z-40 border-b border-zinc-200 bg-white/90 backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/90">
             <div class="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:gap-6">
-                <a href="{{ route('tienda.catalogo') }}" wire:navigate class="flex shrink-0 items-center gap-2">
-                    <span class="flex size-9 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white">GT</span>
-                    <span class="hidden leading-tight sm:block">
-                        <span class="block text-base font-semibold tracking-tight">MarketGT</span>
-                        <span class="block text-[11px] text-zinc-500 dark:text-zinc-400">Artesanía y tecnología de Guatemala</span>
+                {{-- En móvil se conserva el nombre de la tienda y solo se oculta el lema: el
+                     encabezado cabe igual y la marca nunca desaparece de la pantalla chica. --}}
+                <a href="{{ route('tienda.catalogo') }}" wire:navigate class="flex min-h-11 shrink-0 items-center gap-2">
+                    <span class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white">GT</span>
+                    <span class="leading-tight">
+                        <span class="block text-sm font-semibold tracking-tight sm:text-base">MarketGT</span>
+                        <span class="hidden text-[11px] text-zinc-500 sm:block dark:text-zinc-400">Artesanía y tecnología de Guatemala</span>
                     </span>
                 </a>
 
@@ -29,7 +31,7 @@
                         href="{{ route('tienda.catalogo') }}"
                         wire:navigate
                         @class([
-                            'rounded-lg px-3 py-2 text-sm font-medium transition',
+                            'flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium transition',
                             'bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-white' => request()->routeIs('tienda.catalogo'),
                             'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800' => ! request()->routeIs('tienda.catalogo'),
                         ])
@@ -42,32 +44,39 @@
 
                 <livewire:pages::tienda.indicador-carrito />
 
+                {{-- Antes estos enlaces se ocultaban por completo en móvil y no había forma de
+                     entrar a la cuenta desde el teléfono. Ahora quedan como icono en pantalla
+                     chica y recuperan el texto desde sm. --}}
                 @auth
                     <a
                         href="{{ route('dashboard') }}"
                         wire:navigate
-                        class="hidden rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 sm:block dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        class="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 sm:px-3 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        aria-label="Ir a mi cuenta"
                     >
-                        Mi cuenta
+                        <flux:icon.user variant="micro" />
+                        <span class="hidden sm:inline">Mi cuenta</span>
                     </a>
                 @else
                     <a
                         href="{{ route('login') }}"
                         wire:navigate
-                        class="hidden rounded-lg px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 sm:block dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        class="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 rounded-lg px-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 sm:px-3 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        aria-label="Ingresar a la cuenta"
                     >
-                        Ingresar
+                        <flux:icon.arrow-right-end-on-rectangle variant="micro" />
+                        <span class="hidden sm:inline">Ingresar</span>
                     </a>
                 @endauth
             </div>
         </header>
 
-        <main class="mx-auto w-full max-w-6xl px-4 py-6 sm:py-10">
+        <main class="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
             {{ $slot }}
         </main>
 
-        <footer class="mt-16 border-t border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
-            <div class="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm sm:grid-cols-3">
+        <footer class="mt-10 border-t border-zinc-200 bg-white sm:mt-16 dark:border-zinc-700 dark:bg-zinc-950">
+            <div class="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm sm:grid-cols-3 sm:px-6">
                 <div>
                     <p class="font-semibold">MarketGT</p>
                     <p class="mt-1 text-zinc-500 dark:text-zinc-400">

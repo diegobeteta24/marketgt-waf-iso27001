@@ -196,10 +196,11 @@ class extends Component
     }
 }; ?>
 
-<div class="space-y-8">
-    <section class="overflow-hidden rounded-3xl bg-linear-to-br from-emerald-600 to-teal-700 px-6 py-10 text-white sm:px-10 sm:py-14">
+<div class="space-y-6 sm:space-y-8">
+    {{-- El relleno del encabezado se reduce en móvil: en 375 px cada píxel de ancho cuenta. --}}
+    <section class="overflow-hidden rounded-2xl bg-linear-to-br from-emerald-600 to-teal-700 px-5 py-8 text-white sm:rounded-3xl sm:px-10 sm:py-14">
         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">Tienda en línea</p>
-        <h1 class="mt-3 max-w-2xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+        <h1 class="mt-3 max-w-2xl text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
             Lo mejor de Guatemala, de la mano de quien lo hace
         </h1>
         <p class="mt-3 max-w-xl text-sm text-emerald-50 sm:text-base">
@@ -209,8 +210,10 @@ class extends Component
     </section>
 
     <section class="space-y-4">
-        <div class="grid gap-3 sm:grid-cols-12">
-            <div class="sm:col-span-6">
+        {{-- Filtros: una columna a ancho completo en el teléfono, buscador entero y los dos
+             desplegables a la par desde sm, y la fila de doce columnas desde lg. --}}
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+            <div class="sm:col-span-2 lg:col-span-6">
                 <flux:input
                     wire:model.live.debounce.400ms="busqueda"
                     type="search"
@@ -220,7 +223,7 @@ class extends Component
                 />
             </div>
 
-            <div class="sm:col-span-3">
+            <div class="sm:col-span-1 lg:col-span-3">
                 <flux:select wire:model.live="categoria" aria-label="Filtrar por categoría">
                     <flux:select.option value="">Todas las categorías</flux:select.option>
                     @foreach ($this->categorias as $categoria)
@@ -229,7 +232,7 @@ class extends Component
                 </flux:select>
             </div>
 
-            <div class="sm:col-span-3">
+            <div class="sm:col-span-1 lg:col-span-3">
                 <flux:select wire:model.live="orden" aria-label="Ordenar resultados">
                     <flux:select.option value="recomendados">Recomendados</flux:select.option>
                     <flux:select.option value="precio-asc">Precio: de menor a mayor</flux:select.option>
@@ -241,18 +244,21 @@ class extends Component
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3">
-            <p class="text-sm text-zinc-500 dark:text-zinc-400">
+            <p class="min-w-0 flex-1 break-words text-sm text-zinc-500 dark:text-zinc-400">
                 {{ $this->productos->total() }}
                 {{ \Illuminate\Support\Str::plural('producto', $this->productos->total()) }}
                 @if (trim($this->busqueda) !== '')
                     {{-- Blade escapa el término: aquí también se detiene un intento de XSS
-                         reflejado sobre el mismo campo de búsqueda. --}}
-                    para <span class="font-medium text-zinc-700 dark:text-zinc-200">&laquo;{{ trim($this->busqueda) }}&raquo;</span>
+                         reflejado sobre el mismo campo de búsqueda.
+                         break-all es indispensable: la carga útil de un ataque es una cadena
+                         larguísima sin espacios y, sin cortarla, desborda la pantalla del
+                         teléfono justo en la demostración del WAF. --}}
+                    para <span class="break-all font-medium text-zinc-700 dark:text-zinc-200">&laquo;{{ trim($this->busqueda) }}&raquo;</span>
                 @endif
             </p>
 
             @if ($this->hayFiltros)
-                <flux:button size="sm" variant="ghost" icon="x-mark" wire:click="limpiarFiltros">
+                <flux:button size="sm" variant="ghost" icon="x-mark" class="min-h-11 shrink-0" wire:click="limpiarFiltros">
                     Limpiar filtros
                 </flux:button>
             @endif
@@ -260,7 +266,7 @@ class extends Component
     </section>
 
     @if ($this->productos->isEmpty())
-        <section class="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-16 text-center dark:border-zinc-700 dark:bg-zinc-800">
+        <section class="rounded-2xl border border-dashed border-zinc-300 bg-white px-4 py-12 text-center sm:px-6 sm:py-16 dark:border-zinc-700 dark:bg-zinc-800">
             <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-700">
                 <flux:icon.magnifying-glass class="text-zinc-400" />
             </div>
@@ -270,18 +276,24 @@ class extends Component
                 o quitá los filtros para ver el catálogo completo.
             </p>
             <div class="mt-5">
-                <flux:button variant="primary" icon="arrow-path" wire:click="limpiarFiltros">
+                <flux:button variant="primary" icon="arrow-path" class="min-h-11 w-full sm:w-auto" wire:click="limpiarFiltros">
                     Ver todo el catálogo
                 </flux:button>
             </div>
         </section>
     @else
-        <section class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {{-- Una columna en el teléfono, dos desde sm, tres desde md y cuatro desde lg.
+             Antes eran dos columnas fijas incluso en 375 px y la tarjeta quedaba ilegible. --}}
+        <section class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             @foreach ($this->productos as $producto)
                 <x-pages::tienda.tarjeta-producto :producto="$producto" />
             @endforeach
         </section>
 
-        <flux:pagination :paginator="$this->productos" />
+        {{-- El paginador de Flux puede ser más ancho que la pantalla cuando hay muchas
+             páginas: el contenedor absorbe el desplazamiento para que no lo haga la página. --}}
+        <div class="overflow-x-auto">
+            <flux:pagination :paginator="$this->productos" />
+        </div>
     @endif
 </div>

@@ -165,10 +165,22 @@ ClientAliveInterval 300
 ClientAliveCountMax 2
 AllowUsers ${ADMIN_USER}
 
-# Solo algoritmos criptográficos vigentes
+# Solo algoritmos criptográficos vigentes.
+#
+# Se incluyen además los cifrados en modo contador porque hay clientes que
+# operan bajo el estándar FIPS 140 y no admiten ni ChaCha20 ni los modos GCM.
+# La consola web del propio proveedor de nube es uno de ellos: restringir la
+# lista a los tres primeros dejó el servidor inaccesible desde ella, lo que
+# obligó a recuperarlo mediante el agente de la plataforma.
+#
+# Es un ejemplo de endurecimiento contraproducente: una configuración más
+# estricta que el entorno no puede satisfacer no aumenta la seguridad, porque
+# acaba forzando a abrir otra vía de acceso para recuperar el control. Los
+# cifrados en modo contador siguen siendo aceptables; lo que se excluye de
+# verdad son los algoritmos obsoletos como CBC, 3DES, RC4 y Arcfour.
 KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512
-Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
-MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com
+Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
 EOF
   if sshd -t 2>/dev/null; then
     systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || true
