@@ -204,7 +204,7 @@ services:
       # los altera, que es lo que exige el control A.8.15 sobre integridad
       # de los registros. Sin este montaje el panel aparece vacío sin error.
       - modsec-audit:/var/log/modsecurity/audit:ro
-    environment:
+    environment: &entorno-aplicacion
       SSL_MODE: "off"                    # TLS termina en el WAF
       PHP_OPCACHE_ENABLE: "1"
       AUTORUN_ENABLED: "true"
@@ -290,6 +290,54 @@ services:
       timeout: 10s
       retries: 12
       start_period: 120s   # margen para migraciones y generación de cachés
+
+  # ---------------------------------------------------------------------------
+  # TRANSVERSAL · Programador de tareas periódicas
+  #
+  # Sin este servicio el panel de detección no recibe un solo evento. Los
+  # comandos de ingesta, correlación y vigilancia existen y funcionan, pero
+  # nadie los invoca: quedan a la espera de que alguien los ejecute a mano.
+  #
+  # Es el fallo clásico de un sistema de detección, y lo peculiar es que no se
+  # parece a un fallo. El panel muestra cero eventos, y cero se lee igual que
+  # «no está pasando nada». Un sistema que no distingue la calma del silencio
+  # da una falsa sensación de seguridad, que es peor que no tener sistema.
+  #
+  # Por eso el panel comprueba la antigüedad del último evento y avisa cuando
+  # la ingesta lleva demasiado tiempo detenida. Ese aviso fue justamente lo que
+  # delató que faltaba este servicio.
+  #
+  # `schedule:work` se queda en primer plano y despierta cada minuto, que es lo
+  # que corresponde a un contenedor: no hace falta un demonio de tareas en el
+  # sistema anfitrión ni una entrada de cron que mantener aparte.
+  # ---------------------------------------------------------------------------
+  programador:
+    image: marketgt/app:local
+    container_name: marketgt-programador
+    restart: unless-stopped
+    networks:
+      - appnet
+      - edge
+    volumes:
+      # El mismo registro de auditoría que lee la aplicación, en solo lectura.
+      - modsec-audit:/var/log/modsecurity/audit:ro
+    environment:
+      <<: *entorno-aplicacion
+      # Este contenedor no sirve páginas: no arranca el servidor web ni repite
+      # las migraciones, que ya ejecuta el contenedor de la aplicación.
+      AUTORUN_ENABLED: "false"
+    command: ["php", "/var/www/html/artisan", "schedule:work"]
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      # Comprueba que el proceso del programador sigue vivo. Un programador
+      # muerto no da error: simplemente deja de alimentar el panel.
+      test: ["CMD-SHELL", "pgrep -f 'schedule:work' >/dev/null || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ---------------------------------------------------------------------------
   # CAPA 6 - Datos

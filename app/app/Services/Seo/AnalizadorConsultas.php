@@ -98,6 +98,9 @@ class AnalizadorConsultas
      */
     private const TOPE_VOCABULARIO = 6;
 
+    /** El mismo techo cuando la consulta sí habla del negocio. Ver senalesVocabulario(). */
+    private const TOPE_VOCABULARIO_NEGOCIO = 3;
+
     /** Vocabulario del negocio real que motivó el control. Es un ejemplo editable. */
     public const VOCABULARIO_EJEMPLO = 'camara, camaras, seguridad, vigilancia, cctv, alarma, monitoreo, instalacion, mantenimiento, dvr, nvr';
 
@@ -352,12 +355,18 @@ class AnalizadorConsultas
 
         $senales = [];
 
+        // La distancia semántica se calcula primero porque las demás señales dependen de
+        // ella: una palabra ambigua pesa distinto en una consulta que habla del negocio que
+        // en una que no habla de nada de lo que el sitio vende.
+        $distancia = $this->senalDistanciaSemantica($tokens, $contexto);
+        $hablaDelNegocio = $distancia === null && $contexto['vocabulario'] !== [];
+
         foreach ([
             $this->senalDesproporcion($fila, $contexto),
             $this->senalDominio($normalizada, $contexto),
-            $this->senalDistanciaSemantica($tokens, $contexto),
+            $distancia,
             $this->senalMarcaApuestas($tokens),
-            $this->senalAcceso($normalizada, $tokens, $contexto),
+            $this->senalAcceso($normalizada, $hablaDelNegocio),
             $this->senalAlfabetoAjeno($consulta),
         ] as $senal) {
             if ($senal !== null) {
@@ -365,7 +374,7 @@ class AnalizadorConsultas
             }
         }
 
-        foreach ($this->senalesVocabulario($consulta, $normalizada) as $senal) {
+        foreach ($this->senalesVocabulario($consulta, $normalizada, $hablaDelNegocio) as $senal) {
             $senales[] = $senal;
         }
 
@@ -550,7 +559,7 @@ class AnalizadorConsultas
      *
      * @return array<int, array{regla: string, descripcion: string, puntos: int, evidencia: string}>
      */
-    private function senalesVocabulario(string $consulta, string $normalizada): array
+    private function senalesVocabulario(string $consulta, string $normalizada, bool $hablaDelNegocio): array
     {
         $senales = [];
 
@@ -574,7 +583,16 @@ class AnalizadorConsultas
             ];
         }
 
-        return $this->aplicarTope($senales, self::TOPE_VOCABULARIO);
+        // "Slot para memoria SD de la cámara" es una consulta legítima de esta tienda, y sin
+        // este descuento la palabra "slot" la mandaba a revisión. Cuando la consulta SÍ habla
+        // del negocio, una sola palabra ambigua del diccionario no basta para sospechar: hace
+        // falta que además se active otra señal independiente, que es de lo que trata la
+        // puntuación acumulativa. El contenido inyectado, en cambio, casi nunca menciona el
+        // negocio, así que este descuento no le llega.
+        return $this->aplicarTope(
+            $senales,
+            $hablaDelNegocio ? self::TOPE_VOCABULARIO_NEGOCIO : self::TOPE_VOCABULARIO,
+        );
     }
 
     /**
@@ -582,11 +600,9 @@ class AnalizadorConsultas
      * "daftar situs"). Puntúa poco porque "login" es una palabra corriente, y solo cuenta
      * cuando la consulta ya no pertenece al vocabulario del negocio.
      *
-     * @param  array<int, string>  $tokens
-     * @param  array<string, mixed>  $contexto
      * @return array{regla: string, descripcion: string, puntos: int, evidencia: string}|null
      */
-    private function senalAcceso(string $normalizada, array $tokens, array $contexto): ?array
+    private function senalAcceso(string $normalizada, bool $hablaDelNegocio): ?array
     {
         if (preg_match(self::PATRON_ACCESO, $normalizada, $coincidencia) !== 1) {
             return null;
@@ -594,7 +610,7 @@ class AnalizadorConsultas
 
         // Si la consulta sí habla del negocio ("login camaras hikvision"), no hay señal:
         // el cliente que busca el acceso a su propio sistema de cámaras es legítimo.
-        if ($this->senalDistanciaSemantica($tokens, $contexto) === null) {
+        if ($hablaDelNegocio) {
             return null;
         }
 
@@ -809,7 +825,7 @@ class AnalizadorConsultas
 
         $terminos = is_array($vocabulario)
             ? $vocabulario
-            : preg_split('/[,;\n\r]+/u', $vocabulario) ?: [];
+            : (preg_split('/[,;\n\r]+/u', $vocabulario) ?: []);
 
         if ($marca !== '') {
             // La marca es vocabulario propio por definición: quien busca el nombre del
@@ -830,6 +846,16 @@ class AnalizadorConsultas
 
         $dominio = $this->normalizar((string) ($opciones['dominio_propio'] ?? ''));
         $dominio = (string) preg_replace('#^(?:https?://)?(?:www\.)?|/.*$#u', '', $dominio);
+
+        // Las etiquetas del propio dominio son vocabulario propio por definición: quien
+        // busca "marketgt.duckdns.org" está buscando este sitio, y sin esta línea la
+        // consulta más legítima que existe —el nombre del dominio— salía con distancia
+        // semántica por no estar en la lista que escribió el responsable.
+        foreach (explode('.', $dominio) as $etiqueta) {
+            if (mb_strlen($etiqueta) >= 4) {
+                $limpios[] = $etiqueta;
+            }
+        }
 
         return [
             'vocabulario' => array_values(array_unique($limpios)),
@@ -981,6 +1007,34 @@ class AnalizadorConsultas
             && $campos[0] !== ''
             && $this->esNumero($campos[1])
             && $this->esNumero($campos[2]);
+    }
+
+    /**
+     * Fila de encabezado o de totales. Se descarta en vez de analizarla porque "Consulta"
+     * y "Total" no comparten vocabulario con el negocio y aparecerían como sospechosas: el
+     * primer falso positivo que vería el responsable sería el título de su propia tabla.
+     */
+    private function esEncabezado(string $consulta): bool
+    {
+        $palabras = [
+            'consulta', 'consultas', 'consultas principales', 'principales consultas',
+            'query', 'queries', 'top queries', 'search query', 'busqueda', 'busquedas',
+            'termino de busqueda', 'terminos de busqueda', 'palabra clave', 'keyword',
+            'total', 'totales', 'clics', 'clicks', 'impresiones', 'impressions',
+        ];
+
+        $normalizada = $this->normalizar($consulta);
+
+        if (in_array($normalizada, $palabras, true)) {
+            return true;
+        }
+
+        // El encabezado del CSV ("Consulta,Clics,Impresiones") no se parte como tabla porque
+        // sus columnas no son cifras, y sin esta comprobación entraba como si fuera una
+        // consulta más: el primer hallazgo de la pantalla sería el título de la propia tabla.
+        $primero = trim((string) (preg_split('/[,;\t]/u', $normalizada)[0] ?? ''));
+
+        return $primero !== $normalizada && in_array($primero, $palabras, true);
     }
 
     private function esNumero(string $campo): bool

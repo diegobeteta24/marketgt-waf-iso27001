@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Seo;
 
+use App\Models\HallazgoMapaSitio;
 use App\Models\IncidenteSeo;
 use App\Models\LineaBaseSeo;
-use InvalidArgumentException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use SimpleXMLElement;
 use Throwable;
 
@@ -595,7 +596,7 @@ class AuditorMapaSitio
             $codigo = $respuesta->status();
             $direcciones[$indice]['codigo_http'] = $codigo;
 
-            $destino = $this->destinoFinal($respuesta, (string) $direccion['url']);
+            $destino = $this->destinoFinal($respuesta);
             $direcciones[$indice]['destino_final'] = $destino;
 
             if ($codigo === 404 || $codigo === 410) {
@@ -894,6 +895,7 @@ class AuditorMapaSitio
             'desaparecidas' => [],
             'crecimiento_subito' => false,
             'exclusion_cambiada' => false,
+            'exclusion_sellada_en' => null,
         ];
 
         if (! Schema::hasTable('lineas_base_seo')) {
@@ -1018,7 +1020,6 @@ class AuditorMapaSitio
             return ['hallazgos' => 0, 'incidentes' => 0];
         }
 
-        $modelo = \App\Models\HallazgoMapaSitio::class;
         $ejecucion = (string) $auditoria['ejecucion'];
         $sitio = (string) $auditoria['sitio'];
 
@@ -1132,10 +1133,10 @@ class AuditorMapaSitio
                 continue;
             }
 
-            $modelo::query()->create([
+            HallazgoMapaSitio::query()->create([
                 'ejecucion' => $ejecucion,
                 'sitio' => $sitio,
-                'tipo' => $modelo::TIPO_DIRECCION,
+                'tipo' => HallazgoMapaSitio::TIPO_DIRECCION,
                 'url' => mb_substr((string) $direccion['url'], 0, 2000),
                 'origen' => mb_substr((string) $direccion['origen'], 0, 500),
                 'veredicto' => (string) $direccion['veredicto'],
@@ -1156,10 +1157,10 @@ class AuditorMapaSitio
         }
 
         foreach ($hallazgosExclusion as $hallazgo) {
-            $modelo::query()->create([
+            HallazgoMapaSitio::query()->create([
                 'ejecucion' => $ejecucion,
                 'sitio' => $sitio,
-                'tipo' => $modelo::TIPO_EXCLUSION,
+                'tipo' => HallazgoMapaSitio::TIPO_EXCLUSION,
                 'url' => (string) $auditoria['exclusion']['url'],
                 'origen' => (string) $auditoria['exclusion']['url'],
                 'veredicto' => (int) $hallazgo['puntos'] >= self::UMBRAL_ANOMALA
@@ -1687,15 +1688,23 @@ class AuditorMapaSitio
         return trim((string) preg_replace('/\s+/u', ' ', $this->detector->sanearUtf8($titulo)));
     }
 
-    private function destinoFinal(Response $respuesta, string $url): ?string
+    /**
+     * Dónde acabó de verdad la petición.
+     *
+     * Guzzle apila el historial de redirecciones en esa cabecera cuando se le pide
+     * track_redirects, y es el único sitio donde queda constancia del salto: una página
+     * que responde 200 después de haber rebotado a otro dominio se vería "sana" mirando
+     * solo el código de estado.
+     */
+    private function destinoFinal(Response $respuesta): ?string
     {
-        $historial = $respuesta->getHeader('X-Guzzle-Redirect-History');
+        $historial = $respuesta->headers()['X-Guzzle-Redirect-History'] ?? [];
 
-        if ($historial !== []) {
+        if (is_array($historial) && $historial !== []) {
             return (string) end($historial);
         }
 
-        $ubicacion = $respuesta->header('Location');
+        $ubicacion = (string) $respuesta->header('Location');
 
         return $ubicacion === '' ? null : $ubicacion;
     }
