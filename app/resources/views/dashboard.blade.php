@@ -19,8 +19,22 @@
     // Se consulta con `rescue` porque el panel de inicio nunca debe romperse:
     // si la ingesta de eventos todavía no corrió, la tabla existe pero vacía,
     // y si algo fallara es preferible mostrar un guion que una traza de error.
-    $eventos24h  = $operador ? rescue(fn () => EventoSeguridad::where('created_at', '>=', $desde)->count(), null, false) : null;
-    $bloqueados  = $operador ? rescue(fn () => EventoSeguridad::where('created_at', '>=', $desde)->where('bloqueado', true)->count(), null, false) : null;
+    //
+    // Dos correcciones que importan más de lo que parece:
+    //
+    // Se filtra por `marca_tiempo` y no por la fecha de inserción. Son cosas
+    // distintas: la primera es cuándo ocurrió el evento, la segunda cuándo se
+    // escribió la fila. Como los eventos de demostración se insertan todos de
+    // golpe pero están fechados a lo largo de una semana, filtrar por la fecha
+    // de inserción los contaba todos como de las últimas veinticuatro horas.
+    // Un contador que exagera el tráfico reciente es peor que no tenerlo.
+    //
+    // Y la columna de bloqueo se llama `fue_bloqueado`. Con el nombre erróneo
+    // la consulta fallaba y `rescue` devolvía un guion, de modo que el panel
+    // mostraba un hueco donde debía ir la cifra más importante: cuántos
+    // ataques detuvo el cortafuegos.
+    $eventos24h  = $operador ? rescue(fn () => EventoSeguridad::where('marca_tiempo', '>=', $desde)->count(), null, false) : null;
+    $bloqueados  = $operador ? rescue(fn () => EventoSeguridad::where('marca_tiempo', '>=', $desde)->where('fue_bloqueado', true)->count(), null, false) : null;
     $abiertas    = $operador ? rescue(fn () => AlertaSeguridad::whereIn('estado', ['nueva', 'en_triaje'])->count(), null, false) : null;
 
     $segundoFactorActivo = filled($usuario?->two_factor_confirmed_at ?? null);

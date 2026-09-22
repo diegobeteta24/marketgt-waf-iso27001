@@ -655,13 +655,14 @@ class AnalizadorConsultas
      *
      * @param  array{filas: array<int, array<string, mixed>>, resumen: array<string, mixed>, contexto: array<string, mixed>}  $analisis
      * @param  array{ip?: string|null, agente_usuario?: string|null, ruta?: string|null, usuario_id?: int|string|null}  $opciones
-     * @return array{guardadas: int, incidentes: int}
+     * @return array{guardadas: int, incidentes: int, fallidas: int}
      */
     public function registrar(array $analisis, array $opciones = []): array
     {
         $ahora = Carbon::now();
         $guardadas = 0;
         $incidentes = 0;
+        $fallidas = 0;
 
         $vocabulario = $analisis['contexto']['vocabulario'] ?? [];
 
@@ -688,12 +689,16 @@ class AnalizadorConsultas
             } catch (Throwable) {
                 // Un fallo al guardar una fila no puede tumbar el análisis entero: el
                 // hallazgo ya está en la bitácora y en la pantalla, que es lo que mira la
-                // persona. Se sigue con la siguiente consulta.
+                // persona. Se sigue con la siguiente consulta, pero se cuenta el fallo: un
+                // control que dice "guardadas: 0" sin distinguir entre "no había nada" y
+                // "no se pudo" está mintiendo por omisión justo cuando más importa.
+                $fallidas++;
+
                 continue;
             }
         }
 
-        return ['guardadas' => $guardadas, 'incidentes' => $incidentes];
+        return ['guardadas' => $guardadas, 'incidentes' => $incidentes, 'fallidas' => $fallidas];
     }
 
     /**
@@ -704,7 +709,8 @@ class AnalizadorConsultas
     private function abrirIncidente(array $fila, array $vocabulario, array $opciones): ?IncidenteSeo
     {
         $resumen = 'Consulta ajena al negocio indexada: "'.$fila['consulta'].'" ('
-            .($fila['impresiones'] ?? 0).' impresiones, '.($fila['clics'] ?? 0).' clics, '
+            .$this->plural($fila['impresiones'], 'impresión', 'impresiones').', '
+            .$this->plural($fila['clics'], 'clic', 'clics').', '
             .$fila['puntuacion'].' puntos)';
 
         return $this->registro->registrar(IncidenteSeo::TIPO_CONTENIDO_SPAM, $resumen, [
@@ -1047,6 +1053,17 @@ class AnalizadorConsultas
     private function aEntero(string $campo): int
     {
         return (int) preg_replace('/\D/', '', $campo);
+    }
+
+    /**
+     * El resumen del incidente lo lee una persona en una lista de incidentes reales, no un
+     * programa: "1 clics" delata que nadie miró la pantalla antes de presentarla.
+     */
+    private function plural(?int $cantidad, string $singular, string $plural): string
+    {
+        $cantidad ??= 0;
+
+        return $cantidad.' '.($cantidad === 1 ? $singular : $plural);
     }
 
     private function mayor(?int $a, ?int $b): ?int

@@ -96,6 +96,16 @@ class AuditorMapaSitio
     /** Muestra que se comprueba por HTTP: más parecería un escáner y tardaría eternamente. */
     public const MUESTRA_COMPROBACION = 8;
 
+    /**
+     * Filas de evidencia que se guardan por corrida.
+     *
+     * Una campaña puede inyectar miles de direcciones y escribirlas todas convertiría cada
+     * auditoría en una descarga masiva sobre la base de datos. Se guardan las peores, que
+     * están ordenadas primero: quinientas evidencias sostienen cualquier hallazgo, y el
+     * recuento completo sigue estando en el incidente y en la bitácora.
+     */
+    private const MAXIMO_EVIDENCIAS = 500;
+
     private const TIMEOUT_DESCARGA = 8;
 
     private const TIMEOUT_COMPROBACION = 6;
@@ -198,7 +208,14 @@ class AuditorMapaSitio
         $errores = array_merge($errores, $recoleccion['errores']);
 
         $direcciones = $recoleccion['direcciones'];
-        $contexto = $this->perfilarCorpus($direcciones, $host);
+
+        // El vocabulario propio se aprende de la LÍNEA BASE cuando la hay, y solo del mapa
+        // actual cuando no la hay. La diferencia no es cosmética: si el atacante inyecta
+        // ciento veinte páginas de apuestas en un sitio de cuarenta, "gacor" y "maxwin"
+        // pasan a ser las palabras MÁS frecuentes del mapa y el control aprende que el spam
+        // es lo normal de la casa. Aprendiendo del estado autorizado, cuanto más inyecta el
+        // atacante, más se delata.
+        $contexto = $this->perfilarCorpus($direcciones, $host, $this->urlsAutorizadas($host));
 
         $analizadas = [];
 
@@ -256,12 +273,13 @@ class AuditorMapaSitio
 
         $motivos = [];
         $puntuacion = 0;
+        $esAjeno = $hostDeclarado !== '' && ! $this->mismoSitio($hostDeclarado, $contexto['host']);
 
         // --- Dominio ajeno ---------------------------------------------------
         // Un mapa del sitio SOLO puede declarar direcciones del propio sitio: así lo exige
         // el protocolo. Declarar ajenas no admite explicación inocente, y por eso es lo
         // único aquí que por sí solo basta para el veredicto.
-        if ($hostDeclarado !== '' && ! $this->mismoSitio($hostDeclarado, $contexto['host'])) {
+        if ($esAjeno) {
             $puntuacion += 8;
             $motivos[] = $this->motivo(
                 'dominio_ajeno',
@@ -272,11 +290,17 @@ class AuditorMapaSitio
         }
 
         // --- Vocabulario de los sectores de abuso ----------------------------
-        // El texto legible de la dirección: los separadores se vuelven espacios para que
-        // los patrones con \b de DetectorSpamSeo puedan morder "/slot-gacor/" igual que
-        // morderían "slot gacor" en una reseña.
-        $legible = $this->textoLegible($url);
-        $general = $this->detector->analizar($url."\n".$legible);
+        // Se analiza la RUTA, no la dirección entera, salvo cuando el anfitrión es ajeno.
+        //
+        // La diferencia importa más de lo que parece: el anfitrión es idéntico en las miles
+        // de direcciones de un mapa, así que cualquier señal que viva en él puntuaría en
+        // TODAS. Una tienda honesta alojada en un dominio .top vería su catálogo completo
+        // marcado como dominio desechable, y un control que marca el cien por cien no
+        // informa de nada. Cuando el anfitrión SÍ es ajeno se pasa entero, porque
+        // entonces es justo la evidencia que hay que puntuar.
+        $rutaYConsulta = $ruta.($consulta === '' ? '' : '?'.$consulta);
+        $legible = $this->textoLegible($esAjeno ? $url : $rutaYConsulta);
+        $general = $this->detector->analizar(($esAjeno ? $url : $rutaYConsulta)."\n".$legible);
 
         foreach ($general['motivos'] as $delDetector) {
             $puntuacion += (int) $delDetector['puntos'];
@@ -495,14 +519,41 @@ class AuditorMapaSitio
 
             $evaluables++;
 
-            if (in_array($token, $vocabulario, true)) {
+            if ($this->coincideConVocabulario($token, $vocabulario)) {
                 $propias++;
             }
         }
 
-        // Una dirección de un solo token corto (/es, /2026) no prueba nada por sí misma:
-        // exigir evidencia mínima es lo que separa una señal de una casualidad.
+        // Una dirección de un solo token (/contacto, /es, /2026) no prueba nada por sí
+        // misma: exigir evidencia mínima es lo que separa una señal de una casualidad.
         return $evaluables >= 2 && $propias === 0;
+    }
+
+    /**
+     * Comparación por raíz y no por igualdad exacta.
+     *
+     * "camara" y "camaras" son la misma palabra, y "instalacion" e "instalaciones"
+     * también. Comparando cadenas completas, media tienda honesta salía marcada como
+     * ajena a su propio catálogo por un plural. Cinco caracteres de raíz común es
+     * suficiente en español para el singular, el plural y el diminutivo, y corto de más
+     * para juntar dos palabras que no tienen nada que ver.
+     *
+     * @param  array<int, string>  $vocabulario
+     */
+    private function coincideConVocabulario(string $token, array $vocabulario): bool
+    {
+        foreach ($vocabulario as $palabra) {
+            if ($token === $palabra) {
+                return true;
+            }
+
+            if (mb_strlen($token) >= 5 && mb_strlen($palabra) >= 5
+                && (str_starts_with($token, mb_substr($palabra, 0, 5)) || str_starts_with($palabra, mb_substr($token, 0, 5)))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -698,10 +749,23 @@ class AuditorMapaSitio
             $hostDeclarado = strtolower((string) parse_url($declarado, PHP_URL_HOST));
 
             if ($hostDeclarado === '' || ! $this->mismoSitio($hostDeclarado, $host)) {
+                // Dos hallazgos distintos con el mismo síntoma, porque no significan lo mismo:
+                //
+                //   - "marketgt.gt" declarado en el sitio servido desde "marketgt.duckdns.org"
+                //     es un robots.txt copiado de producción a otro entorno. Importa —Google
+                //     está siendo enviado a un mapa que aquí no existe—, pero no es un ataque.
+                //   - "mapa-del-atacante.top" no tiene ninguna explicación inocente.
+                //
+                // Mezclarlos daría una alarma roja permanente en la demostración del sábado, y
+                // una alarma que siempre está encendida deja de mirarse a la tercera semana.
+                $deOtroEntorno = $this->comparteEtiquetaPrincipal($hostDeclarado, $host);
+
                 $hallazgos[] = [
-                    'regla' => 'mapa_ajeno_declarado',
-                    'descripcion' => 'robots.txt declara un mapa del sitio alojado en otro dominio: el atacante le entrega su lista a Google usando este dominio como aval',
-                    'puntos' => 8,
+                    'regla' => $deOtroEntorno ? 'mapa_de_otro_entorno' : 'mapa_ajeno_declarado',
+                    'descripcion' => $deOtroEntorno
+                        ? 'robots.txt declara el mapa de otro entorno del mismo proyecto: el buscador está siendo enviado a una dirección que este servidor no sirve'
+                        : 'robots.txt declara un mapa del sitio alojado en otro dominio: el atacante le entrega su lista a Google usando este dominio como aval',
+                    'puntos' => $deOtroEntorno ? 3 : 8,
                     'evidencia' => mb_substr($declarado, 0, 200),
                 ];
 
@@ -898,7 +962,7 @@ class AuditorMapaSitio
             'exclusion_sellada_en' => null,
         ];
 
-        if (! Schema::hasTable('lineas_base_seo')) {
+        if (! $this->tablaDisponible('lineas_base_seo')) {
             return $comparacion;
         }
 
@@ -948,7 +1012,7 @@ class AuditorMapaSitio
      */
     public function sellar(array $auditoria, ?string $nota = null, int|string|null $usuarioId = null): void
     {
-        if (! Schema::hasTable('lineas_base_seo')) {
+        if (! $this->tablaDisponible('lineas_base_seo')) {
             return;
         }
 
@@ -992,6 +1056,23 @@ class AuditorMapaSitio
         }
     }
 
+    /**
+     * ¿Existe la tabla y responde la base de datos?
+     *
+     * Se pregunta con red de seguridad porque el análisis del mapa no necesita la base de
+     * datos para nada: si está caída, el operador tiene que poder ver igual que su sitio
+     * declara cuarenta páginas de apuestas. Un control que se apaga entero porque falla
+     * algo que no le hacía falta no es un control, es una dependencia disfrazada.
+     */
+    private function tablaDisponible(string $tabla): bool
+    {
+        try {
+            return Schema::hasTable($tabla);
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
     private function clave(string $prefijo, string $host): string
     {
         // La columna artefacto es única y de 80 caracteres: un anfitrión largo tiene que
@@ -1016,9 +1097,12 @@ class AuditorMapaSitio
      */
     public function registrar(array $auditoria, array $contexto = []): array
     {
-        if (! Schema::hasTable('hallazgos_mapa_sitio')) {
-            return ['hallazgos' => 0, 'incidentes' => 0];
-        }
+        // El incidente y la bitácora se escriben SIEMPRE y PRIMERO, esté o no la tabla de
+        // evidencia. Es el mismo criterio de RegistroIncidentesSeo y por la misma razón: si
+        // falta una tabla, el hallazgo tiene que llegar igual al SIEM, que lee el archivo.
+        // Condicionar la alerta a que exista la tabla de detalle sería apagar el control
+        // por un problema que no es del control.
+        $hayEvidencia = $this->tablaDisponible('hallazgos_mapa_sitio');
 
         $ejecucion = (string) $auditoria['ejecucion'];
         $sitio = (string) $auditoria['sitio'];
@@ -1126,11 +1210,19 @@ class AuditorMapaSitio
 
         $filas = 0;
 
+        if (! $hayEvidencia) {
+            return ['hallazgos' => 0, 'incidentes' => $incidentes];
+        }
+
         foreach ($auditoria['direcciones'] as $direccion) {
             // Las direcciones limpias no se guardan: son el 99 % del mapa y llenarían la
             // tabla de filas que nadie va a leer. Lo que interesa conservar es la evidencia.
             if ((int) $direccion['puntuacion'] < self::UMBRAL_SOSPECHA) {
                 continue;
+            }
+
+            if ($filas >= self::MAXIMO_EVIDENCIAS) {
+                break;
             }
 
             HallazgoMapaSitio::query()->create([
@@ -1458,24 +1550,18 @@ class AuditorMapaSitio
      * Qué es "normal" EN ESTE SITIO. Sin esto, la desviación no se puede medir.
      *
      * @param  array<int, array{url: string, lastmod: string|null, origen: string}>  $direcciones
+     * @param  array<int, string>  $autorizadas  Direcciones de la línea base sellada, si la hay.
      * @return array<string, mixed>
      */
-    private function perfilarCorpus(array $direcciones, string $host): array
+    private function perfilarCorpus(array $direcciones, string $host, array $autorizadas = []): array
     {
         $profundidades = [];
-        $frecuencia = [];
         $fechas = [];
 
         foreach ($direcciones as $entrada) {
             $ruta = (string) parse_url($entrada['url'], PHP_URL_PATH);
             $segmentos = array_values(array_filter(explode('/', trim($ruta, '/')), static fn (string $s): bool => $s !== ''));
             $profundidades[] = count($segmentos);
-
-            foreach ($this->tokens($this->textoLegible($ruta)) as $token) {
-                if (mb_strlen($token) >= 4 && ! is_numeric($token)) {
-                    $frecuencia[$token] = ($frecuencia[$token] ?? 0) + 1;
-                }
-            }
 
             if ($entrada['lastmod'] !== null) {
                 try {
@@ -1489,20 +1575,78 @@ class AuditorMapaSitio
 
         $total = count($direcciones);
 
-        // Una palabra entra en el vocabulario propio si se repite: un término que aparece
-        // en una sola dirección puede ser precisamente el inyectado, y meterlo en el
-        // vocabulario haría que el control se autoconvenciera de que el spam es normal.
-        $minimo = max(2, (int) ceil($total * 0.03));
-        $vocabulario = array_keys(array_filter($frecuencia, static fn (int $n): bool => $n >= $minimo));
+        $muestra = $autorizadas !== []
+            ? $autorizadas
+            : array_map(static fn (array $e): string => $e['url'], $direcciones);
 
         return [
             'host' => $host,
             'total' => $total,
             'profundidad_mediana' => $this->mediana($profundidades),
-            'vocabulario' => $total >= 8 ? $vocabulario : [],
+            'vocabulario' => $this->vocabularioDe($muestra),
+            'vocabulario_sellado' => $autorizadas !== [],
             'fecha_mediana' => $this->medianaDeFechas($fechas),
             'rutas_excluidas' => $this->politica->rutasNoIndexables(),
         ];
+    }
+
+    /**
+     * Palabras que el sitio usa de verdad, a partir de un conjunto de direcciones.
+     *
+     * @param  array<int, string>  $urls
+     * @return array<int, string>
+     */
+    private function vocabularioDe(array $urls): array
+    {
+        $total = count($urls);
+
+        // Por debajo de veinte direcciones no hay vocabulario que valga: en un sitio de
+        // diez páginas cada palabra aparece una sola vez y NINGUNA llegaría al mínimo, de
+        // modo que "/contacto" y "/nosotros" saldrían marcadas como ajenas a su propio
+        // sitio. La regla se apaga sola en vez de mentir.
+        if ($total < 20) {
+            return [];
+        }
+
+        $frecuencia = [];
+
+        foreach ($urls as $url) {
+            foreach ($this->tokens($this->textoLegible((string) parse_url($url, PHP_URL_PATH))) as $token) {
+                if (mb_strlen($token) >= 4 && ! is_numeric($token)) {
+                    $frecuencia[$token] = ($frecuencia[$token] ?? 0) + 1;
+                }
+            }
+        }
+
+        // Una palabra entra en el vocabulario propio si se REPITE: un término que aparece
+        // en una sola dirección puede ser precisamente el inyectado, y meterlo en el
+        // vocabulario haría que el control se autoconvenciera de que el spam es normal.
+        $minimo = max(2, (int) ceil($total * 0.03));
+
+        return array_keys(array_filter($frecuencia, static fn (int $n): bool => $n >= $minimo));
+    }
+
+    /**
+     * Direcciones del estado autorizado, si alguien selló alguna vez este sitio.
+     *
+     * @return array<int, string>
+     */
+    private function urlsAutorizadas(string $host): array
+    {
+        if (! $this->tablaDisponible('lineas_base_seo')) {
+            return [];
+        }
+
+        $linea = LineaBaseSeo::query()->where('artefacto', $this->clave('mapa', $host))->first();
+
+        if (! $linea instanceof LineaBaseSeo) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            (array) (($linea->resumen ?? [])['urls'] ?? []),
+            static fn ($valor): bool => is_string($valor),
+        ));
     }
 
     /**
@@ -1578,6 +1722,31 @@ class AuditorMapaSitio
         return $candidato === $raiz
             || $candidato === 'www.'.$raiz
             || str_ends_with($candidato, '.'.$raiz);
+    }
+
+    /**
+     * ¿Los dos anfitriones son el mismo proyecto en entornos distintos?
+     *
+     * Se exige que compartan la primera etiqueta Y que el declarado no tenga más de tres,
+     * y lo segundo es lo que impide el truco: "marketgt.gt.sitio-del-atacante.tld" también
+     * empieza por "marketgt", y sin el límite de etiquetas se colaría como "otro entorno"
+     * rebajando su propia alarma justo cuando más había que darla.
+     *
+     * No es infalible —sin una lista de sufijos públicos no se puede saber qué parte del
+     * nombre es el dominio registrable—, por eso solo sirve para BAJAR la severidad de un
+     * hallazgo que se reporta igual, nunca para callarlo.
+     */
+    private function comparteEtiquetaPrincipal(string $declarado, string $propio): bool
+    {
+        $etiquetasDeclarado = explode('.', strtolower(ltrim($declarado, '.')));
+        $etiquetasPropio = explode('.', strtolower(ltrim($propio, '.')));
+
+        if (count($etiquetasDeclarado) > 3) {
+            return false;
+        }
+
+        return ($etiquetasDeclarado[0] ?? '') !== ''
+            && ($etiquetasDeclarado[0] ?? '') === ($etiquetasPropio[0] ?? '');
     }
 
     /**
@@ -1661,6 +1830,10 @@ class AuditorMapaSitio
             'hallazgos_exclusion' => count((array) $exclusion['hallazgos']),
             'profundidad_mediana' => (int) $contexto['profundidad_mediana'],
             'palabras_propias' => count((array) $contexto['vocabulario']),
+            // Si el vocabulario sale del mapa actual y no de la línea base, el control
+            // puede estar aprendiendo del propio atacante: la pantalla tiene que poder
+            // decirlo en vez de dar una confianza que no tiene.
+            'vocabulario_sellado' => (int) ($contexto['vocabulario_sellado'] ? 1 : 0),
         ];
     }
 
