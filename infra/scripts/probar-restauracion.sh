@@ -232,7 +232,8 @@ json_conteos() {
 DIRTMP=""
 limpiar() {
   if [ -n "${BASE_PRUEBA:-}" ] && [ "${BASE_PRUEBA#"$PREFIJO_PRUEBA"}" != "$BASE_PRUEBA" ] && [ -n "${MODO:-}" ]; then
-    MYSQL_PWD="$ADMIN_CLAVE" cliente -u "$ADMIN_USUARIO" -h "$ANFITRION" -P "$PUERTO" \
+    PWD_ACTUAL="$ADMIN_CLAVE"
+    cliente -u "$ADMIN_USUARIO" -h "$ANFITRION" -P "$PUERTO" \
       -e "DROP DATABASE IF EXISTS \`${BASE_PRUEBA}\`;" >/dev/null 2>&1
   fi
   if [ -n "$DIRTMP" ] && [ -d "$DIRTMP" ]; then
@@ -251,6 +252,10 @@ trap limpiar EXIT
 printf '\n\033[1;36m═══ Prueba de restauracion MarketGT · %s ═══\033[0m\n\n' "$SELLO" >&2
 
 ejecutar() {
+  local estado t0 t1
+  local tablas_origen previo posterior tablas_prueba restaurado
+  local cifrador tablas_restauradas
+
   if [ "$BASE_PRUEBA" = "$BASE" ]; then
     fallar "preparacion" "La base de prueba coincide con la de origen. Se aborta antes de tocar nada."
     return 1
@@ -291,7 +296,8 @@ ejecutar() {
   # está viva: entre las dos puede entrar un pedido. La restauración se acepta si
   # cada tabla cae DENTRO del intervalo observado, no si coincide con una foto
   # concreta. Comparar contra una sola lectura daría fallos falsos en producción.
-  local tablas_origen="${DIRTMP}/tablas.txt"
+  PWD_ACTUAL="$CLAVE"
+  tablas_origen="${DIRTMP}/tablas.txt"
   listar_tablas "$USUARIO" "$BASE" > "$tablas_origen" 2>/dev/null
   if [ ! -s "$tablas_origen" ]; then
     fallar "preparacion" "No se pudo listar las tablas de ${BASE}. Revise usuario, clave y anfitrion."
@@ -300,21 +306,20 @@ ejecutar() {
   TABLAS="$(grep -c . "$tablas_origen")"
   dato "Tablas en el origen" "$TABLAS"
 
-  local previo="${DIRTMP}/origen-previo.tsv"
-  MYSQL_PWD="$CLAVE" contar_filas "$USUARIO" "$BASE" "$tablas_origen" > "$previo"
+  previo="${DIRTMP}/origen-previo.tsv"
+  contar_filas "$USUARIO" "$BASE" "$tablas_origen" > "$previo"
 
   # ── Fase 1: volcado ────────────────────────────────────────────────────────
   paso "Fase 1/5 · Volcado de ${BASE}"
-  local t0 t1
   t0="$(ahora_ns)"
   # Sin --databases a proposito: esa opcion mete CREATE DATABASE y USE con el
   # nombre de PRODUCCION dentro del volcado, y restaurarlo sobrescribiria la base
   # real por mucho que uno crea estar apuntando a otra.
-  MYSQL_PWD="$CLAVE" volcador \
+  volcador \
       --single-transaction --quick --skip-lock-tables \
       --default-character-set=utf8mb4 \
       -u "$USUARIO" -h "$ANFITRION" -P "$PUERTO" "$BASE" > "${DIRTMP}/volcado.sql" 2>"${DIRTMP}/volcado.err"
-  local estado=$?
+  estado=$?
   t1="$(ahora_ns)"
   SEG_VOLCADO="$(transcurrido "$t0" "$t1")"
 
@@ -327,8 +332,8 @@ ejecutar() {
   dato "Tamano del volcado" "$(numfmt --to=iec "$BYTES_VOLCADO" 2>/dev/null || echo "${BYTES_VOLCADO} B")"
   dato "Duracion" "${SEG_VOLCADO} s"
 
-  local posterior="${DIRTMP}/origen-posterior.tsv"
-  MYSQL_PWD="$CLAVE" contar_filas "$USUARIO" "$BASE" "$tablas_origen" > "$posterior"
+  posterior="${DIRTMP}/origen-posterior.tsv"
+  contar_filas "$USUARIO" "$BASE" "$tablas_origen" > "$posterior"
   CONTEOS_ORIGEN="$(json_conteos "$posterior")"
 
   # ── Fase 2: cifrado ────────────────────────────────────────────────────────
@@ -355,7 +360,6 @@ ejecutar() {
 
   # No se declara el algoritmo que se pidio, se lee el que quedo dentro. En gpg
   # el identificador 9 es AES-256; 7 y 8 serian AES-128 y AES-192.
-  local cifrador
   cifrador="$(gpg --batch --no-tty --list-packets "${DIRTMP}/volcado.sql.gpg" 2>/dev/null \
                 | grep -o 'cipher [0-9]\+' | head -1 | awk '{print $2}')"
   case "$cifrador" in
@@ -391,7 +395,8 @@ ejecutar() {
 
   # ── Fase 4: restauración ───────────────────────────────────────────────────
   paso "Fase 4/5 · Restauracion sobre ${BASE_PRUEBA}"
-  if ! MYSQL_PWD="$ADMIN_CLAVE" cliente -u "$ADMIN_USUARIO" -h "$ANFITRION" -P "$PUERTO" \
+  PWD_ACTUAL="$ADMIN_CLAVE"
+  if ! cliente -u "$ADMIN_USUARIO" -h "$ANFITRION" -P "$PUERTO" \
         -e "CREATE DATABASE \`${BASE_PRUEBA}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" \
         >/dev/null 2>"${DIRTMP}/crear.err"; then
     fallar "restauracion" "No se pudo crear la base de prueba: $(head -c 300 "${DIRTMP}/crear.err" 2>/dev/null)"
@@ -399,7 +404,7 @@ ejecutar() {
   fi
 
   t0="$(ahora_ns)"
-  MYSQL_PWD="$ADMIN_CLAVE" cliente -u "$ADMIN_USUARIO" -h "$ANFITRION" -P "$PUERTO" \
+  cliente -u "$ADMIN_USUARIO" -h "$ANFITRION" -P "$PUERTO" \
       --default-character-set=utf8mb4 "$BASE_PRUEBA" < "${DIRTMP}/restaurado.sql" \
       >/dev/null 2>"${DIRTMP}/restaurar.err"
   estado=$?
@@ -414,12 +419,15 @@ ejecutar() {
 
   # ── Fase 5: verificación ───────────────────────────────────────────────────
   paso "Fase 5/5 · Verificacion por conteo de filas"
-  local tablas_prueba="${DIRTMP}/tablas-prueba.txt"
-  local restaurado="${DIRTMP}/restaurado.tsv"
+  tablas_prueba="${DIRTMP}/tablas-prueba.txt"
+  restaurado="${DIRTMP}/restaurado.tsv"
 
+  # Solo se cronometra lo que se hace SOBRE LA BASE RESTAURADA: contar el origen
+  # es una medicion de control del guion, no trabajo de recuperacion, y meterla
+  # en el reloj inflaria el RTO con tiempo que en un desastre real nadie gasta.
   t0="$(ahora_ns)"
-  MYSQL_PWD="$ADMIN_CLAVE" listar_tablas "$ADMIN_USUARIO" "$BASE_PRUEBA" > "$tablas_prueba"
-  MYSQL_PWD="$ADMIN_CLAVE" contar_filas "$ADMIN_USUARIO" "$BASE_PRUEBA" "$tablas_prueba" > "$restaurado"
+  listar_tablas "$ADMIN_USUARIO" "$BASE_PRUEBA" > "$tablas_prueba"
+  contar_filas "$ADMIN_USUARIO" "$BASE_PRUEBA" "$tablas_prueba" > "$restaurado"
   t1="$(ahora_ns)"
   SEG_VERIFICACION="$(transcurrido "$t0" "$t1")"
 
@@ -428,9 +436,9 @@ ejecutar() {
 
   # Una tabla se acepta si su conteo restaurado cae en el intervalo que el origen
   # mostro alrededor del volcado. Fuera de ahi es una discrepancia real.
-  DISCREPANCIAS="$(awk -F'\t' '
-    NR==FNR { previo[$1]=$2; next }
-    FNR!=NR && FILENAME==ARGV[2] { post[$1]=$2; next }
+  DISCREPANCIAS="$(awk -F'\t' -v f1="$previo" -v f2="$posterior" '
+    FILENAME==f1 { previo[$1]=$2; next }
+    FILENAME==f2 { post[$1]=$2; next }
     { rest[$1]=$2 }
     END {
       printf "{"; sep="";
@@ -449,7 +457,6 @@ ejecutar() {
       printf "}";
     }' "$previo" "$posterior" "$restaurado")"
 
-  local tablas_restauradas
   tablas_restauradas="$(grep -c . "$tablas_prueba")"
   dato "Tablas restauradas" "$tablas_restauradas"
   dato "Filas restauradas" "$FILAS"

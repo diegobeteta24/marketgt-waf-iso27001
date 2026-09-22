@@ -143,8 +143,13 @@ class EstadoParche extends Model
     }
 
     /**
-     * Parches aplicados sobre los que el plazo SE PUEDE medir: hacen falta las dos fechas.
-     * Es el unico conjunto que tiene derecho a entrar en el porcentaje.
+     * Parches aplicados sobre los que el plazo SE PUEDE medir: hacen falta las dos fechas
+     * y que el desfase tenga sentido. Es el unico conjunto que entra en el porcentaje, y
+     * este ambito define exactamente el mismo conjunto que usa AnalizadorParches, para que
+     * una pantalla que liste "los que cuentan" no muestre una cifra distinta de la metrica.
+     *
+     * Un desfase negativo significa aplicado antes de publicado, que no es un plazo
+     * cumplido sino un reloj mal puesto, y queda fuera.
      *
      * @param  Builder<$this>  $consulta
      * @return Builder<$this>
@@ -153,7 +158,9 @@ class EstadoParche extends Model
     {
         return $consulta->where('estado', self::ESTADO_APLICADO)
             ->whereNotNull('publicado_en')
-            ->whereNotNull('aplicado_en');
+            ->whereNotNull('aplicado_en')
+            ->whereNotNull('desfase_horas')
+            ->where('desfase_horas', '>=', 0);
     }
 
     /**

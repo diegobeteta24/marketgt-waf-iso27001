@@ -184,17 +184,23 @@ class AnalizadorParches
         // quedaron fuera, es la que un auditor senala primero.
         if ($conteos['sin_fecha'] > 0) {
             $origen .= sprintf(
-                ' %d de %d parches de seguridad aplicados no tienen fecha de publicacion conocida: cuentan '
-                    .'en el total y no en el plazo.',
+                ' %d de %d parches de seguridad aplicados %s fecha de publicacion conocida: %s en el total '
+                    .'y no en el plazo.',
                 $conteos['sin_fecha'],
                 $conteos['aplicados_seguridad'],
+                $this->concordar($conteos['sin_fecha'], 'no tiene', 'no tienen'),
+                $this->concordar($conteos['sin_fecha'], 'cuenta', 'cuentan'),
             );
         }
 
         if ($conteos['sin_clasificar'] > 0) {
             $origen .= sprintf(
-                ' Otros %d parches no se pudieron clasificar como de seguridad y quedan fuera del calculo.',
+                ' Otro%s %d parche%s no se %s clasificar como de seguridad y %s fuera del calculo.',
+                $this->concordar($conteos['sin_clasificar'], '', 's'),
                 $conteos['sin_clasificar'],
+                $this->concordar($conteos['sin_clasificar'], '', 's'),
+                $this->concordar($conteos['sin_clasificar'], 'pudo', 'pudieron'),
+                $this->concordar($conteos['sin_clasificar'], 'queda', 'quedan'),
             );
         }
 
@@ -210,26 +216,38 @@ class AnalizadorParches
 
         if ($conteos['pendientes_vencidos'] > 0) {
             $partes[] = sprintf(
-                '%d parches de seguridad llevan mas de %d h pendientes desde que el recolector los vio por '
+                '%d parche%s de seguridad %s mas de %d h pendiente%s desde que el recolector %s vio por '
                     .'primera vez. El plazo se cuenta desde esa observacion, no desde la publicacion, asi que '
                     .'el retraso real es como minimo ese.',
                 $conteos['pendientes_vencidos'],
+                $this->concordar($conteos['pendientes_vencidos'], '', 's'),
+                $this->concordar($conteos['pendientes_vencidos'], 'lleva', 'llevan'),
                 $horas,
+                $this->concordar($conteos['pendientes_vencidos'], '', 's'),
+                $this->concordar($conteos['pendientes_vencidos'], 'lo', 'los'),
             );
         } elseif ($conteos['pendientes'] > 0) {
             $partes[] = sprintf(
-                '%d parches de seguridad estan pendientes y todavia dentro de la ventana de %d h contada '
-                    .'desde que se vieron por primera vez.',
+                '%d parche%s de seguridad %s pendiente%s y todavia dentro de la ventana de %d h contada '
+                    .'desde que se %s por primera vez.',
                 $conteos['pendientes'],
+                $this->concordar($conteos['pendientes'], '', 's'),
+                $this->concordar($conteos['pendientes'], 'esta', 'estan'),
+                $this->concordar($conteos['pendientes'], '', 's'),
                 $horas,
+                $this->concordar($conteos['pendientes'], 'vio', 'vieron'),
             );
         }
 
         if ($conteos['inconsistentes'] > 0) {
             $partes[] = sprintf(
-                '%d parches figuran aplicados antes de su fecha de publicacion; quedan fuera del calculo '
+                '%d parche%s %s aplicado%s antes de su fecha de publicacion; %s fuera del calculo '
                     .'hasta que se revise el reloj del anfitrion.',
                 $conteos['inconsistentes'],
+                $this->concordar($conteos['inconsistentes'], '', 's'),
+                $this->concordar($conteos['inconsistentes'], 'figura', 'figuran'),
+                $this->concordar($conteos['inconsistentes'], '', 's'),
+                $this->concordar($conteos['inconsistentes'], 'queda', 'quedan'),
             );
         }
 
@@ -258,24 +276,34 @@ class AnalizadorParches
 
         if ($conteos['aplicados_seguridad'] > 0 && $conteos['sin_fecha'] === $conteos['aplicados_seguridad']) {
             $motivo .= sprintf(
-                ' Los %d parches de seguridad aplicados no traen fecha de publicacion: sus paquetes no tienen '
+                ' %s %d parche%s de seguridad aplicado%s no %s fecha de publicacion: esos paquetes no tienen '
                     .'el registro de cambios instalado en el servidor.',
+                $this->concordar($conteos['aplicados_seguridad'], 'El', 'Los'),
                 $conteos['aplicados_seguridad'],
+                $this->concordar($conteos['aplicados_seguridad'], '', 's'),
+                $this->concordar($conteos['aplicados_seguridad'], '', 's'),
+                $this->concordar($conteos['aplicados_seguridad'], 'trae', 'traen'),
             );
         }
 
         if ($conteos['pendientes'] > 0) {
             $motivo .= sprintf(
-                ' Constan %d parches de seguridad pendientes de aplicar, el dato mas util que hay ahora mismo, '
+                ' %s %d parche%s de seguridad pendiente%s de aplicar, el dato mas util que hay ahora mismo, '
                     .'pero un pendiente no permite calcular un porcentaje de cumplimiento del plazo.',
+                $this->concordar($conteos['pendientes'], 'Consta', 'Constan'),
                 $conteos['pendientes'],
+                $this->concordar($conteos['pendientes'], '', 's'),
+                $this->concordar($conteos['pendientes'], '', 's'),
             );
         }
 
         if ($conteos['sin_clasificar'] > 0) {
             $motivo .= sprintf(
-                ' Otros %d parches no se pudieron clasificar como de seguridad.',
+                ' Otro%s %d parche%s no se %s clasificar como de seguridad.',
+                $this->concordar($conteos['sin_clasificar'], '', 's'),
                 $conteos['sin_clasificar'],
+                $this->concordar($conteos['sin_clasificar'], '', 's'),
+                $this->concordar($conteos['sin_clasificar'], 'pudo', 'pudieron'),
             );
         }
 
@@ -299,6 +327,18 @@ class AnalizadorParches
             'origen' => $motivo,
             'advertencia' => null,
         ];
+    }
+
+    /**
+     * Concordancia de numero en los textos que lee el auditor.
+     *
+     * No es cosmetica: estas cadenas son la explicacion de una cifra de cumplimiento, y
+     * "1 parches llevan pendientes" hace dudar de quien escribio el calculo antes incluso
+     * de mirar el numero.
+     */
+    private function concordar(int $cantidad, string $singular, string $plural): string
+    {
+        return $cantidad === 1 ? $singular : $plural;
     }
 
     private function horasMeta(): int
