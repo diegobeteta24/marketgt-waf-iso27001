@@ -90,9 +90,13 @@ LOG=""
 FASE_FALLIDA=""
 ERROR=""
 
+# Los campos numericos salen al JSON tal cual, asi que su valor vacio es el literal null.
+# Los de texto pasan por json_o_nulo, que convierte la cadena vacia en null: dejarlos como
+# "null" los publicaria como el TEXTO "null", que es un dato inventado con aspecto de dato.
 SEG_VOLCADO="null"; SEG_CIFRADO="null"; SEG_DESCIFRADO="null"
 SEG_RESTAURACION="null"; SEG_VERIFICACION="null"
-BYTES_VOLCADO="null"; ALGORITMO="null"; CIFRADO_OK="false"; HUELLA="null"
+BYTES_VOLCADO="null"; CIFRADO_OK="false"
+ALGORITMO=""; HUELLA=""
 VERIFICACION_OK="false"; TABLAS=0; FILAS=0
 CONTEOS_ORIGEN="{}"; CONTEOS_PRUEBA="{}"; DISCREPANCIAS="{}"
 RESP_EPOCH=""; RESP_RUTA=""; RESP_CANT=0

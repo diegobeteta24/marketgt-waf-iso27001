@@ -284,6 +284,32 @@ class PruebaRestauracion extends Model
         return number_format($segundos / 3600, 2).' h';
     }
 
+    /**
+     * La antiguedad de un respaldo se mide en minutos, de modo que no puede compartir
+     * formateador con las duraciones de las fases: un respaldo de hace cuarenta segundos
+     * saldria como "0 ms" y pareceria un fallo de medicion en vez de un respaldo recien hecho.
+     */
+    public static function antiguedadLegible(?int $minutos): string
+    {
+        if ($minutos === null) {
+            return 'sin datos';
+        }
+
+        if ($minutos < 1) {
+            return 'menos de 1 min';
+        }
+
+        if ($minutos < 60) {
+            return $minutos.' min';
+        }
+
+        if ($minutos < 1440) {
+            return number_format($minutos / 60, 1).' h';
+        }
+
+        return number_format($minutos / 1440, 1).' dias';
+    }
+
     public static function tamanoLegible(?int $bytes): string
     {
         if ($bytes === null) {

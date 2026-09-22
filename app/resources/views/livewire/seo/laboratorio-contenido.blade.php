@@ -237,10 +237,55 @@
                 </flux:button>
 
                 @if ($this->destinoResuelto !== null)
-                    <div class="rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-700">
-                        <p class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Destino real</p>
-                        <p class="mt-1 break-all font-mono text-zinc-900 dark:text-white">{{ $this->destinoResuelto }}</p>
-                    </div>
+                    {{-- El veredicto tiene que verse, no deducirse.
+                         Antes se mostraba solo la dirección resuelta, y quien probaba una URL
+                         maliciosa veía el sitio propio sin entender que eso ERA el rechazo:
+                         parecía que el botón no hacía nada. Un control que funciona pero no lo
+                         comunica se percibe como un control roto, y en una demostración eso
+                         cuesta lo mismo que estar roto de verdad. --}}
+                    @php
+                        $clavePedida  = trim((string) $this->claveRedireccion);
+                        $fueAceptada  = $clavePedida !== '' && array_key_exists($clavePedida, $this->destinosPermitidos);
+                        $pareceUrl    = (bool) preg_match('~^(?:[a-z][a-z0-9+.-]*:)?//~i', $clavePedida);
+                    @endphp
+
+                    @if ($fueAceptada)
+                        <div class="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm dark:border-emerald-500/40 dark:bg-emerald-950/40">
+                            <div class="flex items-center gap-1.5">
+                                <flux:icon.check-circle class="size-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
+                                <p class="font-semibold text-emerald-800 dark:text-emerald-300">
+                                    Clave válida · redirección permitida
+                                </p>
+                            </div>
+                            <p class="mt-2 break-all font-mono text-zinc-900 dark:text-white">{{ $this->destinoResuelto }}</p>
+                        </div>
+                    @else
+                        <div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm dark:border-red-500/40 dark:bg-red-950/40">
+                            <div class="flex items-center gap-1.5">
+                                <flux:icon.shield-exclamation class="size-4 shrink-0 text-red-700 dark:text-red-400" />
+                                <p class="font-semibold text-red-800 dark:text-red-300">
+                                    Redirección rechazada · incidente registrado
+                                </p>
+                            </div>
+
+                            <p class="mt-2 text-zinc-700 dark:text-zinc-300">
+                                @if ($pareceUrl)
+                                    Lo recibido es una dirección completa, no una clave. El control
+                                    nunca acepta direcciones, de modo que no hay nada que validar ni
+                                    nada que se le pueda escapar.
+                                @else
+                                    La clave <span class="font-mono">{{ \Illuminate\Support\Str::limit($clavePedida ?: '(vacía)', 40) }}</span>
+                                    no existe en el mapa cerrado. No se rechaza por parecer
+                                    peligrosa: se rechaza porque no está.
+                                @endif
+                            </p>
+
+                            <p class="mt-2 text-xs uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                                Se redirige al destino por omisión
+                            </p>
+                            <p class="mt-1 break-all font-mono text-zinc-900 dark:text-white">{{ $this->destinoResuelto }}</p>
+                        </div>
+                    @endif
                 @endif
             </div>
 
