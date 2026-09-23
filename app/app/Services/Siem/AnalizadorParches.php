@@ -5,6 +5,7 @@ namespace App\Services\Siem;
 use App\Models\EstadoParche;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Database\QueryException;
 
 /**
  * Calcula la cobertura de parcheo critico del vertice de proteccion a partir del
@@ -57,7 +58,21 @@ class AnalizadorParches
         $horas = $this->horasMeta();
         $meta = '100 % de los parches criticos aplicados en '.$horas.' h';
 
-        $conteos = $this->conteos($ahora);
+        try {
+            $conteos = $this->conteos($ahora);
+        } catch (QueryException) {
+            // La tabla todavia no existe: la migracion no ha corrido en este entorno.
+            //
+            // Se declara sin datos en lugar de propagar. Esta metrica es una de ocho, y una
+            // excepcion aqui se lleva por delante el triangulo completo: el panel dejaria de
+            // responder por un despliegue a medias en UN control. Que se caiga la cifra que
+            // no se puede calcular es correcto; que se caigan las otras siete, no.
+            return $this->sinDatos(
+                $meta,
+                'La tabla de estados de parche no existe todavia en esta base. Falta correr las '
+                .'migraciones: "php artisan migrate" dentro del contenedor de la aplicacion.',
+            );
+        }
 
         if ($conteos['registros'] === 0) {
             return $this->sinDatos(

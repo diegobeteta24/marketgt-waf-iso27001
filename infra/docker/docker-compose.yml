@@ -220,6 +220,15 @@ services:
       # los altera, que es lo que exige el control A.8.15 sobre integridad
       # de los registros. Sin este montaje el panel aparece vacío sin error.
       - modsec-audit:/var/log/modsecurity/audit:ro
+      # Inventario de parches del anfitrion. El contenedor NO puede leer
+      # /var/log/dpkg.log ni /usr/share/doc del servidor porque vive en otro
+      # espacio de nombres: por eso un recolector corre FUERA y deja aqui el
+      # hecho ya extraido. Sin este montaje la ingesta falla con "no se puede
+      # leer el inventario" y la cobertura de parcheo se queda sin datos.
+      #
+      # En SOLO LECTURA por lo mismo que el registro del cortafuegos: la
+      # aplicacion mide el inventario, no lo escribe.
+      - ${RUTA_PARCHES_ANFITRION:-/var/lib/marketgt/parches}:/var/lib/marketgt/parches:ro
     environment: &entorno-aplicacion
       SSL_MODE: "off"                    # TLS termina en el WAF
       PHP_OPCACHE_ENABLE: "1"
@@ -338,6 +347,15 @@ services:
     volumes:
       # El mismo registro de auditoría que lee la aplicación, en solo lectura.
       - modsec-audit:/var/log/modsecurity/audit:ro
+      # Inventario de parches del anfitrion. El contenedor NO puede leer
+      # /var/log/dpkg.log ni /usr/share/doc del servidor porque vive en otro
+      # espacio de nombres: por eso un recolector corre FUERA y deja aqui el
+      # hecho ya extraido. Sin este montaje la ingesta falla con "no se puede
+      # leer el inventario" y la cobertura de parcheo se queda sin datos.
+      #
+      # En SOLO LECTURA por lo mismo que el registro del cortafuegos: la
+      # aplicacion mide el inventario, no lo escribe.
+      - ${RUTA_PARCHES_ANFITRION:-/var/lib/marketgt/parches}:/var/lib/marketgt/parches:ro
     environment:
       <<: *entorno-aplicacion
       # Este contenedor no sirve páginas: no arranca el servidor web ni repite

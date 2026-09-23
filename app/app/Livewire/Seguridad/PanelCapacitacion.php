@@ -313,46 +313,20 @@ class PanelCapacitacion extends Component
     {
         return Capacitacion::medicionPersonalCapacitado();
     }
-
     /**
-     * La metrica con la misma forma que produce CalculadoraMetricas, para que el panel la
-     * pinte igual que a las demas del triangulo y el integrador pueda copiarla sin traducir.
+     * La metrica, tal y como la calcula CalculadoraMetricas.
+     *
+     * Se delega en lugar de repetir el formato aqui. Cuando dos pantallas calculan la
+     * misma cifra por su cuenta terminan discrepando, y la pregunta que sigue en una
+     * auditoria es cual de las dos es la buena. Que este panel y el triangulo den lo
+     * mismo no puede depender de que nadie toque una de las dos copias.
      *
      * @return array<string, mixed>
      */
     #[Computed]
     public function metrica(): array
     {
-        $medicion = $this->medicion();
-        $meta = (float) config('siem.metas.personal_capacitado_porcentaje', 100);
-
-        if (! $medicion['medible']) {
-            return [
-                'clave' => 'personal_capacitado',
-                'nombre' => 'Personal capacitado',
-                'meta' => $this->textoMeta($meta),
-                'valor' => null,
-                'valor_texto' => 'sin datos',
-                'estado' => CalculadoraMetricas::SIN_DATOS,
-                'muestra' => 0,
-                'origen' => $medicion['origen'],
-                'advertencia' => $medicion['advertencia'],
-            ];
-        }
-
-        $porcentaje = (float) $medicion['porcentaje'];
-
-        return [
-            'clave' => 'personal_capacitado',
-            'nombre' => 'Personal capacitado',
-            'meta' => $this->textoMeta($meta),
-            'valor' => $porcentaje,
-            'valor_texto' => number_format($porcentaje, $porcentaje == (int) $porcentaje ? 0 : 1).' %',
-            'estado' => $porcentaje >= $meta ? CalculadoraMetricas::CUMPLE : CalculadoraMetricas::INCUMPLE,
-            'muestra' => (int) $medicion['muestra'],
-            'origen' => $medicion['origen'],
-            'advertencia' => $medicion['advertencia'],
-        ];
+        return app(CalculadoraMetricas::class)->metricaPersonalCapacitado();
     }
 
     /**
@@ -438,11 +412,6 @@ class PanelCapacitacion extends Component
         $numero = (int) $valor;
 
         return $numero >= 0 && $numero <= 100 ? $numero : false;
-    }
-
-    private function textoMeta(float $meta): string
-    {
-        return number_format($meta, 0).' % del equipo con la capacitacion del semestre vigente';
     }
 
     /**

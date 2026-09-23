@@ -3,8 +3,11 @@
 namespace App\Services\Siem;
 
 use App\Models\AlertaSeguridad;
+use App\Models\Capacitacion;
+use App\Models\PruebaRestauracion;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -54,7 +57,7 @@ class CalculadoraMetricas
             'proteccion' => [
                 'nombre' => 'Proteccion',
                 'descripcion' => 'Que tan dificil es entrar.',
-                'metricas' => $this->metricasProteccion(),
+                'metricas' => $this->metricasProteccion($ahora),
             ],
             'deteccion' => [
                 'nombre' => 'Deteccion',
@@ -72,26 +75,75 @@ class CalculadoraMetricas
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function metricasProteccion(): array
+    private function metricasProteccion(?CarbonInterface $ahora = null): array
     {
         return [
-            // El inventario de parches vive en el servidor, no en esta aplicacion. Mientras
-            // no exista un recolector que lo escriba en la base, el valor honesto es ninguno.
-            $this->sinDatos(
-                clave: 'cobertura_parcheo_critico',
-                nombre: 'Cobertura de parcheo critico',
-                meta: '100 % de los parches criticos aplicados en 72 h',
-                motivo: 'La aplicacion no recibe el inventario de parches del sistema operativo. Haria falta '
-                    .'ingerir la salida de "unattended-upgrades" o del escaner de vulnerabilidades como una '
-                    .'cuarta fuente de eventos.',
-            ),
-            $this->sinDatos(
+            // El inventario de parches lo escribe un recolector que corre EN EL ANFITRION,
+            // porque el contenedor no puede leer /var/log/dpkg.log ni /usr/share/doc: vive
+            // en otro espacio de nombres. El analizador lee lo ya ingerido; si no hay nada,
+            // es el quien lo declara, y ademas dice que comando hay que ejecutar.
+            app(AnalizadorParches::class)->metrica($ahora),
+            $this->metricaPersonalCapacitado($ahora),
+        ];
+    }
+
+    /**
+     * Personal con la capacitacion vigente.
+     *
+     * Vive aqui, y no en el panel que la pinta, porque el triangulo y ese panel tienen que
+     * dar la misma cifra por construccion. Cuando cada pantalla calcula la suya, la
+     * pregunta que sigue en una auditoria es cual de las dos es la buena, y esa pregunta no
+     * deberia poder formularse.
+     *
+     * @return array<string, mixed>
+     */
+    public function metricaPersonalCapacitado(?CarbonInterface $ahora = null): array
+    {
+        $meta = (float) config('siem.metas.personal_capacitado_porcentaje', 100);
+        $textoMeta = rtrim(rtrim(number_format($meta, 1), '0'), '.').' % del personal con la capacitacion vigente';
+
+        try {
+            $medicion = Capacitacion::medicionPersonalCapacitado($ahora);
+        } catch (QueryException) {
+            // Mismo motivo que en el analizador de parches: una metrica que no puede
+            // consultar su tabla se declara, no derriba las otras siete.
+            return $this->sinDatos(
                 clave: 'personal_capacitado',
                 nombre: 'Personal capacitado',
-                meta: '100 % del personal con la capacitacion anual vigente',
-                motivo: 'El registro de capacitaciones es documental y vive fuera de la plataforma. Se declara '
-                    .'"sin datos" en lugar de estimarlo.',
-            ),
+                meta: $textoMeta,
+                motivo: 'Las tablas de capacitacion no existen todavia en esta base. Falta correr las '
+                    .'migraciones: "php artisan migrate" dentro del contenedor de la aplicacion.',
+            );
+        }
+
+        if (! $medicion['medible']) {
+            return [
+                'clave' => 'personal_capacitado',
+                'nombre' => 'Personal capacitado',
+                'meta' => $textoMeta,
+                'valor' => null,
+                'valor_texto' => 'sin datos',
+                'unidad' => null,
+                'estado' => self::SIN_DATOS,
+                'muestra' => 0,
+                'origen' => (string) $medicion['origen'],
+                'advertencia' => $medicion['advertencia'],
+            ];
+        }
+
+        $porcentaje = (float) $medicion['porcentaje'];
+
+        return [
+            'clave' => 'personal_capacitado',
+            'nombre' => 'Personal capacitado',
+            'meta' => $textoMeta,
+            'valor' => $porcentaje,
+            'valor_texto' => number_format($porcentaje, $porcentaje == (int) $porcentaje ? 0 : 1).' %',
+            'unidad' => '%',
+            'estado' => $porcentaje >= $meta ? self::CUMPLE : self::INCUMPLE,
+            'muestra' => (int) $medicion['muestra'],
+            'origen' => (string) $medicion['origen'],
+            'advertencia' => $medicion['advertencia'],
         ];
     }
 
@@ -192,6 +244,12 @@ class CalculadoraMetricas
      */
     private function metricasRespuesta(CarbonInterface $desde, CarbonInterface $ahora): array
     {
+        // RTO y RPO salen del acta de la ultima prueba de restauracion satisfactoria. No
+        // se leen de la configuracion del respaldo: el objetivo de recuperacion solo se
+        // demuestra restaurando y cronometrando. Si no hay acta, el modelo lo declara y
+        // dice que comando la produce.
+        $recuperacion = PruebaRestauracion::medicionRecuperacion($ahora);
+
         // Tiempo medio de contencion: desde que un humano confirmo que la alerta era real
         // hasta que la marco contenida. Medir desde la deteccion mezclaria el retraso del
         // turno de guardia con la capacidad tecnica de responder.
@@ -227,20 +285,40 @@ class CalculadoraMetricas
             $metricaContencion,
             // RTO y RPO se comprueban con una prueba de restauracion, no con el trafico del
             // WAF. Declararlos cumplidos desde este panel seria afirmar algo que el panel no vio.
-            $this->sinDatos(
+            $recuperacion['rto_horas'] === null
+                ? $this->sinDatos(
                 clave: 'objetivo_tiempo_recuperacion',
                 nombre: 'Objetivo de tiempo de recuperacion (RTO)',
                 meta: self::META_RTO_HORAS.' horas o menos',
-                motivo: 'Solo se demuestra con una prueba de restauracion cronometrada. La plataforma no registra '
-                    .'esos simulacros; haria falta un registro de pruebas de continuidad.',
-            ),
-            $this->sinDatos(
-                clave: 'objetivo_punto_recuperacion',
-                nombre: 'Objetivo de punto de recuperacion (RPO)',
-                meta: 'perdida maxima de '.self::META_RPO_HORAS.' horas',
-                motivo: 'Depende de la frecuencia real de los respaldos de MariaDB, que se verifica en la capa 6 '
-                    .'y no se reporta a esta aplicacion.',
-            ),
+                motivo: $recuperacion['rto_origen'],
+            )
+                : $this->medida(
+                    clave: 'objetivo_tiempo_recuperacion',
+                    nombre: 'Objetivo de tiempo de recuperacion (RTO)',
+                    meta: self::META_RTO_HORAS.' horas o menos',
+                    valor: round((float) $recuperacion['rto_horas'], 2),
+                    unidad: 'h',
+                    cumple: (float) $recuperacion['rto_horas'] <= self::META_RTO_HORAS,
+                    muestra: (int) ($recuperacion['rto_muestra'] ?? 1),
+                    origen: $recuperacion['rto_origen'],
+                ),
+            $recuperacion['rpo_horas'] === null
+                ? $this->sinDatos(
+                    clave: 'objetivo_punto_recuperacion',
+                    nombre: 'Objetivo de punto de recuperacion (RPO)',
+                    meta: 'perdida maxima de '.self::META_RPO_HORAS.' horas',
+                    motivo: $recuperacion['rpo_origen'],
+                )
+                : $this->medida(
+                    clave: 'objetivo_punto_recuperacion',
+                    nombre: 'Objetivo de punto de recuperacion (RPO)',
+                    meta: 'perdida maxima de '.self::META_RPO_HORAS.' horas',
+                    valor: round((float) $recuperacion['rpo_horas'], 2),
+                    unidad: 'h',
+                    cumple: (float) $recuperacion['rpo_horas'] <= self::META_RPO_HORAS,
+                    muestra: 1,
+                    origen: $recuperacion['rpo_origen'],
+                ),
         ];
     }
 
