@@ -68,9 +68,38 @@ class AnalizadorParches
             );
         }
 
-        // Nada que medir el plazo: hay inventario, pero ningun parche de seguridad tiene
-        // las dos fechas. Se dice exactamente por que, porque el motivo es accionable.
+        // Nada que promediar: todavia no se ha aplicado ningun parche de seguridad desde
+        // que el anfitrion esta bajo gestion. Es el estado normal de un servidor recien
+        // aprovisionado, y no es lo mismo que no saber nada de el.
+        //
+        // La otra mitad del control si se puede afirmar hoy, y es la que de verdad importa:
+        // si ningun parche de seguridad lleva mas de la ventana sin aplicarse, no hay
+        // vulnerabilidad conocida abierta. Eso es un hecho medido, no una estimacion, y
+        // declararlo "sin datos" seria esconder una respuesta que si se tiene.
         if ($conteos['medibles'] === 0) {
+            // La condicion distingue POR QUE no hay nada medible, que no es un detalle:
+            //   - Todo es heredado de la imagen base  -> se puede afirmar la postura de hoy.
+            //   - Falta la fecha de publicacion       -> es una laguna de medicion, y
+            //     afirmar cumplimiento sobre una laguna es justo lo que este panel no hace.
+            // Por eso se exige sin_fecha === 0: solo se declara cumplimiento cuando el
+            // unico motivo de no poder promediar es que nada se aplico bajo nuestra mano.
+            if ($conteos['heredados'] > 0 && $conteos['sin_fecha'] === 0 && $conteos['pendientes_vencidos'] === 0) {
+                return [
+                    'clave' => self::CLAVE,
+                    'nombre' => self::NOMBRE,
+                    'meta' => $meta,
+                    'valor' => 0.0,
+                    'valor_texto' => $conteos['pendientes'] === 0
+                        ? 'sin parches pendientes'
+                        : '0 vencidos de '.$conteos['pendientes'],
+                    'unidad' => '',
+                    'estado' => CalculadoraMetricas::CUMPLE,
+                    'muestra' => $conteos['pendientes'],
+                    'origen' => $this->origenSinAplicaciones($conteos, $horas),
+                    'advertencia' => $this->advertencia($conteos, $horas, $ahora),
+                ];
+            }
+
             return $this->sinDatos($meta, $this->motivoSinPlazoMedible($conteos, $ahora));
         }
 
@@ -135,22 +164,51 @@ class AnalizadorParches
      *
      * @return array<string, int>
      */
+    /**
+     * Instante desde el que el anfitrion esta bajo gestion del equipo: la primera vez que
+     * el recolector escribio algo sobre el.
+     *
+     * Existe para separar dos hechos que la tabla mezcla. Un servidor recien aprovisionado
+     * hereda el estado de paquetes de su imagen base, y esos parches se aplicaron cuando el
+     * proveedor construyo la imagen, semanas despues de publicarse y antes de que este
+     * servidor existiera. Medir su plazo de publicacion a aplicacion mide la cadencia del
+     * proveedor de la imagen, no la del equipo, y arrastra la metrica a cero por un hecho
+     * sobre el que nadie aqui pudo actuar.
+     *
+     * El control A.8.8 pregunta si hay un proceso gestionado de aplicacion de parches y si
+     * quedan vulnerabilidades sin cerrar. Eso empieza a poder responderse desde que el
+     * anfitrion es nuestro, no antes.
+     */
+    private function gestionDesde(): ?CarbonImmutable
+    {
+        $primera = EstadoParche::query()->min('recolectado_en');
+
+        return $primera === null ? null : CarbonImmutable::parse($primera);
+    }
+
     private function conteos(CarbonInterface $ahora): array
     {
         $horas = $this->horasMeta();
         $limitePendiente = $ahora->copy()->subHours($horas);
 
+        // Sin recolecciones no hay frontera; se usa una fecha imposible para que ninguna
+        // fila caiga del lado "bajo gestion" y el metodo devuelva ceros coherentes.
+        $gestion = $this->gestionDesde() ?? CarbonImmutable::parse('2100-01-01');
+
         $fila = EstadoParche::query()
             ->selectRaw('COUNT(*) as registros')
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? THEN 1 ELSE 0 END) as aplicados_seguridad', [EstadoParche::ESTADO_APLICADO])
-            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NULL THEN 1 ELSE 0 END) as sin_fecha', [EstadoParche::ESTADO_APLICADO])
+            // Heredados de la imagen base: aplicados antes de que el anfitrion fuera nuestro.
+            // Se cuentan y se declaran, pero no entran ni en el numerador ni en el denominador.
+            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND aplicado_en IS NOT NULL AND aplicado_en < ? THEN 1 ELSE 0 END) as heredados', [EstadoParche::ESTADO_APLICADO, $gestion])
+            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NULL AND aplicado_en IS NOT NULL AND aplicado_en >= ? THEN 1 ELSE 0 END) as sin_fecha', [EstadoParche::ESTADO_APLICADO, $gestion])
             // Las tres cuentas del plazo exigen las DOS fechas ademas del desfase. Sin esa
             // condicion, una fila con desfase guardado y una fecha perdida entraria en el
             // denominador, y esa cifra ya no se podria reproducir desde la propia fila:
             // es exactamente el conjunto que define EstadoParche::scopeConPlazoMedible.
-            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas < 0 THEN 1 ELSE 0 END) as inconsistentes', [EstadoParche::ESTADO_APLICADO])
-            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas >= 0 THEN 1 ELSE 0 END) as medibles', [EstadoParche::ESTADO_APLICADO])
-            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas >= 0 AND desfase_horas <= ? THEN 1 ELSE 0 END) as en_plazo', [EstadoParche::ESTADO_APLICADO, $horas])
+            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas < 0 AND aplicado_en >= ? THEN 1 ELSE 0 END) as inconsistentes', [EstadoParche::ESTADO_APLICADO, $gestion])
+            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas >= 0 AND aplicado_en >= ? THEN 1 ELSE 0 END) as medibles', [EstadoParche::ESTADO_APLICADO, $gestion])
+            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas >= 0 AND desfase_horas <= ? AND aplicado_en >= ? THEN 1 ELSE 0 END) as en_plazo', [EstadoParche::ESTADO_APLICADO, $horas, $gestion])
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? THEN 1 ELSE 0 END) as pendientes', [EstadoParche::ESTADO_PENDIENTE])
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND visto_pendiente_desde IS NOT NULL AND visto_pendiente_desde <= ? THEN 1 ELSE 0 END) as pendientes_vencidos', [EstadoParche::ESTADO_PENDIENTE, $limitePendiente])
             ->selectRaw('SUM(CASE WHEN es_seguridad IS NULL AND estado <> ? THEN 1 ELSE 0 END) as sin_clasificar', [EstadoParche::ESTADO_NO_APLICABLE])
@@ -160,6 +218,7 @@ class AnalizadorParches
             'registros' => (int) ($fila->registros ?? 0),
             'aplicados_seguridad' => (int) ($fila->aplicados_seguridad ?? 0),
             'sin_fecha' => (int) ($fila->sin_fecha ?? 0),
+            'heredados' => (int) ($fila->heredados ?? 0),
             'inconsistentes' => (int) ($fila->inconsistentes ?? 0),
             'medibles' => (int) ($fila->medibles ?? 0),
             'en_plazo' => (int) ($fila->en_plazo ?? 0),
@@ -282,6 +341,42 @@ class AnalizadorParches
     /**
      * @param  array<string, int>  $conteos
      */
+
+    /**
+     * Procedencia de la cifra cuando aun no se ha aplicado nada bajo gestion.
+     *
+     * Dice las tres cosas que un auditor preguntaria en ese orden: sobre que se afirma
+     * el cumplimiento, que quedo fuera del calculo y por que, y cuando empezara a haber
+     * porcentaje. La tercera importa tanto como las otras: una metrica que cumple sin
+     * explicar sobre que base lo hace es indistinguible de una que no mide nada.
+     *
+     * @param  array<string, int>  $conteos
+     */
+    private function origenSinAplicaciones(array $conteos, int $horas): string
+    {
+        $partes = [];
+
+        $partes[] = $conteos["pendientes"] === 0
+            ? "No hay ningun parche de seguridad pendiente de aplicar en el anfitrion."
+            : sprintf(
+                "De los %d parches de seguridad pendientes, ninguno lleva mas de %d h sin aplicarse desde que el recolector lo vio por primera vez.",
+                $conteos["pendientes"],
+                $horas,
+            );
+
+        if ($conteos["heredados"] > 0) {
+            $partes[] = sprintf(
+                "Los %d parches de seguridad que ya traia el servidor quedan fuera del porcentaje: los aplico el constructor de la imagen base antes de que este anfitrion existiera, de modo que su plazo mide la cadencia del proveedor y no la del equipo.",
+                $conteos["heredados"],
+            );
+        }
+
+        $partes[] = sprintf(
+            "El porcentaje de cumplimiento del plazo aparecera en cuanto se aplique el primer parche de seguridad bajo gestion, y se calculara solo sobre esos.",
+        );
+
+        return implode(" ", $partes);
+    }
     private function motivoSinPlazoMedible(array $conteos, CarbonInterface $ahora): string
     {
         $motivo = 'Hay inventario de parches, pero ningun parche de seguridad tiene a la vez fecha de '

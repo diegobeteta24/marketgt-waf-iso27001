@@ -26,6 +26,9 @@ class CoberturaParcheoTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Frontera de gestion de los accesorios: anterior a toda fecha de aplicacion usada aqui. */
+    private const BAJO_GESTION_DESDE = '2026-08-25T00:00:00+00:00';
+
     private AnalizadorParches $analizador;
 
     /**
@@ -260,7 +263,10 @@ class CoberturaParcheoTest extends TestCase
 
         file_put_contents($inventario, json_encode([
             'tipo' => 'recoleccion',
-            'recolectado_en' => CarbonImmutable::now()->toIso8601String(),
+            // Anterior a toda fecha de aplicacion de los accesorios: asi el parche cuenta
+            // como aplicado BAJO GESTION y entra en el plazo, que es lo que estas pruebas
+            // ejercitan. El camino del parche heredado tiene su propia prueba.
+            'recolectado_en' => self::BAJO_GESTION_DESDE,
             'ejecutado_como_root' => false,
             'fuentes' => [['ruta' => '/var/log/dpkg.log', 'leida' => false, 'detalle' => 'Permission denied']],
             'avisos' => [],
@@ -341,7 +347,10 @@ class CoberturaParcheoTest extends TestCase
             'anfitrion' => 'anfitrion-de-prueba',
             'estado' => EstadoParche::ESTADO_NO_APLICABLE,
             'nota_publicacion' => 'Retenido.',
-            'recolectado_en' => CarbonImmutable::now()->toIso8601String(),
+            // Anterior a toda fecha de aplicacion de los accesorios: asi el parche cuenta
+            // como aplicado BAJO GESTION y entra en el plazo, que es lo que estas pruebas
+            // ejercitan. El camino del parche heredado tiene su propia prueba.
+            'recolectado_en' => self::BAJO_GESTION_DESDE,
             'recolectado_por' => 'proceso:cron',
         ]]);
 
@@ -349,6 +358,66 @@ class CoberturaParcheoTest extends TestCase
         $this->assertSame(0, $this->analizador->metrica()['muestra']);
     }
 
+
+    public function test_un_servidor_recien_aprovisionado_no_se_hunde_por_los_parches_de_la_imagen(): void
+    {
+        // Lo que ve el recolector la primera vez que corre en una maquina nueva: todo lo
+        // instalado se aplico antes de que el anfitrion existiera, porque lo aplico quien
+        // construyo la imagen. Medir ese plazo mide al proveedor de la imagen.
+        $this->ingerir([
+            $this->parcheAplicado([
+                "huella" => $this->huella("a"),
+                "publicado_en" => "2026-07-01T00:00:00+00:00",
+                "aplicado_en" => "2026-08-01T00:00:00+00:00",
+                "desfase_horas" => 744.0,
+                "recolectado_en" => CarbonImmutable::now()->toIso8601String(),
+            ]),
+        ]);
+
+        $metrica = $this->analizador->metrica();
+
+        // No incumple: nadie aqui pudo aplicar ese parche antes.
+        $this->assertSame(CalculadoraMetricas::CUMPLE, $metrica["estado"]);
+        $this->assertStringContainsString("quedan fuera del porcentaje", $metrica["origen"]);
+        $this->assertStringContainsString("antes de que este anfitrion existiera", $metrica["origen"]);
+        $this->assertStringContainsString("en cuanto se aplique el primer parche de seguridad bajo gestion", $metrica["origen"]);
+    }
+
+    public function test_un_pendiente_vencido_manda_aunque_todo_lo_demas_sea_heredado(): void
+    {
+        // El cumplimiento de la rama heredada se apoya en una sola cosa: que no haya
+        // vulnerabilidad abierta. Si la hay, no hay nada que declarar cumplido.
+        $this->ingerir([
+            $this->parcheAplicado([
+                "huella" => $this->huella("a"),
+                "aplicado_en" => "2026-08-01T00:00:00+00:00",
+                "desfase_horas" => 744.0,
+                "recolectado_en" => CarbonImmutable::now()->toIso8601String(),
+            ]),
+            $this->parchePendiente([
+                "huella" => $this->huella("b"),
+                "visto_pendiente_desde" => CarbonImmutable::now()->subHours(300)->toIso8601String(),
+                "recolectado_en" => CarbonImmutable::now()->toIso8601String(),
+            ]),
+        ]);
+
+        $this->assertNotSame(CalculadoraMetricas::CUMPLE, $this->analizador->metrica()["estado"]);
+    }
+
+    public function test_una_laguna_de_datos_no_se_declara_cumplimiento(): void
+    {
+        // Aplicado BAJO gestion pero sin fecha de publicacion: no se puede medir el plazo,
+        // y eso es una laguna, no una buena noticia.
+        $this->ingerir([
+            $this->parcheAplicado([
+                "huella" => $this->huella("a"),
+                "publicado_en" => null,
+                "desfase_horas" => null,
+            ]),
+        ]);
+
+        $this->assertSame(CalculadoraMetricas::SIN_DATOS, $this->analizador->metrica()["estado"]);
+    }
     // ─── Ayudas de la prueba ────────────────────────────────────────────────
 
     /**
@@ -402,7 +471,10 @@ class CoberturaParcheoTest extends TestCase
             'fuente_aplicacion' => '/var/log/dpkg.log',
             'aplicado_por' => 'persona o automatismo externo (apt/dpkg)',
             'desfase_horas' => 12.0,
-            'recolectado_en' => CarbonImmutable::now()->toIso8601String(),
+            // Anterior a toda fecha de aplicacion de los accesorios: asi el parche cuenta
+            // como aplicado BAJO GESTION y entra en el plazo, que es lo que estas pruebas
+            // ejercitan. El camino del parche heredado tiene su propia prueba.
+            'recolectado_en' => self::BAJO_GESTION_DESDE,
             'recolectado_por' => 'proceso:cron',
             'version_recolector' => '1.0.0',
         ], $cambios);
@@ -427,7 +499,10 @@ class CoberturaParcheoTest extends TestCase
             'publicado_en' => null,
             'nota_publicacion' => 'El paquete no esta instalado.',
             'visto_pendiente_desde' => CarbonImmutable::now()->subHours(2)->toIso8601String(),
-            'recolectado_en' => CarbonImmutable::now()->toIso8601String(),
+            // Anterior a toda fecha de aplicacion de los accesorios: asi el parche cuenta
+            // como aplicado BAJO GESTION y entra en el plazo, que es lo que estas pruebas
+            // ejercitan. El camino del parche heredado tiene su propia prueba.
+            'recolectado_en' => self::BAJO_GESTION_DESDE,
             'recolectado_por' => 'proceso:cron',
             'version_recolector' => '1.0.0',
         ], $cambios);
