@@ -164,8 +164,10 @@ class AnalizadorConsultas
 
     /**
      * Vocabulario de los sectores que abusan de dominios ajenos. Incluye chino, japonés,
-     * coreano e indonesio a propósito: el contenido inyectado casi nunca está en español, y
-     * un diccionario que solo mira el español está ciego justo ante el caso más frecuente.
+     * coreano e indonesio a propósito: gran parte del contenido inyectado no está en español,
+     * y un diccionario que solo mira el español está ciego ante el caso más frecuente. Pero
+     * también el español, que faltaba: el spam de apuestas dirigido a Latinoamérica existe, y
+     * la consulta "apuestas" llegó a pasar como limpia.
      *
      * No duplica a DetectorSpamSeo, lo complementa: aquel busca FRASES dentro de una reseña
      * ("apuestas deportivas", "préstamos rápidos"); aquí llegan consultas de dos palabras
@@ -183,7 +185,11 @@ class AnalizadorConsultas
             // apuestas bloqueada, y nombran la amenaza igual que "casino".
             // "poker" y "sbobet" faltaban y son tan vocabulario de apuestas como "casino":
             // sin ellos, "dewa poker" con sesenta impresiones y cero clics salía limpia.
-            'patron' => '/(\b(bet|bets|betting|casino|kasino|slot|slots|poker|sbobet|togel|toto|judi|situs|daftar|masuk|gacor|maxwin|bandar|taruhan|sabong|baccarat|sportsbook|jackpot|4d)\b|\blink\s+alternatif\b|\balternatif\b|娱乐城|娛樂城|赌场|賭場|博彩|老虎机|百家乐|彩票|バカラ|カジノ|スロット|온라인카지노|바카라)/iu',
+            // El vocabulario en español va en su propia rama. Faltaba entero: el sector se
+            // llamaba "apuestas" y la palabra "apuestas" pasaba como consulta limpia, en una
+            // plataforma para comercios guatemaltecos. Van sin tildes porque la consulta ya
+            // llega normalizada ("lotería" -> "loteria").
+            'patron' => '/(\b(bet|bets|betting|casino|kasino|slot|slots|poker|sbobet|togel|toto|judi|situs|daftar|masuk|gacor|maxwin|bandar|taruhan|sabong|baccarat|sportsbook|jackpot|4d)\b|\b(apuestas?|apostar|apostador(?:es|as)?|casas?\s+de\s+apuestas|tragamonedas|tragaperras|maquinitas|ruleta|quinielas?|loterias?|momios|pronosticos?\s+deportivos?|juegos?\s+de\s+azar|giros\s+gratis|tiradas\s+gratis|casino\s+en\s+linea)\b|\blink\s+alternatif\b|\balternatif\b|娱乐城|娛樂城|赌场|賭場|博彩|老虎机|百家乐|彩票|バカラ|カジノ|スロット|온라인카지노|바카라)/iu',
             'puntos' => 5,
             'descripcion' => 'Vocabulario de apuestas o casinos',
         ],
