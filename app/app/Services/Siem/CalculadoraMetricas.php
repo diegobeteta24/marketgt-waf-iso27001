@@ -294,6 +294,12 @@ class CalculadoraMetricas
             ->whereBetween('detectada_en', [$desde, $ahora])
             ->whereNotNull('confirmada_en')
             ->whereNotNull('contenida_en')
+            // Solo pares validos: la contencion despues de la confirmacion. Cuando el
+            // cortafuegos corto la alerta en el borde, su contencion lleva la hora del bloqueo,
+            // anterior a cualquier confirmacion humana posterior; ese caso no mide el tiempo de
+            // respuesta del equipo —lo contuvo el WAF, no una persona— y queda fuera del
+            // promedio en lugar de inflarlo con una espera que nadie tuvo que sostener.
+            ->whereColumn('contenida_en', '>=', 'confirmada_en')
             ->selectRaw('COUNT(*) as muestra, AVG(TIMESTAMPDIFF(SECOND, confirmada_en, contenida_en)) as promedio')
             ->first();
 

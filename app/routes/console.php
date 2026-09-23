@@ -58,6 +58,19 @@ Schedule::command('siem:correlacionar')
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/siem-correlacion.log'));
 
+// ─── Contención en el borde ──────────────────────────────────────────────────
+//
+// Cada cinco minutos, después de que la correlación haya creado las alertas. Marca
+// contenidas las alertas críticas de tráfico real que el cortafuegos cortó por completo,
+// con la hora del bloqueo. Es la contención que ya ocurrió en el borde: registrarla evita
+// que una alerta que el WAF frenó siga contando como pendiente hasta que alguien la mire,
+// y que revisarla tarde cuente como una respuesta lentísima.
+Schedule::command('siem:contener-bloqueadas')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(10)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/siem-contencion.log'));
+
 // ─── Vigilancia de integridad del posicionamiento ────────────────────────────
 //
 // Cada hora. Compara la huella de robots.txt, del mapa del sitio y de las
