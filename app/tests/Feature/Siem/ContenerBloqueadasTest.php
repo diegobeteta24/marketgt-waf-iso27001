@@ -127,6 +127,44 @@ class ContenerBloqueadasTest extends TestCase
         $this->assertTrue($humana->fresh()->contenida_en->greaterThanOrEqualTo($humana->fresh()->confirmada_en));
     }
 
+    public function test_la_metrica_excluye_lo_contenido_en_el_borde_por_su_marca_no_por_sus_fechas(): void
+    {
+        // El caso que rompio el guardian anterior: una alerta revisada en lote ANTES de su
+        // ultimo bloqueo. Su contencion queda despues de la confirmacion, asi que por el
+        // orden de las fechas parecia una respuesta humana de horas. Lo que la excluye es la
+        // marca que deja siem:contener-bloqueadas, no el orden.
+        $ahora = CarbonImmutable::parse('2026-09-23 12:00:00');
+
+        AlertaSeguridad::query()->create([
+            'clave_regla' => 'x', 'titulo' => 'humana', 'descripcion' => 'x',
+            'severidad' => EventoSeguridad::SEVERIDAD_ALTA, 'estado' => AlertaSeguridad::ESTADO_CONTENIDA,
+            'direccion_ip' => '203.0.113.210', 'detectada_en' => $ahora->subHours(3),
+            'confirmada_en' => $ahora->subHours(3), 'contenida_en' => $ahora->subHours(3)->addMinutes(20),
+            'evidencia' => [], 'accion_recomendada' => 'x', 'conteo_eventos' => 1,
+            'huella_agrupacion' => 'humana-marca', 'es_demostracion' => false,
+        ]);
+
+        // Revisada en lote a las 09:00; el WAF siguio cortando hasta las 11:30.
+        $alerta = $this->alertaBloqueada([
+            'estado' => AlertaSeguridad::ESTADO_EN_TRIAJE,
+            'detectada_en' => $ahora->subHours(4),
+            'confirmada_en' => $ahora->subHours(3),
+        ]);
+        $alerta->eventos()->update(['marca_tiempo' => $ahora->subMinutes(30)]);
+
+        Artisan::call('siem:contener-bloqueadas', ['--dias' => 0]);
+
+        $fresca = $alerta->fresh();
+        // La contencion quedo DESPUES de la confirmacion: el orden de fechas no la excluiria.
+        $this->assertTrue($fresca->contenida_en->greaterThan($fresca->confirmada_en));
+
+        $resultado = app(CalculadoraMetricas::class)->contencionesHumanas($ahora->subDays(30), $ahora);
+
+        // Pero la marca si: solo queda la humana de 20 minutos.
+        $this->assertSame(1, $resultado['borde']);
+        $this->assertSame([1200], array_values($resultado['duraciones']));
+    }
+
     public function test_no_toca_una_alerta_que_el_waf_no_corto_del_todo(): void
     {
         $alerta = $this->alertaBloqueada(todoBloqueado: false);

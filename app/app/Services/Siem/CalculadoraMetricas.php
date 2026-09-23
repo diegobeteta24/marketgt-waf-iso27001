@@ -290,39 +290,54 @@ class CalculadoraMetricas
         // Tiempo medio de contencion: desde que un humano confirmo que la alerta era real
         // hasta que la marco contenida. Medir desde la deteccion mezclaria el retraso del
         // turno de guardia con la capacidad tecnica de responder.
-        $contencion = AlertaSeguridad::query()
-            ->whereBetween('detectada_en', [$desde, $ahora])
-            ->whereNotNull('confirmada_en')
-            ->whereNotNull('contenida_en')
-            // Solo pares validos: la contencion despues de la confirmacion. Cuando el
-            // cortafuegos corto la alerta en el borde, su contencion lleva la hora del bloqueo,
-            // anterior a cualquier confirmacion humana posterior; ese caso no mide el tiempo de
-            // respuesta del equipo —lo contuvo el WAF, no una persona— y queda fuera del
-            // promedio en lugar de inflarlo con una espera que nadie tuvo que sostener.
-            ->whereColumn('contenida_en', '>=', 'confirmada_en')
-            ->selectRaw('COUNT(*) as muestra, AVG(TIMESTAMPDIFF(SECOND, confirmada_en, contenida_en)) as promedio')
-            ->first();
+        $contencion = $this->contencionesHumanas($desde, $ahora);
+        $duraciones = $contencion['duraciones'];
+        $muestraContencion = count($duraciones);
 
-        $muestraContencion = (int) ($contencion->muestra ?? 0);
+        $excluidas = [];
+        if ($contencion['borde'] > 0) {
+            $excluidas[] = $contencion['borde'].' contenidas por el cortafuegos en el borde, que no miden respuesta humana';
+        }
+        if ($contencion['invertidas'] > 0) {
+            $excluidas[] = $contencion['invertidas'].' con la contencion anterior a la confirmacion';
+        }
 
-        $metricaContencion = $muestraContencion === 0
-            ? $this->sinDatos(
+        if ($muestraContencion === 0) {
+            $metricaContencion = $this->sinDatos(
                 clave: 'tiempo_medio_contencion',
                 nombre: 'Tiempo medio de contencion',
                 meta: '2 horas o menos',
-                motivo: 'Ninguna alerta de la ventana llego todavia al estado contenida.',
-            )
-            : $this->medida(
-                clave: 'tiempo_medio_contencion',
-                nombre: 'Tiempo medio de contencion',
-                meta: '2 horas o menos',
-                valor: round(((float) $contencion->promedio) / 60, 1),
-                unidad: 'min',
-                cumple: (((float) $contencion->promedio) / 60) <= self::META_CONTENCION_MINUTOS,
-                muestra: $muestraContencion,
-                origen: 'Promedio de (contenida_en - confirmada_en) sobre las alertas contenidas en los ultimos '
-                    .self::DIAS_OBSERVACION.' dias.',
+                motivo: $excluidas === []
+                    ? 'Ninguna alerta de la ventana llego todavia al estado contenida.'
+                    : 'Ninguna persona ha contenido todavia una alerta de la ventana. Excluidas: '.implode('; ', $excluidas).'.',
             );
+        } else {
+            $promedioMinutos = array_sum($duraciones) / $muestraContencion / 60;
+            $cumple = $promedioMinutos <= self::META_CONTENCION_MINUTOS;
+
+            // Las mas lentas, con su identificador, cuando la media no cumple: un promedio que
+            // falla sin decir que alertas lo arrastran obliga a buscarlas a ciegas.
+            arsort($duraciones);
+            $lentas = array_map(
+                static fn (int $id, int $segundos): string => '#'.$id.' ('.number_format($segundos / 3600, 1).' h)',
+                array_keys(array_slice($duraciones, 0, 3, true)),
+                array_slice($duraciones, 0, 3, true),
+            );
+
+            $metricaContencion = $this->medida(
+                clave: 'tiempo_medio_contencion',
+                nombre: 'Tiempo medio de contencion',
+                meta: '2 horas o menos',
+                valor: round($promedioMinutos, 1),
+                unidad: 'min',
+                cumple: $cumple,
+                muestra: $muestraContencion,
+                origen: 'Promedio de (contenida_en - confirmada_en) sobre las contenciones hechas por una persona '
+                    .'en los ultimos '.self::DIAS_OBSERVACION.' dias.'
+                    .($excluidas === [] ? '' : ' Excluidas: '.implode('; ', $excluidas).'.'),
+                advertencia: $cumple ? null : 'Las contenciones mas lentas: '.implode(', ', $lentas).'.',
+            );
+        }
 
         return [
             $metricaContencion,
@@ -473,6 +488,66 @@ class CalculadoraMetricas
             ->count();
 
         return $vencidas;
+    }
+
+    /**
+     * Duracion de cada contencion hecha por una persona, en segundos, indexada por alerta.
+     *
+     * Se excluyen por lo que SON, no por el orden de sus fechas, las alertas que contuvo el
+     * cortafuegos en el borde: las marca siem:contener-bloqueadas con la regla del bloqueo y
+     * procedencia automatica. Una version anterior las excluia solo si la contencion quedaba
+     * antes de la confirmacion, y ese orden dependia de cuando llego cada evento: bastaba un
+     * bloqueo posterior a la revision para que una contencion del WAF entrara en el promedio
+     * como si una persona hubiera tardado horas.
+     *
+     * Se calcula aqui y no con TIMESTAMPDIFF, que es de MariaDB: asi la metrica da lo mismo en
+     * las pruebas, sobre SQLite. Son decenas de filas, no millones.
+     *
+     * @return array{duraciones: array<int, int>, borde: int, invertidas: int}
+     */
+    public function contencionesHumanas(CarbonInterface $desde, CarbonInterface $ahora): array
+    {
+        $conProcedencia = app(TriajeAsistido::class)->procedenciaRegistrable();
+
+        $columnas = ['id', 'confirmada_en', 'contenida_en'];
+        if ($conProcedencia) {
+            $columnas[] = 'triaje_regla';
+            $columnas[] = 'procedencia_triaje';
+        }
+
+        $filas = AlertaSeguridad::query()
+            ->whereBetween('detectada_en', [$desde, $ahora])
+            ->whereNotNull('confirmada_en')
+            ->whereNotNull('contenida_en')
+            ->get($columnas);
+
+        $duraciones = [];
+        $borde = 0;
+        $invertidas = 0;
+
+        foreach ($filas as $fila) {
+            if ($conProcedencia
+                && $fila->getAttribute('triaje_regla') === TriajeAsistido::REGLA_BLOQUEO_CRITICO
+                && $fila->getAttribute('procedencia_triaje') === TriajeAsistido::PROCEDENCIA_AUTOMATICA) {
+                $borde++;
+
+                continue;
+            }
+
+            $segundos = (int) $fila->confirmada_en->diffInSeconds($fila->contenida_en, false);
+
+            // Contener antes de confirmar no es una respuesta que se pueda medir: se cuenta
+            // aparte para que se vea, en lugar de restar tiempo al promedio.
+            if ($segundos < 0) {
+                $invertidas++;
+
+                continue;
+            }
+
+            $duraciones[(int) $fila->getKey()] = $segundos;
+        }
+
+        return ['duraciones' => $duraciones, 'borde' => $borde, 'invertidas' => $invertidas];
     }
 
     private function numero(int $valor): string
