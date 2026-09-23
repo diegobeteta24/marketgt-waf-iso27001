@@ -379,7 +379,9 @@ cat <<RESUMEN
 
   Sitio            https://${DOMINIO}
   Panel SIEM       https://${DOMINIO}/siem
-  Consola de demo  https://${DOMINIO}/demo
+  Consola de demo  https://${DOMINIO}/demo-waf/consola   (rol de administrador)
+  Laboratorio SEO  https://${DOMINIO}/seo/laboratorio
+  Metricas         https://${DOMINIO}/siem/metricas
 
   Secretos         ${ENV_FILE}   (permisos 600, fuera del repositorio)
 

@@ -2,127 +2,151 @@
 
 **Objetivo:** vender MarketGT, no explicarlo.
 **Regla:** cada afirmación se demuestra en pantalla o no se dice.
+**Todo lo que se muestra es un clic.** No hay nada que escribir en vivo.
 
 ---
 
-## Antes de empezar · preparación (hacer 10 minutos antes, no en vivo)
+## Antes de empezar · 15 minutos antes, no en vivo
 
-| Pestaña | Qué abrir | Estado |
+### 1. En el servidor, copiar y pegar
+
+```bash
+cd /opt/marketgt
+sudo bash infra/scripts/llenar-metricas.sh
+```
+
+Recolecta parches, hace un respaldo cifrado, ejecuta una restauración real y deja el triángulo
+con datos del día. Tarda unos dos minutos y termina solo, imprimiendo el triángulo al final.
+
+### 2. En el navegador, revisar lo pendiente
+
+`https://marketgt.duckdns.org/siem/alertas` → *Acciones masivas*:
+
+- Si hay más de 40 pendientes: **Marcar las N pendientes** → *En triaje* → nota con lo que se
+  revisó → **Aplicar**.
+- Si hay pocas: **Marcar las visibles** → *En triaje* → **Aplicar**.
+- Marcar también **Incluir las de demostración** y repetir si queda alguna.
+
+Las críticas tienen 15 minutos de plazo según el plan de respuesta. Hacerlo cerca de la hora.
+
+### 3. Pestañas abiertas, en este orden, con sesión de administrador
+
+| Pestaña | URL | Qué dejar listo |
 |---|---|---|
-| 1 | Search Console de la empresa real, en **Rendimiento → Consultas** | Visible `p9bet login` |
-| 2 | `marketgt.duckdns.org/demo-waf/consola` | Sesión iniciada |
-| 3 | `marketgt.duckdns.org/seo/laboratorio` | Cargado con el ejemplo |
-| 4 | `marketgt.duckdns.org/siem/tablero` | Recién recargado |
+| 1 | Diapositiva 5 (tabla de consultas) | En pantalla completa |
+| 2 | `https://marketgt.duckdns.org/demo-waf/consola` | Cargada |
+| 3 | `https://marketgt.duckdns.org/seo/laboratorio` | Cargado con el ejemplo |
+| 4 | `https://marketgt.duckdns.org/siem/tablero` | Cargado |
+| 5 | `https://marketgt.duckdns.org/siem/metricas` | Cargado, triángulo en verde |
+| 6 | `https://marketgt.duckdns.org/siem/continuidad` | Cargado |
 
-Probar los tres botones **antes**. Si algo falla en vivo, seguir hablando: el guion funciona igual.
+La pestaña 1 es la diapositiva y no la Consola de búsqueda real, para no mostrar el dominio de la
+empresa. Si se decide mostrar la real, es la misma historia.
 
----
-
-## 0:00 – 0:40 · El gancho
-
-> «Esta empresa vende cámaras de seguridad en Guatemala. Es real, y es donde trabajo.»
-
-**[Pestaña 1 — señalar la pantalla]**
-
-> «Estas son las búsquedas por las que Google la muestra. Aquí abajo: cámaras de seguridad, mantenimiento, instalación. Todo normal.
->
-> Y aquí arriba: **p9bet login. Cuarenta y cinco veces.** Cero clics.
->
-> p9bet es un casino en línea. Alguien metió contenido de apuestas en el sitio de mi empresa y Google lo está indexando. Lleva meses. Nadie se dio cuenta, porque cuando entrás al sitio se ve perfectamente normal.»
-
-*(Pausa de un segundo.)*
-
-> «Eso le pasa hoy a una empresa guatemalteca que vende, precisamente, seguridad.»
+**Probar los botones una vez antes.** Si algo falla en vivo, seguir hablando: el guion funciona igual.
 
 ---
 
-## 0:40 – 1:10 · El problema, en costo
+## 0:00 – 0:35 · El gancho
 
-> «Cuando esto le pasa a una tienda en línea, no pierde un sitio web. Pierde tres cosas:
+**[Pestaña 1]**
+
+> «Esta es una empresa guatemalteca que vende cámaras de seguridad. Es real: es donde trabajo.
 >
-> El **posicionamiento**, que costó años construir y Google castiga en semanas.
-> La **confianza**, porque un cliente que ve tu dominio junto a un casino no vuelve.
-> Y los **datos de sus clientes**, porque quien pudo meter contenido pudo leer la base.
+> Estas son las búsquedas por las que Google la muestra. Cámaras de seguridad, mantenimiento. Normal.
 >
-> Las plataformas grandes resuelven esto con equipos de seguridad. **Una PyME guatemalteca no tiene ese equipo, ni ese presupuesto.**»
+> Y aquí: **p9bet login. Cuarenta y cinco veces. Cero clics.** p9bet es un casino.
+>
+> Alguien metió contenido de apuestas en el sitio y Google lo indexa. Nadie se dio cuenta, porque
+> al entrar el sitio se ve perfecto. Le pasa, hoy, a una empresa que vende seguridad.»
 
 ---
 
-## 1:10 – 1:40 · Qué vendemos
+## 0:35 – 1:05 · Qué vendemos
 
-> «MarketGT es una plataforma de comercio electrónico donde la seguridad **no es un añadido: es el producto.**
+> «Una PyME guatemalteca no tiene equipo de seguridad ni presupuesto para tenerlo.
 >
-> El comerciante no configura nada, no contrata a nadie y no aprende nada. Vende. Nosotros ponemos seis capas de defensa debajo, conforme a la norma ISO 27001.
+> **MarketGT es una tienda en línea donde la seguridad no es un añadido: es el producto.** El
+> comerciante vende; nosotros ponemos seis capas de defensa debajo, conforme a ISO 27001.
 >
-> Y les voy a demostrar tres cosas en dos minutos.»
+> Cuatro pruebas en tres minutos.»
 
 ---
 
-## 1:40 – 3:40 · Las pruebas
+## 1:05 – 1:45 · Prueba 1 · Lo que todos paran, y lo que nadie para
 
-### Prueba 1 · El ataque que nadie ve (45 s)
+**[Pestaña 2 · consola]**
 
-**[Pestaña 2 — consola de ataques]**
+**[Pulsar «UNION SELECT (extracción de credenciales)»]**
 
-> «Esto no es una simulación. Este botón lanza una inyección SQL real contra nuestro propio servidor.»
+> «Una inyección SQL real contra nuestro servidor. **403.** Aquí está la regla del OWASP que la
+> cortó y su puntuación. Esto lo para cualquier WAF.»
 
-**[Pulsar `UNION SELECT`]**
+**[Pulsar «Rastreador falsificado (Googlebot falso)»]**
 
-> «**403.** Bloqueado. Y no es una caja negra: aquí está la regla que se activó, del OWASP Core Rule Set, con su puntuación. El ataque nunca tocó la base de datos.»
-
-### Prueba 2 · El caso real (50 s)
-
-**[Pestaña 3 — laboratorio, pulsar *Intentar publicar*]**
-
-> «Esto es una reseña con contenido de spam, como la que usaron contra mi empresa. Miren.»
-
-**[Señalar el 31]**
-
-> «Treinta y uno sobre un umbral de cinco. Ocho reglas: vocabulario de farmacia, de casino, enlaces acortados, texto escondido con CSS.
->
-> **Y tres de esas reglas las escribimos nosotros.** OWASP no trae ni una sola regla de posicionamiento. Ese hueco lo llenamos nosotros.»
-
-**[Señalar *cómo se vería publicado*]**
-
-> «El texto oculto desapareció. El script desapareció. **No se publicó.**»
-
-### Prueba 3 · Que alguien se entera (25 s)
-
-**[Pestaña 4 — tablero, recargar]**
-
-> «Y todo lo que acaban de ver ya está aquí. Con su regla, su hora y su dirección de origen.
->
-> Porque bloquear un ataque y que nadie se entere **no es seguridad: es suerte.**»
+> «Esto no. Un bot que se hace pasar por Google para ver una versión distinta del sitio: así se
+> esconde lo que vieron hace un minuto. **Ningún WAF trae esta regla. La escribimos nosotros.**»
 
 ---
 
-## 3:40 – 4:20 · Por qué esto se vende
+## 1:45 – 2:35 · Prueba 2 · El caso real, detenido
 
-> «Tres razones por las que una PyME nos compra:
->
-> **Primera: el precio.** Shopify cobra en dólares más comisión por venta. Para una tienda guatemalteca, eso es exposición cambiaria todos los meses.
->
-> **Segunda: nadie más protege el posicionamiento.** Todas las plataformas protegen la transacción. Ninguna protege lo que le pasó a mi empresa, que es un ataque al activo más caro de un negocio pequeño: **aparecer en Google.**
->
-> **Tercera: auditable.** Cada control tiene su evidencia y su trazabilidad al Anexo A de ISO 27001. Cuando a un comerciante le pregunten cómo protege los datos de sus clientes, tiene una respuesta documentada.»
+**[Pestaña 3 · laboratorio, pulsar «Intentar publicar»]**
+
+> «Una reseña con spam, como la que usaron contra la empresa.»
+
+**[Señalar la puntuación contra el umbral de 5]**
+
+> «Muy por encima del umbral. Vocabulario de casino, enlaces acortados, texto escondido con CSS.
+> Varias de estas reglas son nuestras.»
+
+**[Señalar «cómo se vería publicado»]**
+
+> «El texto oculto y el script desaparecieron. **No se publicó.**»
 
 ---
 
-## 4:20 – 5:00 · El cierre
+## 2:35 – 3:10 · Prueba 3 · Alguien se entera
 
-> «Dos datos para terminar.
->
-> **El costo de licenciamiento de todo esto es cero.** Cortafuegos, sistema operativo, base de datos, certificados, monitoreo: todo de código abierto o en modalidad gratuita permanente. Lo que se cobra es el servicio, no las herramientas.
->
-> Y el segundo, que es del que estoy más orgulloso.»
+**[Pestaña 4 · tablero, recargar]**
 
-**[Volver a la pestaña 4, ir a Métricas]**
+> «Lo que acaban de ver ya está aquí: regla, hora, dirección de origen.
+>
+> Y no solo lo nuestro. Este dominio no lo conoce nadie, y aun así recibe tráfico hostil de
+> Internet todo el día: **cientos de alertas en tres días**, de bots que nos encontraron solos.
+> Bloquear un ataque y que nadie se entere no es seguridad: es suerte.»
 
-> «Este panel tiene ocho métricas. **Cuatro dicen "sin datos".**
+---
+
+## 3:10 – 4:15 · Prueba 4 · El triángulo, medido
+
+**[Pestaña 5 · métricas]**
+
+> «Protección, detección y respuesta. Las tres en verde, y **cada cifra sale de algo que pasó**.
 >
-> Podríamos haber puesto un número en todas y se vería mejor. No lo hicimos, porque un panel que inventa cifras no sirve para decidir nada.
+> Parches: el cien por ciento aplicado dentro de 72 horas, leído de los registros del servidor.
+> Detección: minuto y medio de media. Falsos positivos: por debajo del dos por ciento.»
+
+**[Pestaña 6 · continuidad]**
+
+> «Y la que nadie mide. Recuperación: esta mañana el sistema tomó un respaldo cifrado con AES-256,
+> lo restauró en una base aparte y comprobó tabla por tabla. **Treinta y tres tablas, más de
+> cuatro mil filas, en tres segundos.**
 >
-> **Lo que no se puede medir, se declara.** Eso es lo que separa un sistema de gestión de la seguridad de un tablero bonito.»
+> No es la configuración del respaldo. Es una restauración que se ejecutó.»
+
+---
+
+## 4:15 – 5:00 · El cierre
+
+> «Tres razones para comprarlo.
+>
+> **Precio:** el licenciamiento de todo esto cuesta cero; se cobra el servicio, en quetzales.
+>
+> **Protege lo que nadie protege:** todas las plataformas cuidan el pago. Ninguna cuida lo que le
+> pasó a esta empresa, que es el activo más caro de un negocio pequeño: aparecer en Google.
+>
+> **Es auditable:** cada control tiene su evidencia y su lugar en el Anexo A de ISO 27001.»
 
 *(Pausa.)*
 
@@ -132,17 +156,32 @@ Probar los tres botones **antes**. Si algo falla en vivo, seguir hablando: el gu
 
 ## Respuestas preparadas
 
-**«¿Por qué no usar Shopify?»**
-> «Shopify es mejor producto en casi todo, y lo decimos en el informe. Ganamos en tres cosas concretas: precio en quetzales, facturación local, y protección del posicionamiento, que ellos no cubren.»
+**«¿Por qué había tantas alertas críticas?»** — la mejor pregunta que pueden hacer.
+> «Porque el panel las marcaba mal, y nos dimos cuenta mirándolo. El OWASP etiqueta casi todas sus
+> reglas como críticas, pero esa etiqueta es un peso, no un veredicto. Cada sondeo que el WAF
+> registraba sin bloquear salía crítico: ochocientas en dos días. Lo recalibramos. Eso es operar
+> un sistema, no solo instalarlo.»
 
-**«¿Esto es más seguro que WordPress?»**
-> «Sí, y esa comparación sí la sostenemos. El ecosistema de complementos de WordPress publica miles de vulnerabilidades al año. Nuestra superficie es mucho menor y tenemos un WAF delante que ellos no traen de fábrica.»
+**«¿El respaldo es externo?»**
+> «Está en el mismo servidor, fuera del volumen de la base y de todos los contenedores: si toman la
+> tienda, no alcanzan los respaldos. No protege contra perder la máquina entera; una copia fuera
+> del servidor cuesta dinero y la dejamos declarada como limitación.»
+
+**«¿La cobertura de triaje no la ajustaron para que salga verde?»**
+> «La medimos contra los plazos de nuestro plan de respuesta: quince minutos una crítica, una hora
+> una alta. Antes exigía el cien por cien al instante, y una alerta llegada hace un minuto contaba
+> igual que una olvidada tres días. Lo que es falla sigue siéndolo.»
+
+**«¿Por qué no usar Shopify?»**
+> «Shopify es mejor producto en casi todo. Ganamos en tres cosas: precio en quetzales, facturación
+> local y protección del posicionamiento, que ellos no cubren.»
 
 **«¿Y si alguien entra igual?»**
-> «Asumimos que va a pasar: es la premisa del modelo que usamos. Por eso el registro de auditoría se monta en solo lectura para la aplicación. Si comprometen la tienda, **no pueden borrar la evidencia.**»
+> «Asumimos que va a pasar. El registro de auditoría se monta en solo lectura para la aplicación: si
+> comprometen la tienda, no pueden borrar la evidencia.»
 
 **«¿Cuánto costaría de verdad?»**
-> «El servidor que lo corre son unos veinticinco dólares al mes. Las herramientas, cero. Lo que se cobra es la operación: alguien mirando el panel.»
+> «El servidor, unos cincuenta dólares al mes. Las herramientas, cero. Se cobra la operación.»
 
 ---
 
@@ -150,6 +189,12 @@ Probar los tres botones **antes**. Si algo falla en vivo, seguir hablando: el gu
 
 No disculparse ni depurar en pantalla. Decir:
 
-> «El entorno está publicado, pueden abrirlo desde su teléfono en **marketgt.duckdns.org**. Sigo con lo siguiente.»
+> «El entorno está publicado: pueden abrirlo desde su teléfono en **marketgt.duckdns.org**. Sigo.»
 
-Y seguir. **El guion funciona sin las demostraciones**; las demostraciones solo lo hacen más fuerte.
+Si la consola no carga, la misma batería de ataques sale desde la terminal:
+
+```bash
+bash infra/scripts/demo-waf.sh https://marketgt.duckdns.org
+```
+
+**El guion funciona sin las demostraciones**; las demostraciones solo lo hacen más fuerte.
