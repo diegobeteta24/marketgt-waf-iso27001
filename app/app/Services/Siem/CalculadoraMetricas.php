@@ -4,6 +4,7 @@ namespace App\Services\Siem;
 
 use App\Models\AlertaSeguridad;
 use App\Models\Capacitacion;
+use App\Models\EventoSeguridad;
 use App\Models\PruebaRestauracion;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -38,6 +39,27 @@ class CalculadoraMetricas
     private const META_RTO_HORAS = 4;
 
     private const META_RPO_HORAS = 24;
+
+    /**
+     * Plazo para INICIAR el triaje de una alerta, por severidad, contado desde que se genero.
+     *
+     * No son cifras de este archivo: son la columna "Triaje iniciado" de la tabla de tiempos
+     * objetivo del plan de respuesta a incidentes (docs/03-politicas, seccion 8). "Siguiente
+     * turno" se lee como veinticuatro horas, que es lo maximo que puede tardar en llegar el
+     * siguiente turno de cualquier guardia.
+     *
+     * La cobertura de triaje se mide contra estos plazos y no contra un cien por cien
+     * instantaneo. Una alerta que llego hace tres minutos y nadie ha mirado no es una falla
+     * del equipo: esta dentro de su plazo. La falla es la que lo supero sin que nadie la
+     * revisara, y esa es la que el plan exige que no exista.
+     */
+    private const PLAZO_TRIAJE_MINUTOS = [
+        EventoSeguridad::SEVERIDAD_CRITICA => 15,
+        EventoSeguridad::SEVERIDAD_ALTA => 60,
+        EventoSeguridad::SEVERIDAD_MEDIA => 240,
+        EventoSeguridad::SEVERIDAD_BAJA => 1440,
+        EventoSeguridad::SEVERIDAD_INFORMATIVA => 1440,
+    ];
 
     /**
      * Ventana de observacion. Treinta dias es el periodo natural de reporte del turno de
@@ -217,23 +239,38 @@ class CalculadoraMetricas
         // Una tasa de falsos positivos baja no significa nada si nadie triaja: esta metrica
         // evita que el panel se felicite a si mismo por no haber trabajado.
         $triadas = $total - $sinTriar;
+        $vencidas = $sinTriar === 0 ? 0 : $this->alertasFueraDePlazoDeTriaje($desde, $ahora);
+        $enPlazo = $sinTriar - $vencidas;
 
         $metricaTriaje = $total === 0
             ? $this->sinDatos(
                 clave: 'cobertura_triaje',
                 nombre: 'Cobertura de triaje',
-                meta: '100 % de las alertas revisadas',
+                meta: 'ninguna alerta sin revisar fuera de su plazo',
                 motivo: 'No hay alertas en la ventana de observacion.',
             )
             : $this->medida(
                 clave: 'cobertura_triaje',
                 nombre: 'Cobertura de triaje',
-                meta: '100 % de las alertas revisadas',
-                valor: round($triadas * 100 / $total, 1),
+                meta: 'ninguna alerta sin revisar fuera de su plazo',
+                valor: round(($total - $vencidas) * 100 / $total, 1),
                 unidad: '%',
-                cumple: $sinTriar === 0,
+                cumple: $vencidas === 0,
                 muestra: $total,
-                origen: "Alertas que salieron del estado nueva ({$triadas}) entre el total ({$total}).",
+                origen: "Alertas revisadas o todavia dentro de su plazo de triaje ({$this->numero($total - $vencidas)}) "
+                    ."entre el total ({$this->numero($total)}). Plazos del plan de respuesta a incidentes, seccion 8, "
+                    .'contados desde que se genera la alerta: 15 min las criticas, 1 h las altas, 4 h las medias y '
+                    .'el siguiente turno las bajas. '
+                    ."Revisadas: {$this->numero($triadas)}. Fuera de plazo sin revisar: {$this->numero($vencidas)}.",
+                // Las que esperan dentro de plazo no son una falla, pero lo seran si nadie las
+                // mira. Se dice aqui para que el cien por cien no se lea como "no queda nada".
+                advertencia: $enPlazo > 0
+                    ? ($enPlazo === 1
+                        ? '1 alerta reciente espera triaje dentro de su plazo. Si nadie la revisa antes de que venza, '
+                            .'pasara a contar como falla.'
+                        : "{$enPlazo} alertas recientes esperan triaje dentro de su plazo. Si nadie las revisa antes de "
+                            .'que venzan, pasaran a contar como falla.')
+                    : null,
             );
 
         return [$metricaDeteccion, $metricaFalsos, $metricaTriaje];
@@ -398,6 +435,43 @@ class CalculadoraMetricas
             'origen' => $motivo,
             'advertencia' => null,
         ];
+    }
+
+    /**
+     * Alertas de la ventana que siguen sin revisar y ya superaron su plazo de triaje.
+     *
+     * Una consulta por severidad con la fecha limite calculada aqui, en lugar de restar
+     * fechas en SQL: TIMESTAMPDIFF es de MariaDB y la metrica tiene que dar lo mismo en las
+     * pruebas, que corren sobre SQLite.
+     */
+    public function alertasFueraDePlazoDeTriaje(CarbonInterface $desde, CarbonInterface $ahora): int
+    {
+        $vencidas = 0;
+
+        foreach (self::PLAZO_TRIAJE_MINUTOS as $severidad => $minutos) {
+            $vencidas += AlertaSeguridad::query()
+                ->whereBetween('detectada_en', [$desde, $ahora])
+                ->where('estado', AlertaSeguridad::ESTADO_NUEVA)
+                ->where('severidad', $severidad)
+                ->where('detectada_en', '<=', $ahora->copy()->subMinutes($minutos))
+                ->count();
+        }
+
+        // Una severidad fuera de la tabla no puede quedar sin plazo: se le aplica el mas
+        // estricto. Un dato raro tiene que hacer saltar la metrica, no escapar de ella.
+        $vencidas += AlertaSeguridad::query()
+            ->whereBetween('detectada_en', [$desde, $ahora])
+            ->where('estado', AlertaSeguridad::ESTADO_NUEVA)
+            ->whereNotIn('severidad', array_keys(self::PLAZO_TRIAJE_MINUTOS))
+            ->where('detectada_en', '<=', $ahora->copy()->subMinutes(min(self::PLAZO_TRIAJE_MINUTOS)))
+            ->count();
+
+        return $vencidas;
+    }
+
+    private function numero(int $valor): string
+    {
+        return number_format($valor);
     }
 
     private function formatearValor(float $valor, string $unidad): string
