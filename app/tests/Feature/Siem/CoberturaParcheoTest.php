@@ -418,6 +418,43 @@ class CoberturaParcheoTest extends TestCase
 
         $this->assertSame(CalculadoraMetricas::SIN_DATOS, $this->analizador->metrica()["estado"]);
     }
+
+    public function test_lo_publicado_antes_del_alta_cuenta_desde_el_alta(): void
+    {
+        // Publicado el 1 de agosto, el anfitrion entra en gestion el 25 y el parche se aplica
+        // el 26: seiscientas horas desde la publicacion, veinticuatro desde el alta. Solo las
+        // veinticuatro son imputables al equipo.
+        $this->ingerir([$this->parcheAplicado([
+            "publicado_en" => "2026-08-01T00:00:00+00:00",
+            "aplicado_en" => "2026-08-26T00:00:00+00:00",
+            "desfase_horas" => 600.0,
+        ])]);
+
+        $metrica = $this->analizador->metrica();
+
+        $this->assertSame(CalculadoraMetricas::CUMPLE, $metrica["estado"]);
+        $this->assertSame(100.0, $metrica["valor"]);
+        $this->assertStringContainsString("se cuenta desde esa alta", $metrica["origen"]);
+        // El desfase guardado sigue siendo el real desde la publicacion: la regla cambia
+        // desde cuando se cuenta el plazo, no reescribe el hecho.
+        $this->assertEqualsWithDelta(600.0, EstadoParche::query()->firstOrFail()->desfase_horas, 0.01);
+    }
+
+    public function test_lo_heredado_no_tiene_plazo_ilimitado(): void
+    {
+        // La regla no perdona el atraso heredado: le da las mismas 72 h desde el alta que a
+        // cualquier parche desde su publicacion. Aplicado diez dias despues del alta, incumple.
+        $this->ingerir([$this->parcheAplicado([
+            "publicado_en" => "2026-08-01T00:00:00+00:00",
+            "aplicado_en" => "2026-09-04T00:00:00+00:00",
+            "desfase_horas" => 816.0,
+        ])]);
+
+        $metrica = $this->analizador->metrica();
+
+        $this->assertSame(CalculadoraMetricas::INCUMPLE, $metrica["estado"]);
+        $this->assertSame(0.0, $metrica["valor"]);
+    }
     // ─── Ayudas de la prueba ────────────────────────────────────────────────
 
     /**

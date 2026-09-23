@@ -32,4 +32,11 @@ Route::middleware(['auth', 'verified', 'rol:admin,auditor'])
         Route::livewire('alertas', 'pages::siem.alertas')->name('alertas');
 
         Route::livewire('metricas', 'pages::siem.metricas')->name('metricas');
+
+        // Las dos pantallas donde se ALIMENTAN dos vertices del triangulo. Existian como
+        // componentes, con pruebas, y no tenian ruta: la capacitacion solo se puede registrar
+        // desde la suya, asi que sin ella esa metrica no podia tener datos nunca.
+        Route::livewire('continuidad', 'pages::siem.continuidad')->name('continuidad');
+
+        Route::livewire('capacitacion', 'pages::siem.capacitacion')->name('capacitacion');
     });

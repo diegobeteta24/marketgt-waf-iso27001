@@ -223,11 +223,53 @@ class AnalizadorParches
             // es exactamente el conjunto que define EstadoParche::scopeConPlazoMedible.
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas < 0 AND aplicado_en >= ? THEN 1 ELSE 0 END) as inconsistentes', [EstadoParche::ESTADO_APLICADO, $gestion])
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas >= 0 AND aplicado_en >= ? THEN 1 ELSE 0 END) as medibles', [EstadoParche::ESTADO_APLICADO, $gestion])
-            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas >= 0 AND desfase_horas <= ? AND aplicado_en >= ? THEN 1 ELSE 0 END) as en_plazo', [EstadoParche::ESTADO_APLICADO, $horas, $gestion])
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? THEN 1 ELSE 0 END) as pendientes', [EstadoParche::ESTADO_PENDIENTE])
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND visto_pendiente_desde IS NOT NULL AND visto_pendiente_desde <= ? THEN 1 ELSE 0 END) as pendientes_vencidos', [EstadoParche::ESTADO_PENDIENTE, $limitePendiente])
             ->selectRaw('SUM(CASE WHEN es_seguridad IS NULL AND estado <> ? THEN 1 ELSE 0 END) as sin_clasificar', [EstadoParche::ESTADO_NO_APLICABLE])
             ->first();
+
+        // EL PLAZO CORRE DESDE QUE EL PARCHE ES RESPONSABILIDAD DEL EQUIPO: su publicacion, o el
+        // alta del anfitrion bajo gestion si se publico antes.
+        //
+        // Un parche publicado el 1 de agosto y aplicado el 23 de septiembre en un servidor que
+        // se creo el 21 no lleva siete semanas de retraso imputables a nadie de aqui: lleva
+        // dos dias. Las cinco semanas anteriores el servidor no existia. Contarlas no mide la
+        // disciplina de parcheo, mide la fecha en que se compro la maquina, y hunde la metrica
+        // de cualquier servidor recien aprovisionado por un hecho sobre el que nadie pudo actuar.
+        //
+        // Es la regla habitual para un activo que entra en inventario con atrasos heredados:
+        // el acuerdo de nivel de servicio empieza a contar al darlo de alta, no antes. Y es
+        // simetrica, que es lo que la hace defendible: lo heredado tiene las mismas 72 horas
+        // desde el alta que cualquier parche nuevo desde su publicacion. Lo que siga pendiente
+        // pasado ese plazo incumple igual.
+        //
+        // Se calcula aqui y no en SQL porque la resta de fechas no se escribe igual en MariaDB
+        // que en SQLite, y la metrica tiene que dar lo mismo en produccion que en las pruebas.
+        // La tabla tiene decenas de filas, no millones.
+        $enPlazo = 0;
+        $relojDesdeAlta = 0;
+
+        EstadoParche::query()
+            ->where('es_seguridad', true)
+            ->where('estado', EstadoParche::ESTADO_APLICADO)
+            ->whereNotNull('publicado_en')
+            ->whereNotNull('aplicado_en')
+            ->whereNotNull('desfase_horas')
+            ->where('desfase_horas', '>=', 0)
+            ->where('aplicado_en', '>=', $gestion)
+            ->get(['publicado_en', 'aplicado_en'])
+            ->each(function (EstadoParche $parche) use ($gestion, $horas, &$enPlazo, &$relojDesdeAlta): void {
+                $heredado = $parche->publicado_en->lessThan($gestion);
+                $inicio = $heredado ? $gestion : $parche->publicado_en;
+
+                if ($heredado) {
+                    $relojDesdeAlta++;
+                }
+
+                if ($inicio->diffInSeconds($parche->aplicado_en, false) / 3600 <= $horas) {
+                    $enPlazo++;
+                }
+            });
 
         return [
             'registros' => (int) ($fila->registros ?? 0),
@@ -236,7 +278,8 @@ class AnalizadorParches
             'heredados' => (int) ($fila->heredados ?? 0),
             'inconsistentes' => (int) ($fila->inconsistentes ?? 0),
             'medibles' => (int) ($fila->medibles ?? 0),
-            'en_plazo' => (int) ($fila->en_plazo ?? 0),
+            'en_plazo' => $enPlazo,
+            'reloj_desde_alta' => $relojDesdeAlta,
             'pendientes' => (int) ($fila->pendientes ?? 0),
             'pendientes_vencidos' => (int) ($fila->pendientes_vencidos ?? 0),
             'sin_clasificar' => (int) ($fila->sin_clasificar ?? 0),
@@ -256,6 +299,22 @@ class AnalizadorParches
             $conteos['en_plazo'],
             $conteos['medibles'],
         );
+
+        // La regla del reloj se escribe junto a la cifra, no en un documento aparte. Un
+        // porcentaje que sube por un criterio de medicion tiene que decir cual es, o se lee
+        // como un porcentaje que sube por arte de magia.
+        if (($conteos['reloj_desde_alta'] ?? 0) > 0) {
+            $alta = $this->gestionDesde();
+            $origen .= sprintf(
+                ' %d de ellos se %s antes de que el anfitrion estuviera bajo gestion (%s): su plazo se '
+                    .'cuenta desde esa alta y no desde la publicacion, porque ningun retraso anterior a la '
+                    .'existencia del servidor es imputable al equipo. Tienen las mismas %d h que cualquier otro.',
+                $conteos['reloj_desde_alta'],
+                $this->concordar($conteos['reloj_desde_alta'], 'publico', 'publicaron'),
+                $alta?->format('d/m/Y H:i') ?? 'sin fecha',
+                $horas,
+            );
+        }
 
         // La parte que el porcentaje NO cubre se escribe en el mismo sitio que el
         // porcentaje. Una cifra que no dice sobre cuantos casos se calculo, ni cuantos

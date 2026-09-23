@@ -296,8 +296,8 @@ class CalculadoraMetricas
                     clave: 'objetivo_tiempo_recuperacion',
                     nombre: 'Objetivo de tiempo de recuperacion (RTO)',
                     meta: self::META_RTO_HORAS.' horas o menos',
-                    valor: round((float) $recuperacion['rto_horas'], 2),
-                    unidad: 'h',
+                    valor: round((float) $recuperacion['rto_horas'] * 3600, 1),
+                    unidad: 's',
                     cumple: (float) $recuperacion['rto_horas'] <= self::META_RTO_HORAS,
                     muestra: (int) ($recuperacion['rto_muestra'] ?? 1),
                     origen: $recuperacion['rto_origen'],
@@ -313,8 +313,8 @@ class CalculadoraMetricas
                     clave: 'objetivo_punto_recuperacion',
                     nombre: 'Objetivo de punto de recuperacion (RPO)',
                     meta: 'perdida maxima de '.self::META_RPO_HORAS.' horas',
-                    valor: round((float) $recuperacion['rpo_horas'], 2),
-                    unidad: 'h',
+                    valor: round((float) $recuperacion['rpo_horas'] * 60, 1),
+                    unidad: 'min',
                     cumple: (float) $recuperacion['rpo_horas'] <= self::META_RPO_HORAS,
                     muestra: 1,
                     origen: $recuperacion['rpo_origen'],
@@ -402,6 +402,16 @@ class CalculadoraMetricas
 
     private function formatearValor(float $valor, string $unidad): string
     {
+        // Cada cifra en la unidad en que se lee: un RTO de tres segundos redondeado a
+        // horas salia "0 h", que parece un fallo del panel y no un buen resultado.
+        if ($unidad === 's' && $valor >= 3600) {
+            return number_format($valor / 3600, 1).' h';
+        }
+
+        if ($unidad === 's' && $valor >= 60) {
+            return number_format($valor / 60, 1).' min';
+        }
+
         if ($unidad === 'min' && $valor >= 60) {
             return number_format($valor / 60, 1).' h';
         }

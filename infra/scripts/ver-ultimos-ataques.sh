@@ -81,7 +81,9 @@ if (\$ultimo) {
 PHP
 
 ${COMPOSE} cp /tmp/marketgt-ultimos.php app:/tmp/ultimos.php >/dev/null 2>&1
-${COMPOSE} exec -T app php artisan tinker /tmp/ultimos.php 2>&1 \
+# </dev/null: tinker ejecuta el archivo y despues abre su consola interactiva;
+# sin esto se queda esperando que alguien escriba y el guion parece colgado.
+${COMPOSE} exec -T app php artisan tinker /tmp/ultimos.php < /dev/null 2>&1 \
   | grep -vE '^\s*$|Psy Shell|INFO' || true
 ${COMPOSE} exec -T app rm -f /tmp/ultimos.php >/dev/null 2>&1
 rm -f /tmp/marketgt-ultimos.php

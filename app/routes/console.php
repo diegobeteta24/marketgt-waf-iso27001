@@ -94,19 +94,14 @@ Schedule::command('siem:ingerir-parches')
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/siem-parches.log'));
 
-// ─── Prueba de restauración del respaldo ─────────────────────────────────────
+// ─── Prueba de restauración y respaldo: NO se programan aquí ─────────────────
 //
-// Alimenta el RTO y el RPO, las dos métricas del vértice de RESPUESTA que
-// quedaban sin instrumentar. El objetivo de recuperación no se lee de la
-// configuración del respaldo: se mide restaurando de verdad y cronometrando.
+// Alimentan el RTO y el RPO del vértice de RESPUESTA, pero necesitan lo que
+// este contenedor no tiene: docker, el volumen de la base y el directorio de
+// respaldos. Estuvieron programadas aquí y fallaban cada vez sin que nadie lo
+// viera, porque el comando no encuentra el guion dentro del contenedor.
 //
-// Semanal porque la prueba cuesta: vuelca, cifra, descifra y restaura sobre una
-// base desechable. Diaria competiría con la operación sin aportar un dato nuevo,
-// ya que lo que mide —cuánto se tarda en volver— no cambia de un día a otro.
-//
-// El domingo de madrugada, que es la ventana de menor tráfico de una tienda.
-Schedule::command('siem:probar-restauracion')
-    ->weeklyOn(0, '04:30')
-    ->withoutOverlapping(60)
-    ->runInBackground()
-    ->appendOutputTo(storage_path('logs/siem-restauracion.log'));
+// Las programa 04-desplegar.sh en el cron del ANFITRIÓN
+// (/etc/cron.d/marketgt-controles): respaldo a diario a las 02:30 y prueba
+// de restauración los domingos a las 04:30. El acta llega a esta aplicación
+// por la entrada estándar de "siem:probar-restauracion --registrar=-".

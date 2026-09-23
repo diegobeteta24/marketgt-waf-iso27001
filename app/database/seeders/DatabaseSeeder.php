@@ -34,6 +34,12 @@ class DatabaseSeeder extends Seeder
             // El catálogo es el activo que protege todo el esquema.
             CatalogoSeeder::class,
 
+            // El PLAN de capacitación de POL-006, y nada más. Sin él, la métrica de
+            // personal capacitado no tiene contra qué medirse y el panel no ofrece
+            // ninguna sesión donde registrar asistencias. No siembra asistencias a
+            // propósito: esas las registra quien presenció la sesión, desde el panel.
+            CapacitacionesSeeder::class,
+
             // Eventos de demostración para que el panel de detección tenga
             // historial desde el primer minuto. Van marcados como sintéticos
             // para poder distinguirlos de los reales durante una auditoría.

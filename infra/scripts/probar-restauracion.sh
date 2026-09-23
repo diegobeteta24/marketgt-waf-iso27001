@@ -364,7 +364,15 @@ ejecutar() {
 
   # No se declara el algoritmo que se pidio, se lee el que quedo dentro. En gpg
   # el identificador 9 es AES-256; 7 y 8 serian AES-128 y AES-192.
-  cifrador="$(gpg --batch --no-tty --list-packets "${DIRTMP}/volcado.sql.gpg" 2>/dev/null \
+  #
+  # La frase va por el mismo canal que en el cifrado y el descifrado. Listar los
+  # paquetes de un archivo simetrico obliga a gpg a intentar abrirlo, y sin la
+  # frase el agente lanza una ventana pidiendola en la terminal de quien ejecuta:
+  # en un cron no hay nadie que conteste, y en una sesion interactiva detiene la
+  # prueba esperando una frase que la persona no conoce.
+  cifrador="$(printf '%s' "$FRASE" | gpg --batch --no-tty --quiet \
+                --passphrase-fd 0 --pinentry-mode loopback \
+                --list-packets "${DIRTMP}/volcado.sql.gpg" 2>/dev/null \
                 | grep -o 'cipher [0-9]\+' | head -1 | awk '{print $2}')"
   case "$cifrador" in
     9)  ALGORITMO="AES256"; CIFRADO_OK="true" ;;

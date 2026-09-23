@@ -6,6 +6,8 @@
         ['ruta' => 'siem.eventos', 'texto' => 'Eventos'],
         ['ruta' => 'siem.alertas', 'texto' => 'Alertas'],
         ['ruta' => 'siem.metricas', 'texto' => 'Metricas'],
+        ['ruta' => 'siem.continuidad', 'texto' => 'Continuidad'],
+        ['ruta' => 'siem.capacitacion', 'texto' => 'Capacitacion'],
     ];
 @endphp
 

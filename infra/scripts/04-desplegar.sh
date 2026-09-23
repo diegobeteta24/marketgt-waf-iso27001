@@ -139,6 +139,23 @@ EOF
   ok "Secretos generados en ${ENV_FILE} (permisos 600)"
 fi
 
+# La frase que cifra los respaldos. Se anade a un .env existente en lugar de
+# regenerarlo entero, porque regenerar invalidaria las demas claves.
+#
+# Es el secreto mas delicado del archivo: sin ella, los respaldos cifrados son
+# ilegibles, tambien para nosotros. Conviene guardar una copia FUERA del
+# servidor; si la maquina se pierde, la frase se pierde con ella.
+if ! grep -q '^SIEM_FRASE_RESPALDO=' "${ENV_FILE}"; then
+  {
+    echo ""
+    echo "# Cifra los respaldos de la base (AES-256). Sin ella no se pueden abrir."
+    echo "# Guarda una copia fuera del servidor."
+    echo "SIEM_FRASE_RESPALDO=$(gen)$(gen)"
+  } >> "${ENV_FILE}"
+  chmod 600 "${ENV_FILE}"
+  ok "Frase de cifrado de respaldos generada (copiala fuera del servidor)"
+fi
+
 # shellcheck disable=SC1090
 set -a; . "${ENV_FILE}"; set +a
 
@@ -294,6 +311,42 @@ cat > /etc/cron.d/marketgt-certificado <<EOF
 17 3 * * 1,4 root certbot renew --quiet --pre-hook 'docker compose -f ${DOCKER_DIR}/docker-compose.yml stop waf' --post-hook 'cp /etc/letsencrypt/live/${DOMINIO}/fullchain.pem ${CERTS_DIR}/server.crt && cp /etc/letsencrypt/live/${DOMINIO}/privkey.pem ${CERTS_DIR}/server.key && docker compose -f ${DOCKER_DIR}/docker-compose.yml start waf'
 EOF
 ok "Renovación programada dos veces por semana"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7b. Controles que corren EN EL ANFITRIÓN
+#
+#     Tres controles no pueden correr dentro de un contenedor, porque necesitan
+#     lo que solo tiene el anfitrión: el volumen de la base, docker, y los
+#     registros de dpkg. El planificador de Laravel vive dentro del contenedor
+#     de la aplicación y no los alcanza; programarlos ahí hacía que fallaran en
+#     silencio, que es peor que no programarlos.
+#
+#     El orden de las horas importa: el respaldo antes de la prueba de
+#     restauración, para que el RPO tenga un respaldo reciente que fechar, y la
+#     recolección de parches antes de que el contenedor la ingiera a las 03:15.
+# ─────────────────────────────────────────────────────────────────────────────
+log "Programando los controles del anfitrión"
+
+mkdir -p /var/backups/marketgt /var/lib/marketgt/parches
+chmod 700 /var/backups/marketgt
+chmod 755 /var/lib/marketgt/parches
+
+cat > /etc/cron.d/marketgt-controles <<EOF
+# Instalado por 04-desplegar.sh. Se reescribe en cada despliegue.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Respaldo cifrado de la base, verificado al escribirse (A.8.13).
+30 2 * * *  root  bash ${REPO_ROOT}/infra/scripts/respaldar-base.sh >> /var/log/marketgt-respaldo.log 2>&1
+
+# Inventario de parches; el contenedor lo ingiere a las 03:15 (A.8.8).
+0 3 * * *   root  bash ${REPO_ROOT}/infra/scripts/recolectar-parches.sh --salida /var/lib/marketgt/parches/inventario-parches.jsonl >> /var/log/marketgt-parches.log 2>&1
+
+# Prueba de restauración cronometrada, los domingos (RTO y RPO).
+30 4 * * 0  root  bash ${REPO_ROOT}/infra/scripts/restauracion-programada.sh >> /var/log/marketgt-restauracion.log 2>&1
+EOF
+chmod 644 /etc/cron.d/marketgt-controles
+ok "Respaldo diario, parches diarios y restauración semanal programados"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 8. Verificación
