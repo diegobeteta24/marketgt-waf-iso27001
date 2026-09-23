@@ -4,8 +4,13 @@
     $vertices = $this->vertices;
     $cobertura = $this->cobertura;
 
-    // Estado de cada vertice: verde solo si todo lo medible cumple, gris si nada se puede medir.
-    $estadoVertice = function (array $vertice): string {
+    // Cuarto estado, propio de esta pantalla: el vertice en el que todo lo que se mide
+    // cumple, pero quedan metricas sin instrumentar. Sin el, un vertice con una sola
+    // metrica medible de tres se rotulaba "cumple", y la palabra terminaba diciendo lo
+    // contrario de lo que pasa: que de ese vertice apenas se sabe nada.
+    $PARCIAL = 'parcial';
+
+    $estadoVertice = function (array $vertice) use ($PARCIAL): string {
         $medidas = array_filter(
             $vertice['metricas'],
             static fn (array $metrica): bool => $metrica['estado'] !== CalculadoraMetricas::SIN_DATOS,
@@ -21,13 +26,18 @@
             }
         }
 
-        return CalculadoraMetricas::CUMPLE;
+        // Todo lo medible cumple. Solo es "cumple" si ademas no falta nada por medir:
+        // un control del que no hay dato no es un control que va bien.
+        return count($medidas) === count($vertice['metricas'])
+            ? CalculadoraMetricas::CUMPLE
+            : $PARCIAL;
     };
 
     $colorEstado = [
         CalculadoraMetricas::CUMPLE => 'var(--siem-cumple, #34d399)',
         CalculadoraMetricas::INCUMPLE => 'var(--siem-critica, #f87171)',
         CalculadoraMetricas::SIN_DATOS => 'var(--siem-informativa, #a3a3a3)',
+        $PARCIAL => 'var(--siem-media, #fbbf24)',
     ];
 
     // La misma palabra que ya rotula cada vertice dentro del triangulo. Se reutiliza aqui
@@ -37,6 +47,7 @@
         CalculadoraMetricas::CUMPLE => 'cumple',
         CalculadoraMetricas::INCUMPLE => 'incumple',
         CalculadoraMetricas::SIN_DATOS => 'sin instrumentar',
+        $PARCIAL => 'parcial',
     ];
 @endphp
 
@@ -81,19 +92,23 @@
                 instrumentar. Contar sólo lo medible premiaría precisamente a quien no mide.
             --}}
             @php
-                $madurez = function (array $vertice): float {
+                // Devuelve las dos cifras a la vez, y no solo la proporcion, porque la
+                // etiqueta del vertice ensena la fraccion en bruto. Un "67 %" suelto se lee
+                // como una nota; "2 de 3" dice lo que de verdad hay, que es lo que un
+                // auditor pregunta.
+                $reparto = function (array $vertice): array {
                     $total = count($vertice['metricas']);
-
-                    if ($total === 0) {
-                        return 0.0;
-                    }
 
                     $cumplen = count(array_filter(
                         $vertice['metricas'],
                         static fn (array $m): bool => $m['estado'] === CalculadoraMetricas::CUMPLE,
                     ));
 
-                    return $cumplen / $total;
+                    return [
+                        'cumplen' => $cumplen,
+                        'total' => $total,
+                        'proporcion' => $total === 0 ? 0.0 : $cumplen / $total,
+                    ];
                 };
 
                 // Geometría del lienzo. El triángulo apunta hacia arriba, con protección en el
@@ -124,7 +139,8 @@
                 $datos = [];
 
                 foreach ($angulos as $clave => $grados) {
-                    $m = $madurez($vertices[$clave]);
+                    $rep = $reparto($vertices[$clave]);
+                    $m = $rep['proporcion'];
                     $d = $r * max($minimo, $m);
 
                     [$ix, $iy] = $punto((float) $grados, (float) $r);
@@ -139,6 +155,8 @@
                         'ex' => $ex, 'ey' => $ey,
                         'estado' => $estadoVertice($vertices[$clave]),
                         'porcentaje' => (int) round($m * 100),
+                        'cumplen' => $rep['cumplen'],
+                        'total' => $rep['total'],
                         // El anclaje sigue al vértice: centrado arriba, a la izquierda del de la
                         // derecha y a la derecha del de la izquierda, para que ninguna etiqueta
                         // invada la figura.
@@ -200,7 +218,7 @@
 
                     <text x="{{ $d['ex'] }}" y="{{ $d['ey'] + $d['dy'] + 15 }}"
                           text-anchor="{{ $d['anclaje'] }}"
-                          style="fill: {{ $colorEstado[$d['estado']] }}; font-size: 11.5px; font-weight: 600">{{ $textoEstado[$d['estado']] }} · {{ $d['porcentaje'] }} %</text>
+                          style="fill: {{ $colorEstado[$d['estado']] }}; font-size: 11.5px; font-weight: 600">{{ $textoEstado[$d['estado']] }} · {{ $d['cumplen'] }} de {{ $d['total'] }}</text>
                 @endforeach
 
                 {{-- Leyenda. Sin ella la figura discontinua se lee como un adorno. --}}

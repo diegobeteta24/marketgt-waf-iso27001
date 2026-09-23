@@ -72,3 +72,41 @@ Schedule::command('seo:vigilar')
     ->withoutOverlapping(30)
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/seo-vigilancia.log'));
+
+// ─── Inventario de parches del anfitrión ─────────────────────────────────────
+//
+// Alimenta la cobertura de parcheo, que es una de las dos métricas del vértice
+// de PROTECCIÓN. Sin esto la tabla queda vacía y el panel declara "sin datos",
+// que es lo correcto pero no sirve de nada: el control existe y nadie lo mide.
+//
+// Diaria y no horaria porque el hecho que mide cambia de día en día: un parche
+// se publica y se aplica en escalas de horas o días, no de minutos. Ejecutarlo
+// más seguido solo reescribiría el mismo inventario.
+//
+// A las 03:15 para no competir con el respaldo nocturno.
+//
+// Depende de que recolectar-parches.sh haya escrito el inventario en el
+// anfitrión: el contenedor no ve /var/log/dpkg.log. Si el archivo no está, el
+// comando falla y lo dice; no inventa una cifra.
+Schedule::command('siem:ingerir-parches')
+    ->dailyAt('03:15')
+    ->withoutOverlapping(30)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/siem-parches.log'));
+
+// ─── Prueba de restauración del respaldo ─────────────────────────────────────
+//
+// Alimenta el RTO y el RPO, las dos métricas del vértice de RESPUESTA que
+// quedaban sin instrumentar. El objetivo de recuperación no se lee de la
+// configuración del respaldo: se mide restaurando de verdad y cronometrando.
+//
+// Semanal porque la prueba cuesta: vuelca, cifra, descifra y restaura sobre una
+// base desechable. Diaria competiría con la operación sin aportar un dato nuevo,
+// ya que lo que mide —cuánto se tarda en volver— no cambia de un día a otro.
+//
+// El domingo de madrugada, que es la ventana de menor tráfico de una tienda.
+Schedule::command('siem:probar-restauracion')
+    ->weeklyOn(0, '04:30')
+    ->withoutOverlapping(60)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/siem-restauracion.log'));
