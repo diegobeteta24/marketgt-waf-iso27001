@@ -27,11 +27,26 @@ volumes:
   modsec-audit:        # audit log JSON de ModSecurity (lo consume el SIEM)
   mariadb-data:
 
+# ─── Tope de tamano de los registros de contenedor ──────────────────────────
+# Docker no rota sus registros por defecto. Un contenedor que lleva semanas
+# encendido escribe hasta llenar el disco, y el sintoma no es "hay muchos
+# logs": es el sitio caido sin causa aparente. Con el servidor expuesto a
+# escaneo continuo de Internet esto deja de ser un supuesto teorico.
+#
+# 10 MB por archivo y 3 archivos = 30 MB de techo por contenedor. Sobra para
+# depurar un incidente reciente y no llega a ser un problema de disco.
+x-registro: &registro
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # ---------------------------------------------------------------------------
   # CAPA 4 - WAF de borde de la aplicacion (Nginx + ModSecurity 3 + OWASP CRS 4)
   # ---------------------------------------------------------------------------
   waf:
+    logging: *registro
     # Tag FIJADO por fecha: no cambia bajo tus pies antes de la presentacion.
     # NUNCA uses el tag rodante `owasp/modsecurity-crs:nginx` para la demo.
     image: owasp/modsecurity-crs:4.29.0-nginx-202609180209
@@ -180,6 +195,7 @@ services:
   # CAPA 5 - Aplicacion Laravel (nginx interno + php-fpm en un solo contenedor)
   # ---------------------------------------------------------------------------
   app:
+    logging: *registro
     build:
       context: ../../
       dockerfile: infra/docker/Dockerfile.app
@@ -312,6 +328,7 @@ services:
   # sistema anfitrión ni una entrada de cron que mantener aparte.
   # ---------------------------------------------------------------------------
   programador:
+    logging: *registro
     image: marketgt/app:local
     container_name: marketgt-programador
     restart: unless-stopped
@@ -343,6 +360,7 @@ services:
   # CAPA 6 - Datos
   # ---------------------------------------------------------------------------
   db:
+    logging: *registro
     image: mariadb:lts
     container_name: marketgt-db
     restart: unless-stopped
@@ -381,6 +399,7 @@ services:
   # cortafuegos y la de las evidencias aunque Laravel esté caído.
   # ---------------------------------------------------------------------------
   respaldo:
+    logging: *registro
     image: nginx:alpine
     container_name: marketgt-respaldo
     restart: unless-stopped
