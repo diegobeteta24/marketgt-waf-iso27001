@@ -30,6 +30,66 @@ class TriajeAsistidoTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_marcar_todas_las_pendientes_llega_mas_alla_de_las_visibles(): void
+    {
+        $this->actingAs($this->analista());
+
+        // Mas de las cuarenta que caben en pantalla: el caso de un servidor expuesto a
+        // Internet, donde el escaneo automatizado genera cientos de alertas al dia.
+        $alertas = collect(range(1, 45))->map(fn () => $this->alerta(demostracion: false, eventoDemostracion: false));
+
+        Livewire::test(AccionesMasivas::class)
+            ->call("marcarTodasLasPendientes")
+            ->set("destino", AlertaSeguridad::ESTADO_EN_TRIAJE)
+            ->set("nota", "Sondeos automatizados de Internet revisados por muestreo; ninguno alcanzo la aplicacion.")
+            ->call("aplicar")
+            ->assertHasNoErrors();
+
+        foreach ($alertas as $alerta) {
+            $fresca = $alerta->fresh();
+            $this->assertSame(AlertaSeguridad::ESTADO_EN_TRIAJE, $fresca->estado);
+            // Sigue siendo triaje humano, firmado: el lote no lo convierte en automatico.
+            $this->assertSame(TriajeAsistido::PROCEDENCIA_HUMANA, $fresca->getAttribute("procedencia_triaje"));
+        }
+    }
+
+    public function test_un_lote_grande_sin_nota_se_rechaza(): void
+    {
+        $this->actingAs($this->analista());
+
+        $alertas = collect(range(1, 45))->map(fn () => $this->alerta(demostracion: false, eventoDemostracion: false));
+
+        Livewire::test(AccionesMasivas::class)
+            ->call("marcarTodasLasPendientes")
+            ->set("destino", AlertaSeguridad::ESTADO_EN_TRIAJE)
+            ->call("aplicar")
+            ->assertHasErrors("nota");
+
+        // Nada cambio: sin justificacion escrita un lote de ese tamano no es auditable.
+        foreach ($alertas as $alerta) {
+            $this->assertSame(AlertaSeguridad::ESTADO_NUEVA, $alerta->fresh()->estado);
+        }
+    }
+
+    public function test_desmarcar_a_mano_anula_la_marca_de_todas(): void
+    {
+        $this->actingAs($this->analista());
+
+        $alertas = collect(range(1, 45))->map(fn () => $this->alerta(demostracion: false, eventoDemostracion: false));
+        $unica = $alertas->first();
+
+        Livewire::test(AccionesMasivas::class)
+            ->call("marcarTodasLasPendientes")
+            ->set("seleccionadas", [(string) $unica->id])
+            ->assertSet("todasLasPendientes", false)
+            ->set("destino", AlertaSeguridad::ESTADO_EN_TRIAJE)
+            ->call("aplicar")
+            ->assertHasNoErrors();
+
+        $this->assertSame(AlertaSeguridad::ESTADO_EN_TRIAJE, $unica->fresh()->estado);
+        $this->assertSame(44, AlertaSeguridad::query()->where("estado", AlertaSeguridad::ESTADO_NUEVA)->count());
+    }
+
     private function analista(): User
     {
         $rol = Rol::query()->create([

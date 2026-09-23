@@ -57,10 +57,31 @@ class AccionesMasivas extends Component
     public int $limite = 40;
 
     /**
+     * Marca "todas las pendientes del filtro", no solo las visibles.
+     *
+     * Es una marca y no la lista de identificadores a proposito. Con cientos de alertas, la
+     * lista viajaria desde el navegador en cada peticion, y cada identificador es un
+     * argumento que el cortafuegos cuenta: ModSecurity rechaza por defecto las peticiones
+     * de mas de mil argumentos. Una revision en lote no puede depender de que el WAF la
+     * deje pasar. Los identificadores se resuelven en el servidor, en el momento de aplicar.
+     */
+    public bool $todasLasPendientes = false;
+
+    /**
      * Minimo de caracteres de la nota de falso positivo. No es una cifra magica: es lo que
      * cuesta escribir "peticion legitima del rastreador de Google, verificada por PTR".
      */
     private const MINIMO_NOTA = 15;
+
+    /**
+     * A partir de cuantas alertas un lote exige nota escrita, sea cual sea el destino.
+     *
+     * Cuarenta es lo que cabe en pantalla. Por encima, quien aplica el lote no las ha visto
+     * todas una por una, y lo honesto es que lo diga: que se reviso, con que criterio y por
+     * que el resto comparte ese criterio. Esa nota es la diferencia entre una revision por
+     * muestreo documentada y un contador bajado a ciegas.
+     */
+    private const LOTE_GRANDE = 40;
 
     /**
      * Misma comprobacion que el panel de triaje: la ruta exige rol, pero un componente de
@@ -78,6 +99,7 @@ class AccionesMasivas extends Component
     public function updatedFiltroEstado(): void
     {
         $this->seleccionadas = [];
+        $this->todasLasPendientes = false;
         $this->destino = '';
         unset($this->alertas, $this->totalPendientes);
     }
@@ -85,11 +107,32 @@ class AccionesMasivas extends Component
     public function updatedIncluirDemostracion(): void
     {
         $this->seleccionadas = [];
+        $this->todasLasPendientes = false;
         unset($this->alertas, $this->totalPendientes);
+    }
+
+    /**
+     * Tocar una casilla a mano vuelve a la seleccion explicita: quien desmarca una alerta
+     * concreta no quiere que el lote la incluya igualmente.
+     */
+    public function updatedSeleccionadas(): void
+    {
+        $this->todasLasPendientes = false;
     }
 
     public function seleccionarTodas(): void
     {
+        $this->todasLasPendientes = false;
+        $this->seleccionadas = $this->alertas->pluck('id')
+            ->map(static fn (int $id): string => (string) $id)
+            ->all();
+    }
+
+    public function marcarTodasLasPendientes(): void
+    {
+        $this->todasLasPendientes = true;
+
+        // Las visibles se marcan tambien, solo para que la pantalla lo refleje.
         $this->seleccionadas = $this->alertas->pluck('id')
             ->map(static fn (int $id): string => (string) $id)
             ->all();
@@ -97,7 +140,28 @@ class AccionesMasivas extends Component
 
     public function limpiarSeleccion(): void
     {
+        $this->todasLasPendientes = false;
         $this->seleccionadas = [];
+    }
+
+    /**
+     * Cuantas alertas va a tocar el lote si se aplica ahora.
+     */
+    public function cantidadMarcada(): int
+    {
+        return $this->todasLasPendientes ? $this->totalPendientes : count($this->seleccionadas);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function identificadoresDelLote(): array
+    {
+        if ($this->todasLasPendientes) {
+            return $this->consultaPendientes()->pluck('id')->map(static fn ($id): int => (int) $id)->all();
+        }
+
+        return array_map('intval', $this->seleccionadas);
     }
 
     /**
@@ -111,11 +175,16 @@ class AccionesMasivas extends Component
     {
         $analista = $this->exigirAnalista();
 
+        $cantidad = $this->cantidadMarcada();
+        $loteGrande = $cantidad > self::LOTE_GRANDE;
+
         $this->validate(
             [
-                'seleccionadas' => ['required', 'array', 'min:1'],
+                // Con la marca de "todas las pendientes" la lista del navegador no manda:
+                // se exige que haya al menos una pendiente, que se comprueba abajo.
+                'seleccionadas' => $this->todasLasPendientes ? ['array'] : ['required', 'array', 'min:1'],
                 'destino' => ['required', 'string', 'in:'.implode(',', array_keys(AlertaSeguridad::ETIQUETAS_ESTADO))],
-                'nota' => $this->destino === AlertaSeguridad::ESTADO_FALSO_POSITIVO
+                'nota' => $this->exigeNota()
                     ? ['required', 'string', 'min:'.self::MINIMO_NOTA]
                     : ['nullable', 'string'],
             ],
@@ -123,12 +192,21 @@ class AccionesMasivas extends Component
                 'seleccionadas.required' => 'Marque al menos una alerta.',
                 'seleccionadas.min' => 'Marque al menos una alerta.',
                 'destino.required' => 'Elija a que estado pasan las alertas marcadas.',
-                'nota.required' => 'Para marcar falso positivo hay que escribir por que. Un triaje sin justificacion no es auditable.',
+                'nota.required' => $loteGrande && $this->destino !== AlertaSeguridad::ESTADO_FALSO_POSITIVO
+                    ? 'Un lote de '.$cantidad.' alertas exige justificacion escrita: que se reviso, con que criterio, '
+                        .'y por que el resto lo comparte. Sin ella no se distingue una revision de un contador bajado a ciegas.'
+                    : 'Para marcar falso positivo hay que escribir por que. Un triaje sin justificacion no es auditable.',
                 'nota.min' => 'Explique el motivo con al menos '.self::MINIMO_NOTA.' caracteres: quien lea esto manana no estara en la sala.',
             ],
         );
 
-        $identificadores = array_map('intval', $this->seleccionadas);
+        $identificadores = $this->identificadoresDelLote();
+
+        if ($identificadores === []) {
+            $this->addError('seleccionadas', 'No hay ninguna alerta pendiente con este filtro.');
+
+            return;
+        }
 
         /** @var Collection<int, AlertaSeguridad> $alertas */
         $alertas = AlertaSeguridad::query()->whereKey($identificadores)->get();
@@ -165,6 +243,7 @@ class AccionesMasivas extends Component
         });
 
         $this->seleccionadas = [];
+        $this->todasLasPendientes = false;
         $this->nota = '';
         $this->destino = '';
 
@@ -335,13 +414,17 @@ class AccionesMasivas extends Component
     #[Computed]
     public function destinosPosibles(): array
     {
-        $estados = $this->seleccionadas === []
-            ? [$this->filtroEstado === 'abiertas' ? AlertaSeguridad::ESTADO_NUEVA : $this->filtroEstado]
-            : AlertaSeguridad::query()
+        $estados = match (true) {
+            // Con todas las pendientes marcadas, los estados salen de la consulta completa,
+            // no de las cuarenta que se ven.
+            $this->todasLasPendientes => $this->consultaPendientes()->distinct()->pluck('estado')->all(),
+            $this->seleccionadas === [] => [$this->filtroEstado === 'abiertas' ? AlertaSeguridad::ESTADO_NUEVA : $this->filtroEstado],
+            default => AlertaSeguridad::query()
                 ->whereKey(array_map('intval', $this->seleccionadas))
                 ->distinct()
                 ->pluck('estado')
-                ->all();
+                ->all(),
+        };
 
         $destinos = [];
 
@@ -356,7 +439,8 @@ class AccionesMasivas extends Component
 
     public function exigeNota(): bool
     {
-        return $this->destino === AlertaSeguridad::ESTADO_FALSO_POSITIVO;
+        return $this->destino === AlertaSeguridad::ESTADO_FALSO_POSITIVO
+            || $this->cantidadMarcada() > self::LOTE_GRANDE;
     }
 
     /**

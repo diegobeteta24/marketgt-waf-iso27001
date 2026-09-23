@@ -471,14 +471,35 @@ class Normalizador
             default => EventoSeguridad::SEVERIDAD_INFORMATIVA,
         };
 
-        $resultado = $this->mayorSeveridad($porRegla, $porPuntuacion);
-
-        // Una transaccion que el WAF corto nunca puede quedar como informativa en el panel.
-        if ($bloqueado) {
-            $resultado = $this->mayorSeveridad($resultado, EventoSeguridad::SEVERIDAD_MEDIA);
+        // EN MODO DE PUNTUACION DE ANOMALIA, LA SEVERIDAD DE UNA REGLA ES UN PESO, NO UN VEREDICTO.
+        //
+        // El Core Rule Set etiqueta casi todas sus reglas de ataque como CRITICAL. Esa etiqueta
+        // no dice "esto es critico": dice cuanto suma la regla a la puntuacion (CRITICAL = 5).
+        // El veredicto es la puntuacion total contra el umbral, y lo emite el propio WAF al
+        // bloquear o no.
+        //
+        // Una peticion que el WAF NO corto es, por definicion, una que no alcanzo el umbral:
+        // tipicamente una coincidencia de paranoia 2, que este despliegue registra a proposito
+        // para tener senal sin bloquear trafico legitimo. Tomar su etiqueta como severidad la
+        // convertia en un incidente critico, y cada sondeo automatizado de Internet abria su
+        // propia alerta critica: cientos al dia, ninguna critica de verdad. Un panel que grita
+        // "critico" cuatrocientas veces al dia entrena al equipo a no mirarlo.
+        //
+        // Sin bloqueo manda la puntuacion. Si esa puntuacion es alta —una carga que paso porque
+        // el motor estaba en solo deteccion, por ejemplo— sigue saliendo critica por ella misma.
+        if (! $bloqueado) {
+            return $this->mayorSeveridad(
+                $porPuntuacion,
+                $severidades !== [] ? EventoSeguridad::SEVERIDAD_BAJA : EventoSeguridad::SEVERIDAD_INFORMATIVA,
+            );
         }
 
-        return $resultado;
+        // Con bloqueo, la etiqueta de la regla si cuenta: el WAF confirmo que era un ataque. Y
+        // una transaccion cortada nunca puede quedar como informativa en el panel.
+        return $this->mayorSeveridad(
+            $this->mayorSeveridad($porRegla, $porPuntuacion),
+            EventoSeguridad::SEVERIDAD_MEDIA,
+        );
     }
 
     /**

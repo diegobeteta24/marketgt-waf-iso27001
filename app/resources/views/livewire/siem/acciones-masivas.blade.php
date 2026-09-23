@@ -244,7 +244,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2 text-sm text-zinc-400">
             <p class="siem-numero">
                 {{ number_format($this->totalPendientes) }} alertas pendientes con este filtro ·
-                {{ count($this->seleccionadas) }} marcadas
+                {{ number_format($this->cantidadMarcada()) }} marcadas
                 @if ($this->totalPendientes > $this->limite)
                     · se muestran las {{ $this->limite }} mas graves
                 @endif
@@ -254,6 +254,11 @@
                 <flux:button size="sm" variant="ghost" wire:click="seleccionarTodas" class="min-h-11 sm:min-h-0">
                     Marcar las visibles
                 </flux:button>
+                @if ($this->totalPendientes > $this->limite)
+                    <flux:button size="sm" variant="ghost" wire:click="marcarTodasLasPendientes" class="min-h-11 sm:min-h-0">
+                        Marcar las {{ number_format($this->totalPendientes) }} pendientes
+                    </flux:button>
+                @endif
                 <flux:button size="sm" variant="ghost" wire:click="limpiarSeleccion" class="min-h-11 sm:min-h-0">
                     Desmarcar
                 </flux:button>
@@ -279,7 +284,7 @@
                         wire:loading.attr="disabled"
                         class="min-h-11 w-full sm:min-h-0"
                     >
-                        Aplicar a {{ count($this->seleccionadas) }} alertas
+                        Aplicar a {{ number_format($this->cantidadMarcada()) }} alertas
                     </flux:button>
                 </div>
             </div>
@@ -303,8 +308,13 @@
 
             @if ($this->exigeNota())
                 <p class="text-sm text-amber-400 sm:text-xs">
-                    Marcar falso positivo exige escribir el motivo: sin justificacion no se distingue de cerrar
-                    la alerta para bajar el contador.
+                    @if ($destino === \App\Models\AlertaSeguridad::ESTADO_FALSO_POSITIVO)
+                        Marcar falso positivo exige escribir el motivo: sin justificacion no se distingue de cerrar
+                        la alerta para bajar el contador.
+                    @else
+                        Un lote de mas de 40 alertas exige escribir que se reviso y con que criterio: nadie las ha
+                        visto una por una, y la nota es lo que convierte el lote en una revision por muestreo documentada.
+                    @endif
                 </p>
             @endif
         </div>
