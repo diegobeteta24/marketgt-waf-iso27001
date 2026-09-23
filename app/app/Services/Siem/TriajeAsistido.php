@@ -7,6 +7,7 @@ use App\Models\EventoSeguridad;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -80,7 +81,9 @@ class TriajeAsistido
                 .'el identificador de la regla que los corto.',
             'resultado' => AlertaSeguridad::ESTADO_CONTENIDA,
             'porque' => 'El ataque llego y fue detenido. La contencion es un hecho con marca de tiempo propia: '
-                .'la del ultimo evento bloqueado, no la del momento en que se ejecuta el triaje.',
+                .'la del ultimo evento bloqueado, no la del momento en que se ejecuta el triaje. Esa marca se '
+                .'guarda en la evidencia y solo se sella en contenida_en si hay una confirmacion anterior con '
+                .'la que restarla, porque media resta produce un tiempo de respuesta que nadie midio.',
         ],
         [
             'clave' => self::REGLA_EVENTO_UNICO_MENOR,
@@ -157,6 +160,41 @@ class TriajeAsistido
         }
 
         return $eventos->every(static fn (EventoSeguridad $evento): bool => $evento->es_demostracion === true);
+    }
+
+    /**
+     * Restringe una consulta a las alertas cuyo origen sintetico se puede demostrar.
+     *
+     * Es la UNICA definicion de "de demostracion" que usan el comando, el panel y la metrica.
+     * Tenerla escrita tres veces habria bastado para que el lote dijera "dos alertas reales
+     * sin triar" y la metrica dijera "ninguna alerta real", que es la clase de contradiccion
+     * que hunde una auditoria aunque las dos cifras esten bien calculadas.
+     *
+     * @param  Builder<AlertaSeguridad>  $consulta
+     * @return Builder<AlertaSeguridad>
+     */
+    public function soloDemostrables(Builder $consulta): Builder
+    {
+        return $consulta
+            ->where('es_demostracion', true)
+            ->whereHas('eventos')
+            ->whereDoesntHave('eventos', fn (Builder $interna) => $interna->where('es_demostracion', false));
+    }
+
+    /**
+     * Lo contrario, y a proposito no es solo "es_demostracion = false": una alerta sin eventos
+     * enlazados no puede demostrar que nacio de la siembra, asi que cuenta como real y la
+     * revisa una persona. Ante la duda, trabajo humano.
+     *
+     * @param  Builder<AlertaSeguridad>  $consulta
+     * @return Builder<AlertaSeguridad>
+     */
+    public function soloReales(Builder $consulta): Builder
+    {
+        return $consulta->where(fn (Builder $grupo) => $grupo
+            ->where('es_demostracion', false)
+            ->orWhereDoesntHave('eventos')
+            ->orWhereHas('eventos', fn (Builder $interna) => $interna->where('es_demostracion', false)));
     }
 
     /**
@@ -367,6 +405,10 @@ class TriajeAsistido
      * que ninguna alerta triada por lote pueda mejorar el tiempo de respuesta del equipo.
      * Sellarla seria regalarle al panel un promedio de cero minutos.
      *
+     * La otra mitad de esa decision esta en sellarContencion(): dejar confirmada_en vacia solo
+     * sirve mientras contenida_en tambien lo este, porque en cuanto alguien cierra la alerta el
+     * modelo sella la confirmacion con la hora del cierre y la resta sale negativa.
+     *
      * Se escribe con el constructor de consultas y no con el modelo para que el valor guardado
      * no dependa de que alguien anada o quite conversiones en AlertaSeguridad.
      *
@@ -390,12 +432,14 @@ class TriajeAsistido
             'updated_at' => $momento,
         ];
 
+        $evidencia = $decision['evidencia'];
+
         // Las marcas de tiempo no se sobrescriben: la primera vez que algo ocurrio es la que
         // cuenta, y volver a pasar el lote no debe mover el historico.
         if ($decision['estado'] === AlertaSeguridad::ESTADO_CONTENIDA
             && $decision['contenida_en'] !== null
             && $alerta->contenida_en === null) {
-            $valores['contenida_en'] = $decision['contenida_en'];
+            $evidencia += $this->sellarContencion($alerta, $decision['contenida_en'], $valores);
         }
 
         if ($decision['estado'] === AlertaSeguridad::ESTADO_FALSO_POSITIVO && $alerta->cerrada_en === null) {
@@ -408,7 +452,7 @@ class TriajeAsistido
                 'procedencia_triaje' => self::PROCEDENCIA_AUTOMATICA,
                 'triaje_regla' => $decision['regla'],
                 'triaje_criterio' => $decision['criterio'],
-                'triaje_evidencia' => json_encode($decision['evidencia'], JSON_UNESCAPED_UNICODE),
+                'triaje_evidencia' => json_encode($evidencia, JSON_UNESCAPED_UNICODE),
                 'triado_en' => $momento,
                 'triado_por' => mb_substr($actor, 0, 190),
             ];
@@ -422,6 +466,47 @@ class TriajeAsistido
             ->update($valores);
 
         return $afectadas > 0;
+    }
+
+    /**
+     * Decide si el instante de contencion medido se puede sellar en contenida_en.
+     *
+     * contenida_en no es un dato suelto: es la mitad de una resta. El tiempo medio de
+     * contencion vale contenida_en - confirmada_en, y este lote no confirma nada, asi que
+     * deja confirmada_en vacia a proposito. El problema aparece despues: en cuanto una
+     * persona cierra la alerta, AlertaSeguridad::cambiarEstado() sella confirmada_en con la
+     * hora de ese cierre, que es POSTERIOR al corte del cortafuegos. La resta sale negativa
+     * y el panel publica un tiempo de respuesta que nadie midio.
+     *
+     * No es una hipotesis: medido sobre la base de demostracion, la alerta 43 la corto el
+     * cortafuegos a las 18:06 y se cerro a mano a las 23:44. Ese par metia -338 minutos en
+     * el promedio y lo bajaba de 58,5 a 49,4 minutos sobre 44 alertas. Nueve minutos de
+     * mejora que no respondio nadie.
+     *
+     * Por eso la marca solo se sella cuando queda un par coherente que restar. Cuando no lo
+     * hay, el instante medido NO se pierde: se guarda en la evidencia junto al motivo, que
+     * es donde un auditor lo puede leer sin que ninguna metrica lo confunda con una respuesta.
+     *
+     * @param  array<string, mixed>  $valores
+     * @return array<string, mixed>
+     */
+    private function sellarContencion(AlertaSeguridad $alerta, CarbonInterface $instante, array &$valores): array
+    {
+        $confirmada = $alerta->confirmada_en;
+
+        if ($confirmada !== null && $confirmada->lessThanOrEqualTo($instante)) {
+            $valores['contenida_en'] = $instante;
+
+            return ['contenida_en_sellada' => true];
+        }
+
+        return [
+            'contenida_en_sellada' => false,
+            'contencion_observada_en' => $instante->toDateTimeString(),
+            'motivo_sin_sellar' => 'El cortafuegos corto a esa hora, pero nadie habia confirmado la alerta antes. '
+                .'Sin confirmacion previa no hay par que restar, y sellar contenida_en haria que el tiempo medio '
+                .'de contencion se calculara al reves en cuanto alguien cerrara la alerta.',
+        ];
     }
 
     /**
@@ -483,17 +568,22 @@ class TriajeAsistido
         $base = (clone $consulta)
             ->selectRaw('COUNT(*) as total')
             ->selectRaw('SUM(CASE WHEN estado = ? THEN 1 ELSE 0 END) as sin_triar', [AlertaSeguridad::ESTADO_NUEVA])
-            ->selectRaw('SUM(CASE WHEN es_demostracion = 1 THEN 1 ELSE 0 END) as demostracion_total')
-            ->selectRaw('SUM(CASE WHEN es_demostracion = 1 AND estado <> ? THEN 1 ELSE 0 END) as demostracion_triadas', [AlertaSeguridad::ESTADO_NUEVA])
-            ->selectRaw('SUM(CASE WHEN es_demostracion = 0 THEN 1 ELSE 0 END) as reales_total')
-            ->selectRaw('SUM(CASE WHEN es_demostracion = 0 AND estado = ? THEN 1 ELSE 0 END) as reales_sin_triar', [AlertaSeguridad::ESTADO_NUEVA])
             ->first();
 
         $total = (int) ($base->total ?? 0);
         $sinTriar = (int) ($base->sin_triar ?? 0);
-        $realesTotal = (int) ($base->reales_total ?? 0);
-        $realesSinTriar = (int) ($base->reales_sin_triar ?? 0);
         $triadas = $total - $sinTriar;
+
+        // Lo de demostracion se cuenta con el mismo filtro que usa el comando, y lo real sale
+        // por diferencia: asi las dos cifras suman siempre el total y ninguna se puede mover
+        // sin mover la otra.
+        $demostracionTotal = $this->soloDemostrables(clone $consulta)->count();
+        $demostracionSinTriar = $this->soloDemostrables(clone $consulta)
+            ->where('estado', AlertaSeguridad::ESTADO_NUEVA)
+            ->count();
+
+        $realesTotal = $total - $demostracionTotal;
+        $realesSinTriar = $sinTriar - $demostracionSinTriar;
 
         $humana = 0;
         $automatica = 0;
@@ -522,8 +612,8 @@ class TriajeAsistido
             'reales_total' => $realesTotal,
             'reales_sin_triar' => $realesSinTriar,
             'reales_triadas' => $realesTotal - $realesSinTriar,
-            'demostracion_total' => (int) ($base->demostracion_total ?? 0),
-            'demostracion_triadas' => (int) ($base->demostracion_triadas ?? 0),
+            'demostracion_total' => $demostracionTotal,
+            'demostracion_triadas' => $demostracionTotal - $demostracionSinTriar,
             'procedencia_registrable' => $this->procedenciaRegistrable(),
         ];
     }

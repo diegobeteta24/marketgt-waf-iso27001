@@ -52,6 +52,14 @@ class ProbarRestauracion extends Command
      */
     private const LIMITE_SALIDA = 60000;
 
+    /**
+     * El cifrador que declara el documento del proyecto. El acta trae el nombre que el guion
+     * LEYO del archivo con "gpg --list-packets", y es ese nombre el que decide, no la casilla
+     * de conforme que el acta traiga marcada: un volcado en AES-128 con la casilla puesta a
+     * mano es exactamente el hallazgo que un auditor busca.
+     */
+    private const CIFRADOR_EXIGIDO = 'AES256';
+
     public function handle(): int
     {
         $registrar = $this->option('registrar');
@@ -78,7 +86,21 @@ class ProbarRestauracion extends Command
             return self::FAILURE;
         }
 
-        $prueba = $this->registrar($acta, $origen, $operador);
+        // El instante de arranque no se sustituye por "ahora". Contra el se mide el punto de
+        // recuperacion, de modo que rellenarlo con la hora del registro publicaria un RPO
+        // medido contra un instante que nadie observo: un numero inventado con aspecto de dato.
+        $iniciada = $this->momento($acta['iniciada_en'] ?? null);
+
+        if ($iniciada === null) {
+            $this->error('El acta no trae un "iniciada_en" legible.');
+            $this->line('Ese sello es el instante contra el que se mide el punto de recuperacion. Sin el, la');
+            $this->line('antiguedad del respaldo se estaria midiendo contra la hora del registro, que es otra');
+            $this->line('cosa. Vuelva a ejecutar el guion en lugar de registrar un acta incompleta.');
+
+            return self::INVALID;
+        }
+
+        $prueba = $this->registrar($acta, $iniciada, $origen, $operador);
 
         $this->informar($prueba);
 
@@ -106,7 +128,7 @@ class ProbarRestauracion extends Command
     }
 
     /**
-     * @return int|null|false  false cuando se pidio una cuenta que no existe
+     * @return int|null|false false cuando se pidio una cuenta que no existe
      */
     private function resolverOperador(): int|null|false
     {
@@ -194,6 +216,16 @@ class ProbarRestauracion extends Command
 
         if (! is_array($ajustes)) {
             $this->error("La conexion \"{$conexion}\" no existe en config/database.php.");
+
+            return null;
+        }
+
+        // El guion habla con mariadb-dump. Lanzarlo contra una conexion de otro motor produce
+        // un acta fallida que parece un problema del respaldo cuando lo unico que pasa es que
+        // se apunto a la base equivocada: mejor decirlo antes de tocar nada.
+        if (! in_array($ajustes['driver'] ?? null, ['mariadb', 'mysql'], true)) {
+            $this->error("La conexion \"{$conexion}\" no es de MariaDB ni de MySQL, y la prueba se hace con mariadb-dump.");
+            $this->line('Use --conexion para apuntar a la conexion con la que la tienda atiende de verdad.');
 
             return null;
         }
@@ -312,9 +344,12 @@ class ProbarRestauracion extends Command
     /**
      * @param  array<string, mixed>  $acta
      */
-    private function registrar(array $acta, string $origen, ?int $operador): PruebaRestauracion
-    {
-        $iniciada = $this->momento($acta['iniciada_en'] ?? null) ?? CarbonImmutable::now();
+    private function registrar(
+        array $acta,
+        CarbonImmutable $iniciada,
+        string $origen,
+        ?int $operador,
+    ): PruebaRestauracion {
         $respaldo = $this->momento($acta['respaldo_mas_reciente_en'] ?? null);
 
         // El tiempo de recuperacion NO es la suma de todas las fases. Volcar y cifrar son el
@@ -336,18 +371,70 @@ class ProbarRestauracion extends Command
 
         $discrepancias = is_array($acta['discrepancias'] ?? null) ? $acta['discrepancias'] : [];
         $filas = (int) ($acta['filas_comparadas'] ?? 0);
+        $algoritmo = $this->texto($acta['algoritmo_cifrado'] ?? null);
 
-        // El veredicto se recalcula aqui. Una restauracion sin errores pero con tablas vacias
-        // termina en exito para el sistema operativo y es justo la que da falsa confianza.
-        $satisfactoria = ($acta['verificacion_superada'] ?? false) === true
-            && ($acta['cifrado_verificado'] ?? false) === true
-            && $discrepancias === []
-            && $filas > 0
-            && $recuperacion !== null
-            && $this->texto($acta['fase_fallida'] ?? null) === null;
+        // El cifrador se COMPRUEBA contra el nombre que el guion leyo del archivo; la casilla
+        // "cifrado_verificado" del acta no basta por si sola. Creerla seria dejar que quien
+        // ejecuta la prueba se ponga la nota en el unico punto que el documento del proyecto
+        // declara por escrito.
+        $cifradoConforme = ($acta['cifrado_verificado'] ?? false) === true
+            && $algoritmo === self::CIFRADOR_EXIGIDO;
+
+        // El veredicto se recalcula aqui, hecho por hecho. Una restauracion sin errores pero
+        // con tablas vacias termina en exito para el sistema operativo y es justo la que da
+        // falsa confianza; el reparo concreto se guarda para que la fila se explique sola.
+        $reparos = [];
+
+        if (($acta['verificacion_superada'] ?? false) !== true) {
+            $reparos[] = 'el acta no declara superada la verificacion por conteo de filas';
+        }
+
+        if ($discrepancias !== []) {
+            $reparos[] = 'hay tablas cuyo conteo restaurado no cae dentro del intervalo del origen';
+        }
+
+        if ($filas <= 0) {
+            $reparos[] = 'la restauracion no dejo ni una fila, y un exito con tablas vacias es falsa confianza';
+        }
+
+        if ($recuperacion === null) {
+            $reparos[] = 'falta el tiempo de alguna de las tres fases de recuperacion, de modo que no hay RTO que medir';
+        }
+
+        if (! $cifradoConforme) {
+            $reparos[] = 'el cifrador leido del archivo fue "'.($algoritmo ?? 'ninguno').'" y el documento '
+                .'del proyecto declara '.self::CIFRADOR_EXIGIDO;
+        }
+
+        $faseActa = $this->texto($acta['fase_fallida'] ?? null);
+        $satisfactoria = $reparos === [] && $faseActa === null;
+
+        $error = $this->texto($acta['error'] ?? null);
+
+        // Los reparos solo se escriben cuando el acta NO declaraba fase fallida, es decir,
+        // cuando el suspenso lo pone este comando. Si el guion ya dijo donde se cayo, anadir
+        // detras "no supero la verificacion" enturbia el diagnostico con consecuencias de un
+        // fallo anterior: claro que no la supero, la prueba nunca llego hasta ahi.
+        if ($faseActa === null && $reparos !== []) {
+            $motivo = 'Los hechos medidos no sostienen la prueba: '.implode('; ', $reparos).'.';
+            $error = $error === null ? $motivo : $error.' '.$motivo;
+        }
+
+        // Si el acta no declaro fase fallida pero el veredicto se cae aqui, la fila se sella
+        // con la fase a la que pertenece el reparo: "fallida" a secas no se puede investigar.
+        $fase = $faseActa ?? match (true) {
+            ! $cifradoConforme => 'cifrado',
+            $recuperacion === null => 'medicion',
+            $reparos !== [] => 'verificacion',
+            default => null,
+        };
 
         if (($acta['resultado'] ?? null) === PruebaRestauracion::RESULTADO_SATISFACTORIA && ! $satisfactoria) {
             $this->warn('El acta se declaraba satisfactoria, pero los hechos medidos no la sostienen: se registra como fallida.');
+
+            foreach ($reparos as $reparo) {
+                $this->line('  · '.$reparo);
+            }
         }
 
         $prueba = new PruebaRestauracion;
@@ -358,8 +445,8 @@ class ProbarRestauracion extends Command
             'resultado' => $satisfactoria
                 ? PruebaRestauracion::RESULTADO_SATISFACTORIA
                 : PruebaRestauracion::RESULTADO_FALLIDA,
-            'fase_fallida' => $this->texto($acta['fase_fallida'] ?? null),
-            'error' => $this->texto($acta['error'] ?? null),
+            'fase_fallida' => $fase,
+            'error' => $error,
             'origen' => $origen,
             'ejecutada_por' => $operador,
             'actor' => $this->texto($acta['actor'] ?? null) ?? 'desconocido',
@@ -378,8 +465,8 @@ class ProbarRestauracion extends Command
             'bytes_volcado' => isset($acta['bytes_volcado']) && is_numeric($acta['bytes_volcado'])
                 ? (int) $acta['bytes_volcado']
                 : null,
-            'algoritmo_cifrado' => $this->texto($acta['algoritmo_cifrado'] ?? null),
-            'cifrado_verificado' => ($acta['cifrado_verificado'] ?? false) === true,
+            'algoritmo_cifrado' => $algoritmo,
+            'cifrado_verificado' => $cifradoConforme,
             'huella_volcado' => $this->texto($acta['huella_volcado'] ?? null),
             'verificacion_superada' => ($acta['verificacion_superada'] ?? false) === true,
             'tablas_comparadas' => (int) ($acta['tablas_comparadas'] ?? 0),
@@ -436,6 +523,13 @@ class ProbarRestauracion extends Command
         }
     }
 
+    /**
+     * El guion sella sus marcas con el desfase horario del anfitrion ("...T17:22:07-06:00").
+     * Se convierten al huso de la aplicacion antes de guardarlas porque la columna se lee
+     * despues como si estuviera en ese huso: dejar el desfase puesto grabaria las 17:22 del
+     * anfitrion como si fueran las 17:22 de la aplicacion y el acta envejeceria seis horas
+     * de golpe. La misma conversion que hace la ingesta de estado de parches.
+     */
     private function momento(mixed $valor): ?CarbonImmutable
     {
         if (! is_string($valor) || trim($valor) === '') {
@@ -443,7 +537,7 @@ class ProbarRestauracion extends Command
         }
 
         try {
-            return CarbonImmutable::parse($valor);
+            return CarbonImmutable::parse($valor)->setTimezone(config('app.timezone', 'UTC'));
         } catch (\Throwable) {
             return null;
         }

@@ -212,7 +212,12 @@ class Capacitacion extends Model
      */
     public function acreditaVigenciaEn(?CarbonInterface $ahora = null): bool
     {
-        if (! $this->cuenta_para_vigencia) {
+        // Tambien se exige que la sesion figure como impartida, y no solo que tenga fecha.
+        // Una sesion cancelada puede conservar la fecha de un intento anterior, y sin esta
+        // condicion se colaba en el recuento de sesiones que acreditan: el calculo por
+        // persona la descartaba, de modo que el texto de procedencia afirmaba una sesion
+        // acreditante que no existia mientras la cifra decia lo contrario.
+        if (! $this->cuenta_para_vigencia || ! $this->fueImpartida()) {
             return false;
         }
 
@@ -342,6 +347,16 @@ class Capacitacion extends Model
         $registradas = $asistencias->count();
         $totalRegistradas = AsistenciaCapacitacion::query()->count();
 
+        // Asistencias que registro la propia persona a la que acreditan. No se descuentan de
+        // la cifra —son un hecho con procedencia sellada, igual que las demas— pero se
+        // cuentan aparte porque POL-006 seccion 6 pone el acta en manos del instructor: una
+        // linea firmada por su propio beneficiario es la unica via por la que este panel
+        // permite subir la metrica sin que nadie mienta, y callarla seria esconderla.
+        $autorregistradas = $asistencias->filter(
+            static fn (AsistenciaCapacitacion $asistencia): bool => $asistencia->registrada_por !== null
+                && $asistencia->registrada_por === $asistencia->usuario_id,
+        )->count();
+
         // Cuantas asistencias faltan: una por cada miembro del equipo que no figura en una
         // sesion que se le exige. Se cuenta sobre el plan completo, impartido o no.
         $faltantes = 0;
@@ -370,6 +385,7 @@ class Capacitacion extends Model
             'asistencias_totales' => $totalRegistradas,
             'asistencias_pendientes' => $faltantes,
             'actas_incompletas' => $actasIncompletas,
+            'autorregistradas' => $autorregistradas,
             'pendientes_evaluacion' => 0,
             'proximos_a_vencer' => 0,
             'medible' => false,
@@ -388,6 +404,18 @@ class Capacitacion extends Model
             return $base;
         }
 
+        // Ni siquiera el plan esta cargado. Se dice asi y no "el plan esta definido: 0
+        // sesiones", que es la frase que salia antes y afirmaba justo lo contrario de lo que
+        // ocurre: un control ni siquiera definido y uno definido y no ejecutado son dos
+        // hallazgos distintos, y confundirlos en el texto anula el valor de distinguirlos.
+        if ($sesiones->isEmpty()) {
+            $base['origen'] = 'No hay ninguna sesion cargada: el plan de POL-006 todavia no existe en la '
+                .'plataforma, de modo que no hay nada que medir ni contra que medirlo. Se carga ejecutando '
+                .'el semillero CapacitacionesSeeder.';
+
+            return $base;
+        }
+
         // Ninguna asistencia registrada: el plan puede estar definido, pero no hay ningun
         // hecho medido. Se distingue el motivo porque no es lo mismo que nada haya ocurrido
         // todavia que que haya ocurrido y nadie lo anotara.
@@ -395,13 +423,13 @@ class Capacitacion extends Model
             $base['origen'] = $impartidas === 0
                 ? sprintf(
                     'El plan esta definido: %d sesiones previstas en POL-006, ninguna impartida todavia. '
-                        .'Faltan %d asistencias por registrar para poder medir.',
+                        .'Faltan %d asistencias por registrar de las sesiones que el plan exige a todo el equipo.',
                     $sesiones->count(),
                     $faltantes,
                 )
                 : sprintf(
                     'Hay %s marcada%s como impartida%s pero ninguna asistencia registrada: falta el acta. '
-                        .'Faltan %d asistencias por registrar para poder medir.',
+                        .'Faltan %d asistencias por registrar de las sesiones que el plan exige a todo el equipo.',
                     $impartidas === 1 ? 'una sesion' : $impartidas.' sesiones',
                     $impartidas === 1 ? '' : 's',
                     $impartidas === 1 ? '' : 's',
@@ -516,6 +544,13 @@ class Capacitacion extends Model
                 .'de modo que no cuenta en el numerador.';
         }
 
+        if ($autorregistradas > 0) {
+            $avisos[] = ($autorregistradas === 1 ? '1 asistencia la registro' : $autorregistradas.' asistencias las registro')
+                .' la propia persona a la que acredita: consta con su procedencia, pero POL-006 seccion 6 '
+                .'pone el acta en manos del instructor, de modo que esa parte de la cifra no tiene '
+                .'verificacion independiente.';
+        }
+
         if ($proximos > 0) {
             $avisos[] = 'A '.$proximos.($proximos === 1 ? ' persona le vence' : ' personas les vence')
                 .' la capacitacion dentro de '.self::DIAS_AVISO_VENCIMIENTO.' dias o menos.';
@@ -529,18 +564,30 @@ class Capacitacion extends Model
         $base['medible'] = true;
         $base['muestra'] = $total;
         $base['advertencia'] = $avisos === [] ? null : implode(' ', $avisos);
+        // El numerador se explica aparte porque tiene un caso que la frase unica no sabia
+        // decir: cuando ninguna sesion impartida acredita, la plantilla escribia "alguna de
+        // las 0 sesiones impartidas", que ademas de no ser castellano afirmaba un conjunto
+        // vacio como si tuviera miembros. Una cifra cuya explicacion se contradice a si
+        // misma deja de ser verificable, que es lo unico que esta medicion tiene que ser.
+        $numerador = $acreditan->count() === 0
+            ? 'Numerador: ninguna sesion impartida acredita vigencia en este momento, de modo que ninguna '
+                .'asistencia registrada puede contar todavia.'
+            : sprintf(
+                'Numerador: asistencias con evaluacion superada a %s que acredita%s vigencia y no ha%s caducado.',
+                $acreditan->count() === 1
+                    ? 'la sesion impartida'
+                    : 'alguna de las '.$acreditan->count().' sesiones impartidas',
+                $acreditan->count() === 1 ? '' : 'n',
+                $acreditan->count() === 1 ? '' : 'n',
+            );
+
         $base['origen'] = sprintf(
-            '%d de %d miembros del equipo con capacitacion vigente superada. Denominador: %s. '
-                .'Numerador: asistencias con evaluacion superada a %s que acredita%s vigencia y no ha%s caducado. '
+            '%d de %d miembros del equipo con capacitacion vigente superada. Denominador: %s. %s '
                 .'Se leyeron %d asistencias registradas.',
             $capacitados,
             $total,
             self::descripcionEquipo(),
-            $acreditan->count() === 1
-                ? 'la sesion impartida'
-                : 'alguna de las '.$acreditan->count().' sesiones impartidas',
-            $acreditan->count() === 1 ? '' : 'n',
-            $acreditan->count() === 1 ? '' : 'n',
+            $numerador,
             $registradas,
         );
 

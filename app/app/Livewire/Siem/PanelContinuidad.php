@@ -142,8 +142,13 @@ class PanelContinuidad extends Component
     }
 
     /**
-     * Fraccion de la meta que consumio la ultima recuperacion medida, acotada a uno para que
-     * un incumplimiento no desborde la barra.
+     * Fraccion de la meta que consumio la ultima recuperacion medida, SIN acotar.
+     *
+     * No se acota aqui a proposito. La barra si tiene que acotarse para no desbordar el
+     * lienzo, pero eso es una decision de dibujo y se toma en la vista: si se acotara en el
+     * origen, una recuperacion de cinco horas contra una meta de cuatro se publicaria como
+     * "consume el 100 % del margen" cuando consumio el 125, y el rotulo estaria redondeando
+     * un incumplimiento hasta hacerlo parecer justo. La cifra que se lee es la medida.
      */
     #[Computed]
     public function ocupacionRto(): ?float
@@ -156,7 +161,7 @@ class PanelContinuidad extends Component
 
         $meta = (float) config('siem.metas.objetivo_tiempo_recuperacion_horas', 4);
 
-        return $meta > 0 ? min(1.0, $horas / $meta) : null;
+        return $meta > 0 ? $horas / $meta : null;
     }
 
     /**

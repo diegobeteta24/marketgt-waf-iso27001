@@ -7,7 +7,6 @@ use App\Services\Siem\TriajeAsistido;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * Triaje por lote de las alertas nacidas de eventos sembrados para la demostracion.
@@ -59,14 +58,9 @@ class TriarAlertasSinteticas extends Command
 
         $this->mostrarCriterio();
 
-        $consulta = $this->consultaCandidatas($desde, $ahora);
+        $consulta = $this->consultaCandidatas($triaje, $desde, $ahora);
         $candidatas = (clone $consulta)->count();
-
-        if ($limite > 0) {
-            $consulta->limit($limite);
-        }
-
-        $reales = $this->contarRealesSinTriar($desde, $ahora);
+        $reales = $this->contarRealesSinTriar($triaje, $desde, $ahora);
 
         $this->line('');
         $this->info(sprintf(
@@ -93,10 +87,20 @@ class TriarAlertasSinteticas extends Command
 
         $this->line('');
 
+        $vistas = 0;
+
+        // chunkById y no chunk: el lote cambia el estado de las mismas filas que esta leyendo,
+        // y paginar por desplazamiento se saltaria alertas segun estas van saliendo del filtro.
         $consulta->with('eventos')->chunkById(100, function ($alertas) use (
-            $triaje, $actor, $ahora, $simular, &$resultados, &$porRegla, &$filas
-        ): void {
+            $triaje, $actor, $ahora, $simular, $limite, &$vistas, &$resultados, &$porRegla, &$filas
+        ): bool {
             foreach ($alertas as $alerta) {
+                if ($limite > 0 && $vistas >= $limite) {
+                    return false;
+                }
+
+                $vistas++;
+
                 // Segunda comprobacion del origen, esta vez sobre los objetos ya cargados.
                 // La consulta filtra por relacion; esto lo verifica evento por evento.
                 if (! $triaje->esDeDemostracion($alerta, $alerta->eventos)) {
@@ -144,6 +148,8 @@ class TriarAlertasSinteticas extends Command
                     $decision['regla'],
                 ];
             }
+
+            return true;
         });
 
         if ($filas !== []) {
@@ -167,31 +173,28 @@ class TriarAlertasSinteticas extends Command
     }
 
     /**
-     * Candidatas: nuevas, marcadas como demostracion, con eventos enlazados y sin un solo
-     * evento real entre ellos. Las tres condiciones se preguntan a la base.
+     * Candidatas: nuevas y con el origen sintetico demostrable. Quien define "demostrable" es
+     * el servicio, no este comando: la metrica del panel usa esa misma definicion y dos copias
+     * del criterio terminarian dando dos cifras distintas del mismo hecho.
      *
      * @return Builder<AlertaSeguridad>
      */
-    private function consultaCandidatas(?CarbonImmutable $desde, CarbonImmutable $hasta): Builder
+    private function consultaCandidatas(TriajeAsistido $triaje, ?CarbonImmutable $desde, CarbonImmutable $hasta): Builder
     {
-        return AlertaSeguridad::query()
-            ->where('estado', AlertaSeguridad::ESTADO_NUEVA)
-            ->where('es_demostracion', true)
-            ->whereHas('eventos')
-            ->whereDoesntHave('eventos', fn (Builder $consulta) => $consulta->where('es_demostracion', false))
-            ->when($desde !== null, fn (Builder $consulta) => $consulta->whereBetween('detectada_en', [$desde, $hasta]));
+        return $triaje->soloDemostrables(
+            AlertaSeguridad::query()
+                ->where('estado', AlertaSeguridad::ESTADO_NUEVA)
+                ->when($desde !== null, fn (Builder $consulta) => $consulta->whereBetween('detectada_en', [$desde, $hasta])),
+        );
     }
 
-    private function contarRealesSinTriar(?CarbonImmutable $desde, CarbonImmutable $hasta): int
+    private function contarRealesSinTriar(TriajeAsistido $triaje, ?CarbonImmutable $desde, CarbonImmutable $hasta): int
     {
-        return AlertaSeguridad::query()
-            ->where('estado', AlertaSeguridad::ESTADO_NUEVA)
-            ->where(fn (Builder $consulta) => $consulta
-                ->where('es_demostracion', false)
-                ->orWhereDoesntHave('eventos')
-                ->orWhereHas('eventos', fn (Builder $interna) => $interna->where('es_demostracion', false)))
-            ->when($desde !== null, fn (Builder $consulta) => $consulta->whereBetween('detectada_en', [$desde, $hasta]))
-            ->count();
+        return $triaje->soloReales(
+            AlertaSeguridad::query()
+                ->where('estado', AlertaSeguridad::ESTADO_NUEVA)
+                ->when($desde !== null, fn (Builder $consulta) => $consulta->whereBetween('detectada_en', [$desde, $hasta])),
+        )->count();
     }
 
     private function mostrarCriterio(): void

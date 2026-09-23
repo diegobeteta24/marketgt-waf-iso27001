@@ -144,9 +144,13 @@ class AnalizadorParches
             ->selectRaw('COUNT(*) as registros')
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? THEN 1 ELSE 0 END) as aplicados_seguridad', [EstadoParche::ESTADO_APLICADO])
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NULL THEN 1 ELSE 0 END) as sin_fecha', [EstadoParche::ESTADO_APLICADO])
-            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND desfase_horas IS NOT NULL AND desfase_horas < 0 THEN 1 ELSE 0 END) as inconsistentes', [EstadoParche::ESTADO_APLICADO])
-            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND desfase_horas IS NOT NULL AND desfase_horas >= 0 THEN 1 ELSE 0 END) as medibles', [EstadoParche::ESTADO_APLICADO])
-            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND desfase_horas IS NOT NULL AND desfase_horas >= 0 AND desfase_horas <= ? THEN 1 ELSE 0 END) as en_plazo', [EstadoParche::ESTADO_APLICADO, $horas])
+            // Las tres cuentas del plazo exigen las DOS fechas ademas del desfase. Sin esa
+            // condicion, una fila con desfase guardado y una fecha perdida entraria en el
+            // denominador, y esa cifra ya no se podria reproducir desde la propia fila:
+            // es exactamente el conjunto que define EstadoParche::scopeConPlazoMedible.
+            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas < 0 THEN 1 ELSE 0 END) as inconsistentes', [EstadoParche::ESTADO_APLICADO])
+            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas >= 0 THEN 1 ELSE 0 END) as medibles', [EstadoParche::ESTADO_APLICADO])
+            ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND publicado_en IS NOT NULL AND aplicado_en IS NOT NULL AND desfase_horas IS NOT NULL AND desfase_horas >= 0 AND desfase_horas <= ? THEN 1 ELSE 0 END) as en_plazo', [EstadoParche::ESTADO_APLICADO, $horas])
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? THEN 1 ELSE 0 END) as pendientes', [EstadoParche::ESTADO_PENDIENTE])
             ->selectRaw('SUM(CASE WHEN es_seguridad = 1 AND estado = ? AND visto_pendiente_desde IS NOT NULL AND visto_pendiente_desde <= ? THEN 1 ELSE 0 END) as pendientes_vencidos', [EstadoParche::ESTADO_PENDIENTE, $limitePendiente])
             ->selectRaw('SUM(CASE WHEN es_seguridad IS NULL AND estado <> ? THEN 1 ELSE 0 END) as sin_clasificar', [EstadoParche::ESTADO_NO_APLICABLE])
@@ -255,6 +259,15 @@ class AnalizadorParches
 
         if ($ultima === null) {
             $partes[] = 'Ninguna fila registra cuando se recolecto: no se puede saber si el inventario esta al dia.';
+        } elseif ($ultima->greaterThan($ahora)) {
+            // Un inventario fechado en el futuro no es fresco: es un reloj mal puesto, y
+            // la comparacion de antiguedad daria negativa y callaria. El mismo criterio
+            // que saca del calculo a los desfases negativos.
+            $partes[] = sprintf(
+                'El inventario dice haberse recolectado el %s, despues de la hora actual: revise el reloj del '
+                    .'anfitrion antes de dar la cifra por buena.',
+                $ultima->format('Y-m-d H:i'),
+            );
         } elseif ($ultima->diffInHours($ahora) > self::HORAS_INVENTARIO_FRESCO) {
             $partes[] = sprintf(
                 'El inventario se recolecto por ultima vez hace %d h: la cifra describe el servidor de ese dia, '

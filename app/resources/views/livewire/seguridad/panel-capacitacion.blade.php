@@ -361,6 +361,15 @@
                                                                 registrada por {{ $registro->actor }}
                                                                 el {{ $registro->registrada_en->format('d/m/Y H:i') }}
                                                             </p>
+
+                                                            {{-- Registro propio: la fila la firmo la misma persona a la
+                                                                 que acredita. Se dice en la fila y no solo en el aviso
+                                                                 de la metrica, porque es aqui donde se comprueba. --}}
+                                                            @if ($registro->registrada_por !== null && $registro->registrada_por === $persona->id)
+                                                                <p class="mt-0.5 text-xs font-medium text-amber-400">
+                                                                    registro propio: sin verificacion independiente
+                                                                </p>
+                                                            @endif
                                                         </div>
                                                     @else
                                                         <span class="text-xs text-zinc-400">Sin registrar</span>

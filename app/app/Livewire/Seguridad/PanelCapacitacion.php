@@ -95,6 +95,16 @@ class PanelCapacitacion extends Component
         if ($sesion instanceof Capacitacion) {
             $this->modalidad = $sesion->modalidad ?? 'presencial';
             $this->fechaImpartida = $sesion->impartida_en?->toDateString() ?? CarbonImmutable::now()->toDateString();
+
+            // Las notas que ya constan vuelven a su caja. Sin esto, reconfirmar el resultado
+            // de alguien enviaba la caja vacia y borraba en silencio su puntuacion, que es
+            // justamente el dato que POL-006 seccion 6 exige por asistente: el acta perdia
+            // evidencia por la via de volver a confirmarla.
+            foreach (AsistenciaCapacitacion::query()->where('capacitacion_id', $sesion->id)->get() as $registro) {
+                if ($registro->puntuacion !== null) {
+                    $this->puntuaciones[$registro->usuario_id] = (string) $registro->puntuacion;
+                }
+            }
         }
     }
 
@@ -210,6 +220,20 @@ class PanelCapacitacion extends Component
 
         if ($puntuacion === false) {
             Flux::toast(variant: 'danger', text: 'La puntuacion debe ser un numero entero entre 0 y 100.');
+
+            return;
+        }
+
+        // Una nota es el resultado de una evaluacion. Guardarla junto a "asistio, sin evaluar"
+        // dejaba una fila que afirmaba las dos cosas a la vez —hay puntuacion, no hubo
+        // evaluacion— y el panel la mostraba como "Asistio, sin evaluar - 95 %". El acta
+        // tiene que decir una sola cosa, y cual de las dos lo sabe quien estuvo alli.
+        if ($puntuacion !== null && $resultado === AsistenciaCapacitacion::RESULTADO_PENDIENTE) {
+            Flux::toast(
+                variant: 'danger',
+                text: 'Hay una nota escrita: eso es un resultado de evaluacion. Pulse "Supero" o "No supero", '
+                    .'o borre la nota para anotar solo la presencia.',
+            );
 
             return;
         }

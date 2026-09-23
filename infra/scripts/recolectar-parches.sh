@@ -192,6 +192,87 @@ def huella_de(anfitrion, paquete, arquitectura, version):
     return hashlib.sha256(crudo.encode("utf-8")).hexdigest()
 
 
+def cadena_de_procesos(limite=10):
+    """Nombres de los procesos que llevan hasta esta recolección, de aquí hacia arriba.
+
+    La procedencia de una medición es dato de auditoría, no adorno, así que no
+    se puede deducir de la ausencia de terminal: un guion lanzado a mano desde
+    una tubería tampoco tiene terminal, y llamarlo «cron» sería afirmar un
+    hecho que nadie observó. Lo que sí se observa es /proc: quién es el padre
+    de este proceso, y el padre de aquel. Si cron está en esa cadena, cron lo
+    disparó; si no está, no se dice que estuvo.
+    """
+    nombres = []
+    pid = os.getpid()
+
+    for _ in range(limite):
+        try:
+            with open("/proc/%d/status" % pid, "rt", encoding="utf-8") as manejador:
+                contenido = manejador.read()
+        except OSError:
+            break
+
+        nombre = ""
+        padre = 0
+        for linea in contenido.splitlines():
+            if linea.startswith("Name:"):
+                nombre = linea.split(":", 1)[1].strip()
+            elif linea.startswith("PPid:"):
+                try:
+                    padre = int(linea.split(":", 1)[1].strip())
+                except ValueError:
+                    padre = 0
+
+        if nombre:
+            nombres.append(nombre)
+        if padre <= 1:
+            break
+        pid = padre
+
+    return nombres
+
+
+def terminal_de_control():
+    """Terminal de control del proceso según /proc/self/stat; 0 si no tiene ninguna.
+
+    No se mira la entrada estándar: este bloque de python lee su propio guion
+    por ahí, de modo que preguntarle si es una terminal responde «no» siempre,
+    incluso cuando quien ejecuta está sentado delante. El campo tty_nr del
+    núcleo no depende de las redirecciones y contesta a la pregunta real.
+    """
+    try:
+        with open("/proc/self/stat", "rt", encoding="utf-8") as manejador:
+            # El nombre del ejecutable va entre paréntesis y puede contener
+            # espacios: se corta por el último «) » y se cuenta desde ahí.
+            campos = manejador.read().rsplit(") ", 1)[1].split()
+        return int(campos[4])
+    except (OSError, ValueError, IndexError):
+        return 0
+
+
+def quien_dispara(ancestros):
+    """Persona o proceso, decidido por lo que se pudo leer y no por lo que falta."""
+    usuario = (
+        os.environ.get("SUDO_USER")
+        or os.environ.get("USER")
+        or os.environ.get("LOGNAME")
+        or "desconocido"
+    )
+
+    for nombre in ancestros:
+        if nombre.lower() in ("cron", "crond", "anacron"):
+            return "proceso:cron"
+        if nombre.lower().startswith("systemd") and nombre.lower() != "systemd":
+            return "proceso:%s" % nombre
+
+    if terminal_de_control() != 0 or sys.stderr.isatty() or sys.stdout.isatty():
+        return "persona:%s" % usuario
+
+    # Ni cron ni terminal: se dice exactamente eso, y quién era el dueño del
+    # proceso. Un «no consta» honesto vale más que una atribución inventada.
+    return "proceso:sin terminal (usuario %s)" % usuario
+
+
 # ─── Fecha de publicación de la corrección ──────────────────────────────────
 #
 # El pie de cada entrada del registro de cambios («-- Autor <correo>  fecha»)
@@ -239,6 +320,11 @@ def entradas_registro_cambios(paquete):
                 cabecera = CABECERA_CAMBIOS.match(linea)
                 if cabecera:
                     actual = {
+                        # El nombre del paquete FUENTE, que no siempre es el binario:
+                        # dmsetup se construye desde lvm2 y numera distinto, y sin esto
+                        # la nota diría solo «no está la entrada», que se lee como un
+                        # registro de cambios incompleto en lugar de como lo que es.
+                        "origen": cabecera.group(1),
                         "version": sin_epoca(cabecera.group(2)),
                         "distribucion": cabecera.group(3).strip(),
                         "cuerpo": [],
@@ -306,10 +392,18 @@ def datos_de_publicacion(paquete, version):
             break
 
     if elegida is None:
+        nombre_fuente = entradas[0]["origen"] if entradas else ""
+        detalle = ""
+        if nombre_fuente and nombre_fuente != paquete.split(":")[0]:
+            detalle = (
+                " El registro de cambios instalado es el del paquete fuente %s, que numera "
+                "sus versiones aparte (la mas reciente que trae es %s)."
+                % (nombre_fuente, entradas[0]["version"])
+            )
+
         vacio["nota_publicacion"] = (
-            "El registro de cambios existe pero no contiene la entrada de la version %s. "
-            "No se toma la entrada mas reciente en su lugar: seria una fecha de otra version."
-            % version
+            "%s no contiene la entrada de la version %s. No se toma la entrada mas reciente "
+            "en su lugar: seria una fecha de otra version.%s" % (ruta, version, detalle)
         )
         return vacio
 
@@ -373,8 +467,14 @@ def registrar_aplicado(paquete, arquitectura, version, version_anterior, momento
             "aplicado_por": aplicado_por,
         }
     elif aplicado_por == "proceso:unattended-upgrades":
+        # Cambia la atribución, NO la fuente: «aplicado_en» sigue saliendo del
+        # archivo que ya estaba citado, y sustituir la cita por otra con una
+        # hora distinta haría que la fila apuntara a un sitio donde esa marca
+        # de tiempo no aparece. Se suma la segunda cita en lugar de tapar la
+        # primera, que es lo que permite reproducir las dos afirmaciones.
         anterior["aplicado_por"] = aplicado_por
-        anterior["fuente"] = fuente
+        if fuente not in anterior["fuente"]:
+            anterior["fuente"] = "%s; atribucion tomada de %s" % (anterior["fuente"], fuente)
 
 
 def leer_unattended_dpkg():
@@ -553,10 +653,12 @@ def main():
     estado_nuevo = {}
 
     momento_recoleccion = a_utc(AHORA)
-    invocado_por = os.environ.get("SUDO_USER") or os.environ.get("USER") or "desconocido"
     # Quién dispara la recolección importa: el cron es un proceso, una ejecución
-    # a mano es una persona, y la procedencia del dato cambia según cuál fue.
-    disparo = "proceso:cron" if not sys.stdin.isatty() else "persona:%s" % invocado_por
+    # a mano es una persona, y la procedencia del dato cambia según cuál fue. Se
+    # lee de la cadena de procesos, que es un hecho, y no de si hay terminal,
+    # que solo dice que no la hay.
+    ancestros = cadena_de_procesos()
+    disparo = quien_dispara(ancestros)
 
     for clave, pendiente in pendientes.items():
         huella = huella_de(anfitrion, pendiente["paquete"], pendiente["arquitectura"], sin_epoca(pendiente["version"]))
@@ -685,6 +787,10 @@ def main():
         "anfitrion": anfitrion,
         "sistema_operativo": version_so or "desconocido",
         "ejecutado_como_root": os.geteuid() == 0,
+        # La cadena de procesos queda escrita tal cual se leyó de /proc: es la
+        # prueba de la que sale «recolectado_por», y sin ella esa etiqueta
+        # volvería a ser una afirmación que el auditor tendría que creerse.
+        "cadena_procesos": ancestros,
         "dias_observados": DIAS,
         "fuentes": fuentes,
         "corroboracion": corroboracion_pendientes(),

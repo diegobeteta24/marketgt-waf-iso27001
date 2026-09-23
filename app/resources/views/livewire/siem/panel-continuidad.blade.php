@@ -93,7 +93,25 @@
                      contra su meta, porque la meta es un techo de tiempo. --}}
                 @if ($metrica['clave'] === 'objetivo_tiempo_recuperacion' && $ocupacion !== null)
                     @php
-                        $ancho = max(1.5, round($ocupacion * 100, 2));
+                        // El porcentaje medido y el ancho dibujado son dos cosas distintas y no
+                        // deben confundirse: el ancho lleva un minimo para que la barra se vea,
+                        // y ese minimo no es un dato. El rotulo accesible anuncia el porcentaje
+                        // MEDIDO, el mismo que lee quien ve la pantalla.
+                        $porcentaje = $ocupacion * 100;
+
+                        // Los decimales se eligen para que la cifra medida nunca se redondee
+                        // hasta desaparecer: una recuperacion de tres segundos consume el
+                        // 0,022 % de una meta de cuatro horas, y publicarla como "0,0 %"
+                        // equivaldria a decir que no se midio.
+                        $porcentajeTexto = number_format($porcentaje, match (true) {
+                            $porcentaje >= 1 => 1,
+                            $porcentaje >= 0.01 => 3,
+                            default => 5,
+                        });
+                        // El lienzo mide 200 unidades: el ancho se acota a los dos extremos
+                        // para que la barra se vea siempre y no se salga cuando la meta se
+                        // rebasa. Acotar el DIBUJO es legitimo; acotar la cifra no lo seria.
+                        $ancho = max(3, min(200, round($porcentaje * 2, 2)));
                         $colorBarra = $metrica['estado'] === CalculadoraMetricas::CUMPLE
                             ? 'var(--siem-cumple, #34d399)'
                             : 'var(--siem-critica, #f87171)';
@@ -103,17 +121,17 @@
                          los elementos del panel pisaria el atributo de presentacion y la barra
                          saldria negra sobre fondo negro. --}}
                     <svg viewBox="0 0 200 12" class="mt-3 h-3 w-full" role="img"
-                         aria-label="Recuperacion medida frente a la meta: {{ $ancho }} por ciento del margen">
+                         aria-label="La recuperacion medida consume el {{ $porcentajeTexto }} por ciento del margen de la meta">
                         <rect x="0" y="0" width="200" height="12" rx="6"
                               style="fill: rgba(255,255,255,0.10)" />
-                        {{-- Un minimo de tres unidades de ancho: cuando la recuperacion tarda
-                             milesimas de la meta, una barra proporcional seria invisible y
-                             pareceria que no se midio nada. --}}
-                        <rect x="0" y="0" width="{{ max(3, $ancho * 2) }}" height="12" rx="6"
+                        {{-- Un minimo de tres unidades de ancho sobre un lienzo de 200: cuando la
+                             recuperacion tarda milesimas de la meta, una barra proporcional seria
+                             invisible y pareceria que no se midio nada. --}}
+                        <rect x="0" y="0" width="{{ $ancho }}" height="12" rx="6"
                               style="fill: {{ $colorBarra }}" />
                     </svg>
                     <p class="mt-1 text-xs text-zinc-400">
-                        Consume el {{ number_format($ocupacion * 100, $ocupacion < 0.01 ? 3 : 1) }} % del margen de la meta.
+                        Consume el {{ $porcentajeTexto }} % del margen de la meta.
                     </p>
                 @endif
             </div>

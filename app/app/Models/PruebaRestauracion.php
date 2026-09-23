@@ -369,8 +369,11 @@ class PruebaRestauracion extends Model
                 ? 'No hay ninguna prueba de restauracion registrada. Ejecute '
                     .'"php artisan siem:probar-restauracion" o infra/scripts/probar-restauracion.sh: '
                     .'el objetivo se mide restaurando, no leyendo la configuracion del respaldo.'
-                : 'Las '.$intentos.' pruebas registradas terminaron sin verificacion satisfactoria, '
-                    .'de modo que ninguna demuestra un tiempo de recuperacion. Revise el historial de continuidad.');
+                : ($intentos === 1
+                    ? 'La unica prueba registrada termino sin verificacion satisfactoria, de modo que no '
+                        .'demuestra ningun tiempo de recuperacion. Revise el historial de continuidad.'
+                    : 'Las '.$intentos.' pruebas registradas terminaron sin verificacion satisfactoria, '
+                        .'de modo que ninguna demuestra un tiempo de recuperacion. Revise el historial de continuidad.'));
         }
 
         $dias = $prueba->diasDesdeLaPrueba($ahora);
