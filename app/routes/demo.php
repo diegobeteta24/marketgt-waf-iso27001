@@ -53,7 +53,12 @@ Route::middleware(['auth', 'verified', 'rol:admin'])
 */
 $blanco = [BlancoController::class, 'recibir'];
 $verbos = ['get', 'post', 'put', 'patch', 'delete'];
+// PreventRequestForgery es la que de verdad esta en el grupo web desde Laravel 13. Las dos
+// de abajo siguen existiendo pero ya no estan en el grupo: excluir solo esas no excluia
+// nada, y los blancos respondian 419 sin llegar al controlador. Se dejan por si el
+// proyecto se ejecuta sobre una version anterior.
 $sinCsrf = [
+    'Illuminate\\Foundation\\Http\\Middleware\\PreventRequestForgery',
     'Illuminate\\Foundation\\Http\\Middleware\\ValidateCsrfToken',
     'Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken',
 ];
