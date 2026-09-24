@@ -6,11 +6,12 @@
 
 | | |
 |---|---|
-| **Sitio publicado** | _pendiente de despliegue_ |
-| **Panel de seguridad** | _pendiente de despliegue_ |
+| **Sitio publicado** | https://marketgt.duckdns.org |
+| **Panel de seguridad** | https://marketgt.duckdns.org/siem (requiere cuenta de administrador o auditor) |
+| **Alojamiento** | VM Ubuntu 24.04 en Microsoft Azure (México Central), crédito de Azure for Students |
 | **Norma rectora** | ISO/IEC 27001:2022 (Anexo A) |
 | **Estándares de apoyo** | ISO/IEC 27002:2022 · OWASP Top 10:2025 · OWASP CRS 4.x · PCI DSS v4.0 req. 6.4.2 · CIS Benchmark · NIST SP 800-61r3 · NIST SP 800-63B-4 |
-| **Costo de licenciamiento e infraestructura** | Q0.00 |
+| **Costo de licenciamiento** | Q0.00 |
 
 ## Integrantes
 
@@ -36,13 +37,13 @@ información de pago.
 
 | Capa | Componente | Control implementado | Amenaza que mitiga |
 |---|---|---|---|
-| 1 · Perímetro | Cloudflare (plan Free) | Mitigación de DDoS, CDN, límite de tasa, WAF de borde | Denegación de servicio y tráfico automatizado |
+| 1 · Perímetro | DuckDNS + Let's Encrypt (Cloudflare documentado, **implementación parcial**) | TLS válido; ver docs/02-arquitectura/decision-capa1-perimetro.md | Denegación de servicio y tráfico automatizado |
 | 2 · Red | UFW + fail2ban | Solo 80/443 abiertos; SSH por llave; bloqueo tras intentos fallidos | Escaneo de puertos y fuerza bruta |
 | 3 · Sistema operativo | Ubuntu Server LTS | Hardening CIS Benchmark, actualizaciones automáticas, auditoría con Lynis | Escalada de privilegios y servicios obsoletos |
 | 4 · Servidor web y WAF | Nginx + ModSecurity 3 + OWASP CRS 4.x | Inspección de capa 7, puntuación de anomalía, TLS 1.3 | Inyección SQL, XSS e inclusión de archivos |
 | 5 · Aplicación | Laravel | MFA (TOTP + passkeys), RBAC, validación de entradas, CSP y HSTS | Control de acceso roto y secuestro de sesión |
-| 6 · Datos | MariaDB | Cifrado en reposo, tokenización, respaldos cifrados fuera del servidor | Exfiltración y divulgación de datos sensibles |
-| Transversal | Panel SIEM propio + Wazuh | Correlación de eventos, alertas y métricas del ciclo SKiP | Detección tardía de incidentes |
+| 6 · Datos | MariaDB | Cifrado en reposo, respaldo diario AES-256 verificado, en el servidor fuera de todo contenedor | Exfiltración y divulgación de datos sensibles |
+| Transversal | Panel SIEM propio | Ingesta del WAF, correlación, triaje, contención en el borde y 8 métricas medidas | Detección tardía de incidentes |
 
 ## 3. Triángulo de la ciberresiliencia
 
@@ -53,7 +54,7 @@ dejaba **detección** parcial y **respuesta** ausente. Esta implementación cier
 |---|---|---|
 | **Protección** | Implementado | Las seis capas del esquema anterior |
 | **Detección** | Implementado | Panel SIEM con ingesta del audit log de ModSecurity, access log de Nginx y eventos de Laravel; reglas de correlación con umbrales; política de retención declarada |
-| **Respuesta** | Implementado | Plan de respuesta a incidentes conforme a NIST SP 800-61r3, matriz de escalamiento, respaldo diario cifrado externo (RPO 24 h), prueba de restauración verificada (RTO 4 h) |
+| **Respuesta** | Implementado | Plan de respuesta a incidentes conforme a NIST SP 800-61r3, matriz de escalamiento, respaldo diario cifrado, prueba de restauración real (RTO medido: 2,9 s; metas RTO 4 h y RPO 24 h) |
 
 ## 4. Estructura del repositorio
 
@@ -69,26 +70,40 @@ dejaba **detección** parcial y **respuesta** ausente. Esta implementación cier
 │   ├── 01-entregables-previos/ Los cuatro documentos del curso ya entregados
 │   ├── 02-arquitectura/        Decisiones de arquitectura y diagramas
 │   ├── 03-politicas/           Política de seguridad, plan de respuesta a incidentes, matriz de escalamiento
-│   └── 04-evidencias/          Matriz de controles ISO 27001 y trazabilidad
+│   ├── 04-evidencias/          Matriz de controles ISO 27001 y trazabilidad
+│   └── 05-segundo-entregable/  Documento, presentación, guion de 5 min y acceso para el evaluador
 ├── evidencias/                 Reportes archivados: OWASP ZAP, nmap, Lynis, testssl, composer audit
 └── .github/workflows/          Escaneos automatizados de seguridad y de cadena de suministro
 ```
 
 ## 5. Demostraciones en vivo
 
-1. **WAF bloqueando ataques** — inyección SQL y XSS lanzadas contra el sitio, respuesta HTTP 403,
-   con el identificador de la regla del Core Rule Set que se activó y la puntuación de anomalía acumulada.
-2. **Autenticación multifactor** — inicio de sesión con TOTP (RFC 6238) y con passkey (WebAuthn),
-   más los códigos de recuperación de un solo uso.
-3. **Panel SIEM** — eventos correlacionados en tiempo real, alertas y las métricas verificables
-   de los tres vértices del triángulo.
-4. **Ataques de SEO** — inyección de contenido spam, cloaking frente a un rastreador falsificado
-   y abuso de redirección abierta, con su detección y bloqueo.
-5. **Evidencias de auditoría** — OWASP ZAP, nmap, Lynis y la matriz de controles del Anexo A.
+| Qué | Dónde | Qué se ve |
+|---|---|---|
+| WAF bloqueando ataques | /demo-waf/consola | Ataques reales contra el servidor: 403 con la regla y la puntuación de anomalía |
+| Reglas propias de SEO | /demo-waf/consola, /seo/laboratorio | Googlebot falso, cloaking y spam de contenido bloqueados por reglas 15000–15099 |
+| Consultas envenenadas | /seo/consultas | Analizador de Search Console sobre el caso real (dominio anonimizado) |
+| Panel SIEM | /siem/tablero, /siem/alertas | Eventos del WAF, tráfico hostil real de Internet, triaje y acciones masivas |
+| Triángulo | /siem/metricas | Las 8 métricas calculadas, cada una con su origen |
+| Continuidad y capacitación | /siem/continuidad, /siem/capacitacion | Restauraciones reales del respaldo y asistencias de POL-006 |
+| MFA | Configuración → Seguridad | TOTP (RFC 6238), passkeys (WebAuthn) y códigos de recuperación |
+
+Acceso del evaluador: docs/05-segundo-entregable/Acceso-MarketGT.docx. El guion está en
+docs/02-arquitectura/guion-presentacion-5min.md.
 
 ## 6. Estado
 
-En construcción. Fecha de presentación: **sábado 26 de septiembre de 2026**.
+Desplegado y operativo. Suite de pruebas: 118 pruebas, 502 aserciones.
+
+**Despliegue en el servidor** (todo con sudo):
+
+```bash
+cd /opt/marketgt
+sudo bash infra/scripts/04-desplegar.sh marketgt.duckdns.org
+sudo bash infra/scripts/llenar-metricas.sh
+```
+
+Presentación: **sábado 26 de septiembre de 2026**.
 
 ---
 
