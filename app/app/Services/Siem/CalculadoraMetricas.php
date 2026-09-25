@@ -459,6 +459,9 @@ class CalculadoraMetricas
         if ($contencion['borde'] > 0) {
             $excluidas[] = $contencion['borde'].' contenidas por el cortafuegos en el borde, que no miden respuesta humana';
         }
+        if ($contencion['demo_a_mano'] > 0) {
+            $excluidas[] = $contencion['demo_a_mano'].' de demostracion contenidas a mano, cuya confirmacion es sembrada';
+        }
         if ($contencion['invertidas'] > 0) {
             $excluidas[] = $contencion['invertidas'].' con la contencion anterior a la confirmacion';
         }
@@ -549,7 +552,7 @@ class CalculadoraMetricas
      * Se calcula en PHP y no con TIMESTAMPDIFF, que es de MariaDB: asi la metrica da lo mismo
      * en las pruebas, sobre SQLite. Son decenas de filas, no millones.
      *
-     * @return array{duraciones: array<int, int>, borde: int, invertidas: int, reclasificadas: array<int, int>, sin_asiento: array<int, int>, demostracion: int}
+     * @return array{duraciones: array<int, int>, borde: int, invertidas: int, reclasificadas: array<int, int>, sin_asiento: array<int, int>, demostracion: int, demo_a_mano: int}
      */
     public function contencionesHumanas(CarbonInterface $desde, CarbonInterface $ahora): array
     {
@@ -591,6 +594,7 @@ class CalculadoraMetricas
         $borde = 0;
         $invertidas = 0;
         $demostracion = 0;
+        $demoAMano = 0;
 
         foreach ($filas as $fila) {
             $id = (int) $fila->getKey();
@@ -609,6 +613,17 @@ class CalculadoraMetricas
             // aparte para que se vea, en lugar de restar tiempo al promedio.
             if ($segundos < 0) {
                 $invertidas++;
+
+                continue;
+            }
+
+            // Alerta de demostracion contenida a mano: el semillero le pone una confirmacion
+            // fechada horas atras para dar historia al panel, asi que restar contra ella mide un
+            // tiempo inventado. Las contenciones que escribe el propio semillero no llevan
+            // procedencia y siguen contando.
+            if ($conProcedencia && $fila->es_demostracion
+                && $fila->getAttribute('procedencia_triaje') === TriajeAsistido::PROCEDENCIA_HUMANA) {
+                $demoAMano++;
 
                 continue;
             }
@@ -637,6 +652,7 @@ class CalculadoraMetricas
             'reclasificadas' => $reclasificadas,
             'sin_asiento' => $sinAsiento,
             'demostracion' => $demostracion,
+            'demo_a_mano' => $demoAMano,
         ];
     }
 

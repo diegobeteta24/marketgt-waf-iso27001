@@ -235,6 +235,20 @@ class ReclasificarContencionTest extends TestCase
         $this->assertStringContainsString('1 de demostracion', $this->metrica()['origen']);
     }
 
+    public function test_una_demo_contenida_a_mano_no_cuenta_porque_su_confirmacion_es_sembrada(): void
+    {
+        // El caso real: demo en triaje con confirmacion sembrada horas atras, contenida a mano
+        // desde el panel. Restar contra esa fecha daba cuarenta horas inventadas.
+        $this->contenida(0.5);
+        $demo = $this->contenida(40, ['es_demostracion' => true]);
+        AlertaSeguridad::query()->whereKey($demo->id)->update(['procedencia_triaje' => TriajeAsistido::PROCEDENCIA_HUMANA]);
+
+        $metrica = $this->metrica();
+
+        $this->assertSame(30.0, $metrica['valor']);
+        $this->assertStringContainsString('1 de demostracion contenidas a mano', $metrica['origen']);
+    }
+
     public function test_sin_identificadores_solo_lista_y_no_cambia_nada(): void
     {
         $paso = $this->contenida(43.1, [], bloqueado: false, codigo: 200);
