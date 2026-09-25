@@ -6,6 +6,7 @@ use App\Models\AlertaSeguridad;
 use App\Models\Capacitacion;
 use App\Models\EventoSeguridad;
 use App\Models\PruebaRestauracion;
+use App\Models\RegistroAuditoria;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
@@ -287,60 +288,8 @@ class CalculadoraMetricas
         // dice que comando la produce.
         $recuperacion = PruebaRestauracion::medicionRecuperacion($ahora);
 
-        // Tiempo medio de contencion: desde que un humano confirmo que la alerta era real
-        // hasta que la marco contenida. Medir desde la deteccion mezclaria el retraso del
-        // turno de guardia con la capacidad tecnica de responder.
-        $contencion = $this->contencionesHumanas($desde, $ahora);
-        $duraciones = $contencion['duraciones'];
-        $muestraContencion = count($duraciones);
-
-        $excluidas = [];
-        if ($contencion['borde'] > 0) {
-            $excluidas[] = $contencion['borde'].' contenidas por el cortafuegos en el borde, que no miden respuesta humana';
-        }
-        if ($contencion['invertidas'] > 0) {
-            $excluidas[] = $contencion['invertidas'].' con la contencion anterior a la confirmacion';
-        }
-
-        if ($muestraContencion === 0) {
-            $metricaContencion = $this->sinDatos(
-                clave: 'tiempo_medio_contencion',
-                nombre: 'Tiempo medio de contencion',
-                meta: '2 horas o menos',
-                motivo: $excluidas === []
-                    ? 'Ninguna alerta de la ventana llego todavia al estado contenida.'
-                    : 'Ninguna persona ha contenido todavia una alerta de la ventana. Excluidas: '.implode('; ', $excluidas).'.',
-            );
-        } else {
-            $promedioMinutos = array_sum($duraciones) / $muestraContencion / 60;
-            $cumple = $promedioMinutos <= self::META_CONTENCION_MINUTOS;
-
-            // Las mas lentas, con su identificador, cuando la media no cumple: un promedio que
-            // falla sin decir que alertas lo arrastran obliga a buscarlas a ciegas.
-            arsort($duraciones);
-            $lentas = array_map(
-                static fn (int $id, int $segundos): string => '#'.$id.' ('.number_format($segundos / 3600, 1).' h)',
-                array_keys(array_slice($duraciones, 0, 3, true)),
-                array_slice($duraciones, 0, 3, true),
-            );
-
-            $metricaContencion = $this->medida(
-                clave: 'tiempo_medio_contencion',
-                nombre: 'Tiempo medio de contencion',
-                meta: '2 horas o menos',
-                valor: round($promedioMinutos, 1),
-                unidad: 'min',
-                cumple: $cumple,
-                muestra: $muestraContencion,
-                origen: 'Promedio de (contenida_en - confirmada_en) sobre las contenciones hechas por una persona '
-                    .'en los ultimos '.self::DIAS_OBSERVACION.' dias.'
-                    .($excluidas === [] ? '' : ' Excluidas: '.implode('; ', $excluidas).'.'),
-                advertencia: $cumple ? null : 'Las contenciones mas lentas: '.implode(', ', $lentas).'.',
-            );
-        }
-
         return [
-            $metricaContencion,
+            $this->metricaTiempoContencion($desde, $ahora),
             // RTO y RPO se comprueban con una prueba de restauracion, no con el trafico del
             // WAF. Declararlos cumplidos desde este panel seria afirmar algo que el panel no vio.
             $recuperacion['rto_horas'] === null
@@ -491,25 +440,122 @@ class CalculadoraMetricas
     }
 
     /**
-     * Duracion de cada contencion hecha por una persona, en segundos, indexada por alerta.
+     * Tiempo medio de contencion: desde que el equipo confirmo que la alerta era real hasta
+     * que la marco contenida. Medir desde la deteccion mezclaria el retraso del turno de
+     * guardia con la capacidad tecnica de responder.
      *
-     * Se excluyen por lo que SON, no por el orden de sus fechas, las alertas que contuvo el
-     * cortafuegos en el borde: las marca siem:contener-bloqueadas con la regla del bloqueo y
-     * procedencia automatica. Una version anterior las excluia solo si la contencion quedaba
-     * antes de la confirmacion, y ese orden dependia de cuando llego cada evento: bastaba un
-     * bloqueo posterior a la revision para que una contencion del WAF entrara en el promedio
-     * como si una persona hubiera tardado horas.
+     * Todo lo que se excluye se dice, con numero y, en las reclasificadas, con identificador
+     * y con la cifra que saldria contandolas: una exclusion que no se ve no se puede auditar.
      *
-     * Se calcula aqui y no con TIMESTAMPDIFF, que es de MariaDB: asi la metrica da lo mismo en
-     * las pruebas, sobre SQLite. Son decenas de filas, no millones.
+     * @return array<string, mixed>
+     */
+    public function metricaTiempoContencion(CarbonInterface $desde, CarbonInterface $ahora): array
+    {
+        $contencion = $this->contencionesHumanas($desde, $ahora);
+        $duraciones = $contencion['duraciones'];
+        $muestra = count($duraciones);
+
+        $excluidas = [];
+        if ($contencion['borde'] > 0) {
+            $excluidas[] = $contencion['borde'].' contenidas por el cortafuegos en el borde, que no miden respuesta humana';
+        }
+        if ($contencion['invertidas'] > 0) {
+            $excluidas[] = $contencion['invertidas'].' con la contencion anterior a la confirmacion';
+        }
+        if ($contencion['reclasificadas'] !== []) {
+            $ids = array_keys($contencion['reclasificadas']);
+            $excluidas[] = count($ids).' reclasificadas como cerradas sin impacto, con responsable y motivo en el '
+                .'registro de auditoria ('.$this->enumerar($ids).')';
+        }
+
+        if ($muestra === 0) {
+            return $this->sinDatos(
+                clave: 'tiempo_medio_contencion',
+                nombre: 'Tiempo medio de contencion',
+                meta: '2 horas o menos',
+                motivo: $excluidas === []
+                    ? 'Ninguna alerta de la ventana llego todavia al estado contenida.'
+                    : 'Ninguna contencion de la ventana mide una respuesta del equipo. Excluidas: '.implode('; ', $excluidas).'.',
+            );
+        }
+
+        $promedioMinutos = array_sum($duraciones) / $muestra / 60;
+        $cumple = $promedioMinutos <= self::META_CONTENCION_MINUTOS;
+
+        $avisos = [];
+
+        // Con las reclasificadas dentro, cuanto daria: la cifra que se excluye se ve.
+        if ($contencion['reclasificadas'] !== []) {
+            $todas = array_merge(array_values($duraciones), array_values($contencion['reclasificadas']));
+            $avisos[] = 'Contando las reclasificadas, el promedio seria '
+                .$this->formatearValor(array_sum($todas) / count($todas) / 60, 'min').'.';
+        }
+
+        // Una marca de reclasificacion sin asiento de auditoria no se acepta: la alerta
+        // sigue en el promedio y se avisa, porque alguien la puso fuera del comando.
+        if ($contencion['sin_asiento'] !== []) {
+            $avisos[] = count($contencion['sin_asiento']).' alertas marcadas como reclasificadas no tienen asiento de '
+                .'auditoria y siguen contando ('.$this->enumerar($contencion['sin_asiento']).').';
+        }
+
+        // Las mas lentas, con su identificador, cuando la media no cumple: un promedio que
+        // falla sin decir que alertas lo arrastran obliga a buscarlas a ciegas.
+        if (! $cumple) {
+            arsort($duraciones);
+            $lentas = [];
+            foreach (array_slice($duraciones, 0, 3, true) as $id => $segundos) {
+                $lentas[] = '#'.$id.' ('.number_format($segundos / 3600, 1).' h)';
+            }
+            $avisos[] = 'Las contenciones mas lentas: '.implode(', ', $lentas).'.';
+        }
+
+        return $this->medida(
+            clave: 'tiempo_medio_contencion',
+            nombre: 'Tiempo medio de contencion',
+            meta: '2 horas o menos',
+            valor: round($promedioMinutos, 1),
+            unidad: 'min',
+            cumple: $cumple,
+            muestra: $muestra,
+            origen: 'Promedio de (contenida_en - confirmada_en) sobre las contenciones registradas por el equipo en los '
+                .'ultimos '.self::DIAS_OBSERVACION.' dias'
+                .($contencion['demostracion'] > 0
+                    ? ', de ellas '.$contencion['demostracion'].' de demostracion, sembradas y marcadas como tales'
+                    : '')
+                .'.'.($excluidas === [] ? '' : ' Excluidas: '.implode('; ', $excluidas).'.'),
+            advertencia: $avisos === [] ? null : implode(' ', $avisos),
+        );
+    }
+
+    /**
+     * @param  array<int, int>  $ids
+     */
+    private function enumerar(array $ids): string
+    {
+        $visibles = array_map(static fn (int $id): string => '#'.$id, array_slice($ids, 0, 10));
+
+        return implode(', ', $visibles).(count($ids) > 10 ? ' y '.(count($ids) - 10).' mas' : '');
+    }
+
+    /**
+     * Contenciones de la ventana, separadas por lo que son.
      *
-     * @return array{duraciones: array<int, int>, borde: int, invertidas: int}
+     * Se excluyen por lo que SON, no por el orden de sus fechas:
+     *   - las que contuvo el cortafuegos en el borde (las marca siem:contener-bloqueadas);
+     *   - las reclasificadas como "sin impacto" por siem:reclasificar-contencion, pero SOLO si
+     *     existe su asiento de auditoria. Una marca puesta a mano en la base, sin asiento, no
+     *     saca a nadie del promedio: se queda dentro y se avisa en 'sin_asiento'.
+     *
+     * Se calcula en PHP y no con TIMESTAMPDIFF, que es de MariaDB: asi la metrica da lo mismo
+     * en las pruebas, sobre SQLite. Son decenas de filas, no millones.
+     *
+     * @return array{duraciones: array<int, int>, borde: int, invertidas: int, reclasificadas: array<int, int>, sin_asiento: array<int, int>, demostracion: int}
      */
     public function contencionesHumanas(CarbonInterface $desde, CarbonInterface $ahora): array
     {
         $conProcedencia = app(TriajeAsistido::class)->procedenciaRegistrable();
 
-        $columnas = ['id', 'confirmada_en', 'contenida_en'];
+        $columnas = ['id', 'confirmada_en', 'contenida_en', 'es_demostracion'];
         if ($conProcedencia) {
             $columnas[] = 'triaje_regla';
             $columnas[] = 'procedencia_triaje';
@@ -521,11 +567,34 @@ class CalculadoraMetricas
             ->whereNotNull('contenida_en')
             ->get($columnas);
 
+        // Una sola consulta para saber que reclasificaciones tienen su asiento.
+        $conAsiento = [];
+        if ($conProcedencia) {
+            $marcadas = $filas
+                ->filter(fn (AlertaSeguridad $f) => $f->getAttribute('triaje_regla') === TriajeAsistido::REGLA_RECLASIFICADA_SIN_IMPACTO)
+                ->map(fn (AlertaSeguridad $f) => (string) $f->getKey())
+                ->values()
+                ->all();
+
+            if ($marcadas !== []) {
+                $conAsiento = array_flip(RegistroAuditoria::query()
+                    ->where('accion', 'alerta.contencion_reclasificada')
+                    ->whereIn('identificador_recurso', $marcadas)
+                    ->pluck('identificador_recurso')
+                    ->all());
+            }
+        }
+
         $duraciones = [];
+        $reclasificadas = [];
+        $sinAsiento = [];
         $borde = 0;
         $invertidas = 0;
+        $demostracion = 0;
 
         foreach ($filas as $fila) {
+            $id = (int) $fila->getKey();
+
             if ($conProcedencia
                 && $fila->getAttribute('triaje_regla') === TriajeAsistido::REGLA_BLOQUEO_CRITICO
                 && $fila->getAttribute('procedencia_triaje') === TriajeAsistido::PROCEDENCIA_AUTOMATICA) {
@@ -544,10 +613,31 @@ class CalculadoraMetricas
                 continue;
             }
 
-            $duraciones[(int) $fila->getKey()] = $segundos;
+            if ($conProcedencia && $fila->getAttribute('triaje_regla') === TriajeAsistido::REGLA_RECLASIFICADA_SIN_IMPACTO) {
+                if (isset($conAsiento[(string) $id])) {
+                    $reclasificadas[$id] = $segundos;
+
+                    continue;
+                }
+
+                $sinAsiento[] = $id;
+            }
+
+            $duraciones[$id] = $segundos;
+
+            if ($fila->es_demostracion) {
+                $demostracion++;
+            }
         }
 
-        return ['duraciones' => $duraciones, 'borde' => $borde, 'invertidas' => $invertidas];
+        return [
+            'duraciones' => $duraciones,
+            'borde' => $borde,
+            'invertidas' => $invertidas,
+            'reclasificadas' => $reclasificadas,
+            'sin_asiento' => $sinAsiento,
+            'demostracion' => $demostracion,
+        ];
     }
 
     private function numero(int $valor): string

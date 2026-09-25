@@ -176,7 +176,6 @@ class AccionesMasivas extends Component
         $analista = $this->exigirAnalista();
 
         $cantidad = $this->cantidadMarcada();
-        $loteGrande = $cantidad > self::LOTE_GRANDE;
 
         $this->validate(
             [
@@ -192,10 +191,12 @@ class AccionesMasivas extends Component
                 'seleccionadas.required' => 'Marque al menos una alerta.',
                 'seleccionadas.min' => 'Marque al menos una alerta.',
                 'destino.required' => 'Elija a que estado pasan las alertas marcadas.',
-                'nota.required' => $loteGrande && $this->destino !== AlertaSeguridad::ESTADO_FALSO_POSITIVO
-                    ? 'Un lote de '.$cantidad.' alertas exige justificacion escrita: que se reviso, con que criterio, '
-                        .'y por que el resto lo comparte. Sin ella no se distingue una revision de un contador bajado a ciegas.'
-                    : 'Para marcar falso positivo hay que escribir por que. Un triaje sin justificacion no es auditable.',
+                'nota.required' => match (true) {
+                    $this->destino === AlertaSeguridad::ESTADO_FALSO_POSITIVO => 'Para marcar falso positivo hay que escribir por que. Un triaje sin justificacion no es auditable.',
+                    $this->destino === AlertaSeguridad::ESTADO_CERRADA => 'Para cerrar hay que escribir que se comprobo y por que no tuvo impacto.',
+                    default => 'Un lote de '.$cantidad.' alertas exige justificacion escrita: que se reviso, con que criterio, '
+                        .'y por que el resto lo comparte. Sin ella no se distingue una revision de un contador bajado a ciegas.',
+                },
                 'nota.min' => 'Explique el motivo con al menos '.self::MINIMO_NOTA.' caracteres: quien lea esto manana no estara en la sala.',
             ],
         );
@@ -439,7 +440,9 @@ class AccionesMasivas extends Component
 
     public function exigeNota(): bool
     {
-        return $this->destino === AlertaSeguridad::ESTADO_FALSO_POSITIVO
+        // Cerrar tambien exige nota: es el cierre de lo que se reviso sin impacto, y sin
+        // justificacion no se distingue de cerrar para bajar el contador.
+        return in_array($this->destino, [AlertaSeguridad::ESTADO_FALSO_POSITIVO, AlertaSeguridad::ESTADO_CERRADA], true)
             || $this->cantidadMarcada() > self::LOTE_GRANDE;
     }
 

@@ -38,6 +38,14 @@ class TriajeAsistido
     public const REGLA_RANGO_DOCUMENTACION = 'rango_documentacion';
 
     /**
+     * Marca de una contención que una persona reclasificó como "sin impacto": se marcó
+     * contenida algo en lo que no había amenaza activa que detener. La pone
+     * siem:reclasificar-contencion, siempre con motivo escrito y asiento de auditoría, y la
+     * métrica de contención la excluye DECLARÁNDOLO.
+     */
+    public const REGLA_RECLASIFICADA_SIN_IMPACTO = 'reclasificada_sin_impacto';
+
+    /**
      * Ninguna regla encajo. No es un error ni un estado intermedio: es el resultado correcto
      * para todo lo que un criterio escrito no alcanza a explicar.
      */

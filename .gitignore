@@ -75,3 +75,6 @@ dns.env
 # Word y PowerPoint los crean mientras el documento esta abierto. Son basura
 # temporal, y ademas llevan el nombre de usuario de quien lo tiene abierto.
 ~$*
+
+# Copias locales del acceso del evaluador: llevan la contrasena escrita.
+docs/05-segundo-entregable/Acceso-MarketGT.pdf

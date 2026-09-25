@@ -306,6 +306,16 @@
                 <p class="text-sm font-medium text-red-400">{{ $message }}</p>
             @enderror
 
+            @if (in_array($destino, [\App\Models\AlertaSeguridad::ESTADO_CONTENIDA, \App\Models\AlertaSeguridad::ESTADO_CERRADA], true))
+                {{-- Se describe lo que AFIRMA cada estado, no como mueve una metrica: el estado
+                     se elige por lo que paso. --}}
+                <p class="text-sm text-zinc-300 sm:text-xs">
+                    «Contenida» afirma que había una amenaza activa y que se detuvo; su hora entra en el tiempo
+                    medio de contención. Si era tráfico hostil sin impacto, elija «Cerrada» y escriba qué comprobó.
+                    Si era tráfico legítimo, «Falso positivo».
+                </p>
+            @endif
+
             @if ($this->exigeNota())
                 <p class="text-sm text-amber-400 sm:text-xs">
                     @if ($destino === \App\Models\AlertaSeguridad::ESTADO_FALSO_POSITIVO)

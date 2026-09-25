@@ -138,6 +138,15 @@
                                                 @endif
                                             </dd>
                                         </div>
+                                        {{-- La exclusion de la metrica tiene que verse en la propia alerta,
+                                             no solo como un numero en el panel de metricas. --}}
+                                        @if ($alerta->getAttribute('triaje_regla') === \App\Services\Siem\TriajeAsistido::REGLA_RECLASIFICADA_SIN_IMPACTO)
+                                            <p class="text-xs text-amber-300">
+                                                Reclasificada sin impacto el {{ \Illuminate\Support\Str::of((string) $alerta->getAttribute('triado_en'))->limit(16, '') }}
+                                                por {{ $alerta->getAttribute('triado_por') }}: {{ $alerta->getAttribute('triaje_criterio') }}.
+                                                Excluida del tiempo medio de contención.
+                                            </p>
+                                        @endif
                                     @endif
                                 </dl>
                             </div>
@@ -196,7 +205,7 @@
                             @forelse ($this->transicionesDe($alerta) as $destino)
                                 <flux:button
                                     size="sm"
-                                    :variant="$destino === AlertaSeguridad::ESTADO_CONTENIDA ? 'primary' : ($destino === AlertaSeguridad::ESTADO_FALSO_POSITIVO ? 'danger' : 'filled')"
+                                    :variant="$destino === AlertaSeguridad::ESTADO_FALSO_POSITIVO ? 'danger' : 'filled'"
                                     wire:click="cambiarEstado({{ $alerta->id }}, '{{ $destino }}')"
                                     class="min-h-11 w-full sm:min-h-0 sm:w-auto"
                                 >
@@ -212,6 +221,16 @@
                                 Guardar nota
                             </flux:button>
                         </div>
+
+                        @if (in_array(AlertaSeguridad::ESTADO_CONTENIDA, $this->transicionesDe($alerta), true))
+                            {{-- "Marcar contenida" ya no es el boton destacado: no es la accion por
+                                 defecto, es una afirmacion sobre lo que paso. --}}
+                            <p class="text-xs text-zinc-400">
+                                «Contenida» afirma que había una amenaza activa y que se detuvo; su hora entra en el tiempo
+                                medio de contención. Tráfico hostil sin impacto: «Cerrada», con nota. Tráfico legítimo:
+                                «Falso positivo».
+                            </p>
+                        @endif
                     </div>
                 @endif
             </div>
